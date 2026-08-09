@@ -21,7 +21,7 @@ export interface IQuestion extends Document {
   testType?: string;
   testTitle?: string;
   targetExamLevel?: string;
-  imageUrl?: string; // 👈 ఇమేజ్ సపోర్ట్ కోసం కొత్తగా యాడ్ చేయబడింది
+  imageUrl?: string; 
 }
 
 const QuestionSchema: Schema = new Schema(

@@ -20,7 +20,7 @@ import questionRoutes from "./routes/questionRoutes";
 import studentProgressRoutes from "./routes/studentProgressRoutes";
 import complaintRoutes from "./routes/complaintRoutes";
 import testRoutes from "./routes/testRoutes"; // 👈 1. ఇక్కడ testRoutes ఇంపోర్ట్ చేయండి
-
+import facultyRoutes from "./routes/facultyRoutes";
 
 const app = express();
 
@@ -102,6 +102,13 @@ app.use(
   teacherRoutes
 );
 
+
+// ================= FACULTY API =================
+
+app.use(
+  "/api/faculty",
+  facultyRoutes
+);
 
 
 // ================= STAFF API =================

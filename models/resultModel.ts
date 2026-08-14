@@ -1,64 +1,105 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-
 export interface IResult extends Document {
 
+  // ============================================================
+  // STUDENT
+  // ============================================================
 
   studentId: string;
 
   studentName: string;
 
 
-  examId: mongoose.Types.ObjectId;
+  // ============================================================
+  // EXAM
+  // ============================================================
 
+  examId?: mongoose.Types.ObjectId | null;
 
   examName: string;
 
 
+  // ============================================================
+  // TEST CATEGORY
+  // mock / daily / subject
+  // ============================================================
+
+  testCategory: "mock" | "daily" | "subject";
+
+
+  // ============================================================
+  // SUBJECT
+  // ============================================================
+
   subject: string;
 
 
+  // ============================================================
+  // QUESTION STATS
+  // ============================================================
 
   totalQuestions: number;
 
-
   attemptedQuestions: number;
-
 
   unansweredQuestions: number;
 
 
+  // ============================================================
+  // ANSWER STATS
+  // ============================================================
 
   correctAnswers: number;
-
 
   wrongAnswers: number;
 
 
+  // ============================================================
+  // MARKS
+  // ============================================================
 
   marks: number;
 
-
   percentage: number;
 
-
   grade: string;
-
 
   status: "PASS" | "FAIL";
 
 
+  // ============================================================
+  // EXAM DETAILS
+  // ============================================================
 
   timeTaken: number;
 
-
   warnings: number;
-
-
 
   rank: number;
 
 
+  // ============================================================
+  // RESULT RELEASE SYSTEM
+  // ============================================================
+
+  // Immediate result:
+  // daily / subject -> current time
+  //
+  // Delayed result:
+  // mock -> next day 8:00 AM
+
+  resultAvailableAt: Date;
+
+  // true  -> student can see result
+  // false -> result locked
+
+  isResultPublished: boolean;
+
+
+  // ============================================================
+  // QUESTION REVIEW
+  // ============================================================
 
   review: {
 
@@ -72,335 +113,404 @@ export interface IResult extends Document {
 
     isCorrect: boolean;
 
+    marks?: number;
+
   }[];
-
-
 
 }
 
 
-
-
-
-
+// ============================================================
+// RESULT SCHEMA
+// ============================================================
 
 const ResultSchema = new Schema<IResult>(
 
+  {
 
-{
+    // ============================================================
+    // STUDENT
+    // ============================================================
 
+    studentId: {
 
-studentId:{
+      type: String,
 
+      required: true,
 
-type:String,
+      index: true,
 
-required:true
+    },
 
 
-},
+    studentName: {
 
+      type: String,
 
+      default: "",
 
+    },
 
-studentName:{
 
+    // ============================================================
+    // EXAM
+    // ============================================================
 
-type:String,
+    // Daily / Subject tests ki null avvachu
 
-default:""
+    examId: {
 
+      type: mongoose.Schema.Types.ObjectId,
 
-},
+      ref: "Exam",
 
+      required: false,
 
+      default: null,
 
+    },
 
 
-examId:{
+    examName: {
 
+      type: String,
 
-type:mongoose.Schema.Types.ObjectId,
+      default: "Exam",
 
-ref:"Exam",
+    },
 
-required:true
 
+    // ============================================================
+    // TEST CATEGORY
+    // ============================================================
 
-},
+    testCategory: {
 
+      type: String,
 
+      enum: [
 
+        "mock",
 
+        "daily",
 
-examName:{
+        "subject",
 
+      ],
 
-type:String,
+      required: true,
 
-default:"Exam"
+      default: "subject",
 
+      index: true,
 
-},
+    },
 
 
+    // ============================================================
+    // SUBJECT
+    // ============================================================
 
+    subject: {
 
+      type: String,
 
-subject:{
+      required: true,
 
+      default: "General",
 
-type:String,
+      trim: true,
 
-default:"General"
+      index: true,
 
+    },
 
-},
 
+    // ============================================================
+    // QUESTION STATS
+    // ============================================================
 
+    totalQuestions: {
 
+      type: Number,
 
+      required: true,
 
-totalQuestions:{
+    },
 
 
-type:Number,
+    attemptedQuestions: {
 
-required:true
+      type: Number,
 
+      default: 0,
 
-},
+    },
 
 
+    unansweredQuestions: {
 
+      type: Number,
 
-attemptedQuestions:{
+      default: 0,
 
+    },
 
-type:Number,
 
-default:0
+    // ============================================================
+    // ANSWER STATS
+    // ============================================================
 
+    correctAnswers: {
 
-},
+      type: Number,
 
+      default: 0,
 
+    },
 
 
+    wrongAnswers: {
 
-unansweredQuestions:{
+      type: Number,
 
+      default: 0,
 
-type:Number,
+    },
 
-default:0
 
+    // ============================================================
+    // MARKS
+    // ============================================================
 
-},
+    marks: {
 
+      type: Number,
 
+      default: 0,
 
+    },
 
 
-correctAnswers:{
+    percentage: {
 
+      type: Number,
 
-type:Number,
+      default: 0,
 
-default:0
+    },
 
 
-},
+    grade: {
 
+      type: String,
 
+      default: "F",
 
+    },
 
-wrongAnswers:{
 
+    status: {
 
-type:Number,
+      type: String,
 
-default:0
+      enum: [
 
+        "PASS",
 
-},
+        "FAIL",
 
+      ],
 
+      default: "FAIL",
 
+    },
 
 
-marks:{
+    // ============================================================
+    // EXAM DETAILS
+    // ============================================================
 
+    timeTaken: {
 
-type:Number,
+      type: Number,
 
-default:0
+      default: 0,
 
+    },
 
-},
 
+    warnings: {
 
+      type: Number,
 
+      default: 0,
 
+    },
 
-percentage:{
 
+    rank: {
 
-type:Number,
+      type: Number,
 
-default:0
+      default: 0,
 
+    },
 
-},
 
+    // ============================================================
+    // RESULT RELEASE
+    // ============================================================
 
+    resultAvailableAt: {
 
+      type: Date,
 
+      required: true,
 
-grade:{
+      index: true,
 
+    },
 
-type:String,
 
-default:"F"
+    isResultPublished: {
 
+      type: Boolean,
 
-},
+      default: false,
 
+      index: true,
 
+    },
 
 
+    // ============================================================
+    // REVIEW
+    // ============================================================
 
-status:{
+    review: [
 
+      {
 
-type:String,
+        questionId: {
 
-enum:[
+          type: mongoose.Schema.Types.ObjectId,
 
-"PASS",
+          ref: "QuestionBank",
 
-"FAIL"
+        },
 
-],
 
+        question: {
 
-default:"FAIL"
+          type: String,
 
+          default: "",
 
-},
+        },
 
 
+        selectedAnswer: {
 
+          type: String,
 
+          default: "",
 
-timeTaken:{
+        },
 
 
-type:Number,
+        correctAnswer: {
 
-default:0
+          type: String,
 
+          default: "",
 
-},
+        },
 
 
+        isCorrect: {
 
+          type: Boolean,
 
+          default: false,
 
-warnings:{
+        },
 
 
-type:Number,
+        marks: {
 
-default:0
+          type: Number,
 
+          default: 0,
 
-},
+        },
 
+      },
 
+    ],
 
+  },
 
+  {
 
-rank:{
+    timestamps: true,
 
-
-type:Number,
-
-default:0
-
-
-},
-
-
-
-
-
-review:[
-
-{
-
-
-questionId:{
-
-
-type:mongoose.Schema.Types.ObjectId,
-
-ref:"QuestionBank"
-
-
-},
-
-
-question:String,
-
-
-selectedAnswer:String,
-
-
-correctAnswer:String,
-
-
-isCorrect:Boolean
-
-
-
-}
-
-]
-
-
-
-},
-
-
-{
-
-timestamps:true
-
-}
+  }
 
 );
 
 
+// ============================================================
+// INDEXES
+// ============================================================
+
+ResultSchema.index({
+
+  studentId: 1,
+
+  createdAt: -1,
+
+});
 
 
+ResultSchema.index({
+
+  testCategory: 1,
+
+  resultAvailableAt: 1,
+
+});
 
 
-// Prevent OverwriteModelError
+ResultSchema.index({
+
+  isResultPublished: 1,
+
+});
+
+
+ResultSchema.index({
+
+  subject: 1,
+
+});
+
+
+// ============================================================
+// PREVENT OVERWRITE MODEL ERROR
+// ============================================================
 
 const Result =
 
-mongoose.models.Result ||
+  mongoose.models.Result ||
 
-mongoose.model<IResult>(
+  mongoose.model<IResult>(
 
-"Result",
+    "Result",
 
-ResultSchema
+    ResultSchema
 
-);
-
+  );
 
 
 export default Result;

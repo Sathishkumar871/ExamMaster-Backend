@@ -1,12 +1,8 @@
-// src/app.ts
 
 import express from "express";
 import cors from "cors";
 import fileUpload from "express-fileupload";
 import "dotenv/config";
-
-
-// Routes
 import studentRoutes from "./routes/studentRoutes";
 import examRoutes from "./routes/examRoutes";
 import resultRoutes from "./routes/resultRoutes";

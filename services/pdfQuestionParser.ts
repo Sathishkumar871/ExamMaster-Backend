@@ -1,4 +1,3 @@
-
 export interface ParsedQuestion {
   questionNumber: number;
   question: string;
@@ -8,53 +7,61 @@ export interface ParsedQuestion {
   questionType: string;
 }
 
-// ======================================================
-// CLEAN TEXT
-// ======================================================
+// ============================================================
+// CLEAN PDF TEXT
+// ============================================================
+
 const cleanText = (text: string): string => {
   return text
-    .replace(/\r/g, "")
-    .replace(/\t/g, " ")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
     .replace(/\u00A0/g, " ")
-    .replace(/[ ]+/g, " ")
+    .replace(/\u200B/g, "")
+    .replace(/\uFEFF/g, "")
+    .replace(/\t/g, " ")
+    .replace(/[ ]{2,}/g, " ")
     .trim();
 };
 
-// ======================================================
+// ============================================================
 // NORMALIZE ANSWER
-// ======================================================
+// ============================================================
+
 const normalizeAnswer = (
   answer: string
 ): {
   correctAnswer: string;
   ansNumber: string;
 } => {
-  const value = answer.trim().toUpperCase();
+  const value = answer
+    .trim()
+    .toUpperCase()
+    .replace(/[().]/g, "");
 
   if (value === "A" || value === "1") {
     return {
-      correctAnswer: value,
+      correctAnswer: "1",
       ansNumber: "1",
     };
   }
 
   if (value === "B" || value === "2") {
     return {
-      correctAnswer: value,
+      correctAnswer: "2",
       ansNumber: "2",
     };
   }
 
   if (value === "C" || value === "3") {
     return {
-      correctAnswer: value,
+      correctAnswer: "3",
       ansNumber: "3",
     };
   }
 
   if (value === "D" || value === "4") {
     return {
-      correctAnswer: value,
+      correctAnswer: "4",
       ansNumber: "4",
     };
   }
@@ -65,23 +72,32 @@ const normalizeAnswer = (
   };
 };
 
-// ======================================================
+// ============================================================
 // OPTION DETECTOR
 //
 // Supports:
+//
 // (1) Option
 // (2) Option
+// (3) Option
+// (4) Option
+//
 // 1) Option
 // 2) Option
+//
 // 1. Option
 // 2. Option
+//
 // (A) Option
 // (B) Option
+//
 // A) Option
 // B) Option
+//
 // A. Option
 // B. Option
-// ======================================================
+// ============================================================
+
 const getOption = (
   line: string
 ): {
@@ -91,21 +107,30 @@ const getOption = (
   const cleanLine = line.trim();
 
   const match = cleanLine.match(
-    /^(?:\(([1-4A-D])\)|([1-4A-D])[.)])\s+(.+)$/i
+    /^(?:\(\s*([1-4A-D])\s*\)|([1-4A-D])[.)])\s+(.+)$/i
   );
 
   if (!match) {
     return null;
   }
 
-  // IMPORTANT:
-  // match[1] OR match[2] lo whichever available adi use chestham
-  const rawNumber = (match[1] || match[2] || "").toUpperCase();
+  const rawNumber = (
+    match[1] ||
+    match[2] ||
+    ""
+  )
+    .trim()
+    .toUpperCase();
 
-  // Text always match[3]
-  const optionText = (match[3] || "").trim();
+  const optionText = (
+    match[3] ||
+    ""
+  ).trim();
 
-  if (!rawNumber || !optionText) {
+  if (
+    !rawNumber ||
+    !optionText
+  ) {
     return null;
   }
 
@@ -122,10 +147,11 @@ const getOption = (
   };
 };
 
-// ======================================================
+// ============================================================
 // ANSWER DETECTOR
 //
 // Supports:
+//
 // Answer: 1
 // Answer: A
 // Ans: 2
@@ -133,7 +159,8 @@ const getOption = (
 // Correct Answer: C
 // Correct: 4
 // Answer - A
-// ======================================================
+// ============================================================
+
 const getAnswer = (
   line: string
 ): {
@@ -143,30 +170,34 @@ const getAnswer = (
   const cleanLine = line.trim();
 
   const match = cleanLine.match(
-    /^(?:answer|ans|correct\s+answer|correct)\s*[:\-]?\s*([1-4A-D])\b/i
+    /^(?:answer|ans|correct\s+answer|correct)\s*[:\-]?\s*\(?([1-4A-D])\)?(?:\.|\)|\s|$)/i
   );
 
   if (!match) {
     return null;
   }
 
-  const answerValue = match[1];
-
-  return normalizeAnswer(answerValue);
+  return normalizeAnswer(
+    match[1]
+  );
 };
 
-// ======================================================
+// ============================================================
 // QUESTION NUMBER DETECTOR
 //
 // Supports:
+//
 // 1. Question
 // 1) Question
 // 1 Question
+//
 // Q1. Question
 // Q1) Question
 // Q.1 Question
+//
 // Question 1. Question
-// ======================================================
+// ============================================================
+
 const getQuestionStart = (
   line: string
 ): {
@@ -175,181 +206,334 @@ const getQuestionStart = (
 } | null => {
   const cleanLine = line.trim();
 
-  // --------------------------------------------------
+  // ----------------------------------------------------------
+  // IMPORTANT:
+  // Do NOT treat (1), (2), (3), (4) as question numbers.
+  // Those are options.
+  // ----------------------------------------------------------
+
+  if (
+    /^\([1-4A-D]\)/i.test(
+      cleanLine
+    )
+  ) {
+    return null;
+  }
+
+  // ----------------------------------------------------------
   // 1. Question
   // 1) Question
-  // 1 Question
-  // --------------------------------------------------
+  // ----------------------------------------------------------
+
   let match = cleanLine.match(
-    /^(\d+)[.)]\s*(.+)$/ 
+    /^(\d+)[.)]\s+(.+)$/
   );
 
   if (match) {
     return {
-      questionNumber: Number(match[1]),
-      question: match[2].trim(),
+      questionNumber:
+        Number(match[1]),
+      question:
+        match[2].trim(),
     };
   }
 
-  // --------------------------------------------------
+  // ----------------------------------------------------------
   // Q1. Question
   // Q1) Question
   // Q.1 Question
-  // --------------------------------------------------
+  // ----------------------------------------------------------
+
   match = cleanLine.match(
     /^Q\.?\s*(\d+)\s*[:.)-]?\s*(.+)$/i
   );
 
   if (match) {
     return {
-      questionNumber: Number(match[1]),
-      question: match[2].trim(),
+      questionNumber:
+        Number(match[1]),
+      question:
+        match[2].trim(),
     };
   }
 
-  // --------------------------------------------------
+  // ----------------------------------------------------------
   // Question 1. Question
-  // --------------------------------------------------
+  // ----------------------------------------------------------
+
   match = cleanLine.match(
     /^Question\s+(\d+)\s*[:.)-]?\s*(.+)$/i
   );
 
   if (match) {
     return {
-      questionNumber: Number(match[1]),
-      question: match[2].trim(),
+      questionNumber:
+        Number(match[1]),
+      question:
+        match[2].trim(),
     };
   }
 
   return null;
 };
 
-// ======================================================
-// CHECK WHETHER LINE LOOKS LIKE OPTION
-// ======================================================
-const isOptionLine = (line: string): boolean => {
+// ============================================================
+// CHECK OPTION
+// ============================================================
+
+const isOptionLine = (
+  line: string
+): boolean => {
   return getOption(line) !== null;
 };
 
-// ======================================================
-// CHECK WHETHER LINE LOOKS LIKE ANSWER
-// ======================================================
-const isAnswerLine = (line: string): boolean => {
+// ============================================================
+// CHECK ANSWER
+// ============================================================
+
+const isAnswerLine = (
+  line: string
+): boolean => {
   return getAnswer(line) !== null;
 };
 
-// ======================================================
+// ============================================================
+// REMOVE COMMON PDF NOISE
+// ============================================================
+
+const isNoiseLine = (
+  line: string
+): boolean => {
+  const value = line
+    .trim()
+    .toLowerCase();
+
+  if (!value) {
+    return true;
+  }
+
+  // Page number
+  if (
+    /^page\s+\d+$/i.test(
+      value
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    /^\d+\s*\/\s*\d+$/.test(
+      value
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+// ============================================================
 // MAIN PARSER
-// ======================================================
+// ============================================================
+
 export function parseQuestions(
   text: string
 ): ParsedQuestion[] {
+
   const questions: ParsedQuestion[] = [];
 
-  // --------------------------------------------------
-  // Validate text
-  // --------------------------------------------------
-  if (!text || typeof text !== "string") {
-    console.log("PDF PARSER: Empty text");
+  // ----------------------------------------------------------
+  // VALIDATION
+  // ----------------------------------------------------------
+
+  if (
+    !text ||
+    typeof text !== "string"
+  ) {
+    console.log(
+      "PDF PARSER: Empty text"
+    );
+
     return [];
   }
 
-  // --------------------------------------------------
-  // Clean text
-  // --------------------------------------------------
-  const normalized = cleanText(text);
+  // ----------------------------------------------------------
+  // CLEAN
+  // ----------------------------------------------------------
+
+  const normalized =
+    cleanText(text);
 
   if (!normalized) {
-    console.log("PDF PARSER: No text after cleaning");
+    console.log(
+      "PDF PARSER: No text after cleaning"
+    );
+
     return [];
   }
 
-  // --------------------------------------------------
-  // Split into lines
-  // --------------------------------------------------
-  const lines = normalized
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  // ----------------------------------------------------------
+  // LINES
+  // ----------------------------------------------------------
+
+  const lines =
+    normalized
+      .split("\n")
+      .map(
+        (line) =>
+          line.trim()
+      )
+      .filter(
+        (line) =>
+          !isNoiseLine(line)
+      );
 
   console.log(
     "PDF PARSER TOTAL LINES:",
     lines.length
   );
 
-  // --------------------------------------------------
-  // Current question
-  // --------------------------------------------------
-  let currentQuestion: ParsedQuestion | null = null;
+  // ----------------------------------------------------------
+  // CURRENT QUESTION
+  // ----------------------------------------------------------
 
-  // ==================================================
+  let currentQuestion:
+    ParsedQuestion | null = null;
+
+  // ----------------------------------------------------------
+  // CURRENT OPTION NUMBER
+  // ----------------------------------------------------------
+
+  let currentOptionNumber =
+    "";
+
+  // ==========================================================
   // SAVE CURRENT QUESTION
-  // ==================================================
-  const saveCurrentQuestion = () => {
-    if (!currentQuestion) {
-      return;
-    }
+  // ==========================================================
 
-    // Remove empty options
-    currentQuestion.options =
-      currentQuestion.options
-        .map((option) => option.trim())
-        .filter(Boolean);
+  const saveCurrentQuestion =
+    () => {
 
-    // Only save questions having exactly 4 options
-    if (
-      currentQuestion.question.trim() &&
-      currentQuestion.options.length === 4
-    ) {
-      questions.push({
-        questionNumber:
+      if (!currentQuestion) {
+        return;
+      }
+
+      // --------------------------------------------
+      // CLEAN QUESTION
+      // --------------------------------------------
+
+      currentQuestion.question =
+        currentQuestion.question
+          .replace(/\s+/g, " ")
+          .trim();
+
+      // --------------------------------------------
+      // CLEAN OPTIONS
+      // --------------------------------------------
+
+      currentQuestion.options =
+        currentQuestion.options
+          .map(
+            (option) =>
+              option
+                .replace(/\s+/g, " ")
+                .trim()
+          )
+          .filter(Boolean);
+
+      // --------------------------------------------
+      // ONLY SAVE VALID MCQ
+      // --------------------------------------------
+
+      if (
+        currentQuestion.question &&
+        currentQuestion.options.length >= 4
+      ) {
+
+        const saved: ParsedQuestion = {
+          questionNumber:
+            currentQuestion.questionNumber,
+
+          question:
+            currentQuestion.question,
+
+          options:
+            currentQuestion.options.slice(
+              0,
+              4
+            ),
+
+          correctAnswer:
+            currentQuestion.correctAnswer,
+
+          ansNumber:
+            currentQuestion.ansNumber,
+
+          questionType:
+            "MCQ",
+        };
+
+        questions.push(
+          saved
+        );
+
+        console.log(
+          "QUESTION SAVED:",
+          saved.questionNumber
+        );
+
+      } else {
+
+        console.log(
+          "QUESTION SKIPPED:",
           currentQuestion.questionNumber,
+          "OPTIONS:",
+          currentQuestion.options.length,
+          "QUESTION:",
+          currentQuestion.question.substring(
+            0,
+            100
+          )
+        );
+      }
 
-        question:
-          currentQuestion.question.trim(),
+      currentQuestion =
+        null;
 
-        options:
-          currentQuestion.options.slice(0, 4),
+      currentOptionNumber =
+        "";
+    };
 
-        correctAnswer:
-          currentQuestion.correctAnswer,
+  // ==========================================================
+  // PROCESS LINES
+  // ==========================================================
 
-        ansNumber:
-          currentQuestion.ansNumber,
+  for (
+    let i = 0;
+    i < lines.length;
+    i++
+  ) {
 
-        questionType:
-          "MCQ",
-      });
-    } else {
-      console.log(
-        "QUESTION SKIPPED:",
-        currentQuestion.questionNumber,
-        "OPTIONS:",
-        currentQuestion.options.length
-      );
-    }
+    const line =
+      lines[i];
 
-    currentQuestion = null;
-  };
-
-  // ==================================================
-  // PROCESS EVERY LINE
-  // ==================================================
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // ================================================
+    // ========================================================
     // QUESTION START
-    // ================================================
+    // ========================================================
+
     const questionStart =
-      getQuestionStart(line);
+      getQuestionStart(
+        line
+      );
 
     if (questionStart) {
-      // Save previous question
+
+      // Save previous
       saveCurrentQuestion();
 
-      // Create new question
+      // Create new
       currentQuestion = {
+
         questionNumber:
           questionStart.questionNumber,
 
@@ -358,49 +542,41 @@ export function parseQuestions(
 
         options: [],
 
-        correctAnswer: "",
+        correctAnswer:
+          "",
 
-        ansNumber: "",
+        ansNumber:
+          "",
 
-        questionType: "MCQ",
+        questionType:
+          "MCQ",
       };
+
+      currentOptionNumber =
+        "";
 
       continue;
     }
 
-    // ================================================
-    // Ignore everything before first question
-    // ================================================
+    // ========================================================
+    // BEFORE FIRST QUESTION
+    // ========================================================
+
     if (!currentQuestion) {
       continue;
     }
 
-    // ================================================
-    // OPTION
-    // ================================================
-    const option =
-      getOption(line);
-
-    if (option) {
-      // Avoid more than 4 options
-      if (
-        currentQuestion.options.length < 4
-      ) {
-        currentQuestion.options.push(
-          option.text
-        );
-      }
-
-      continue;
-    }
-
-    // ================================================
+    // ========================================================
     // ANSWER
-    // ================================================
+    // ========================================================
+
     const answer =
-      getAnswer(line);
+      getAnswer(
+        line
+      );
 
     if (answer) {
+
       currentQuestion.correctAnswer =
         answer.correctAnswer;
 
@@ -410,80 +586,167 @@ export function parseQuestions(
       continue;
     }
 
-    // ================================================
+    // ========================================================
+    // OPTION
+    // ========================================================
+
+    const option =
+      getOption(
+        line
+      );
+
+    if (option) {
+
+      // ------------------------------------------------------
+      // Add option
+      // ------------------------------------------------------
+
+      if (
+        currentQuestion.options.length <
+        4
+      ) {
+
+        currentQuestion.options.push(
+          option.text
+        );
+
+        currentOptionNumber =
+          option.number;
+
+      }
+
+      continue;
+    }
+
+    // ========================================================
     // EXTRA QUESTION TEXT
     //
-    // If options haven't started yet,
-    // this is part of question.
-    // ================================================
+    // If options did not start,
+    // line belongs to question.
+    // ========================================================
+
     if (
-      currentQuestion.options.length === 0
+      currentQuestion.options.length ===
+      0
     ) {
+
       currentQuestion.question +=
         " " + line;
 
       continue;
     }
 
-    // ================================================
+    // ========================================================
     // MULTI-LINE OPTION
-    //
-    // Example:
-    // (1) This is a very long option
-    //     which continues here
-    // ================================================
+    // ========================================================
+
     if (
-      currentQuestion.options.length > 0 &&
-      currentQuestion.options.length < 4 &&
+      currentQuestion.options.length >
+        0 &&
+      currentQuestion.options.length <
+        4 &&
       !isOptionLine(line) &&
       !isAnswerLine(line)
     ) {
-      const lastIndex =
-        currentQuestion.options.length - 1;
 
-      if (lastIndex >= 0) {
-        currentQuestion.options[lastIndex] +=
+      const lastIndex =
+        currentQuestion.options.length -
+        1;
+
+      if (
+        lastIndex >= 0
+      ) {
+
+        currentQuestion.options[
+          lastIndex
+        ] +=
           " " + line;
       }
 
       continue;
     }
+
+    // ========================================================
+    // IGNORE EXTRA TEXT AFTER 4 OPTIONS
+    // ========================================================
+
+    if (
+      currentQuestion.options.length >=
+      4
+    ) {
+      continue;
+    }
   }
 
-  // ==================================================
+  // ==========================================================
   // SAVE LAST QUESTION
-  // ==================================================
+  // ==========================================================
+
   saveCurrentQuestion();
 
-  // ==================================================
-  // REMOVE DUPLICATE QUESTION NUMBERS
-  // ==================================================
+  // ==========================================================
+  // REMOVE DUPLICATES
+  // ==========================================================
+
+  const uniqueMap =
+    new Map<
+      number,
+      ParsedQuestion
+    >();
+
+  for (
+    const question of questions
+  ) {
+
+    if (
+      !uniqueMap.has(
+        question.questionNumber
+      )
+    ) {
+
+      uniqueMap.set(
+        question.questionNumber,
+        question
+      );
+    }
+  }
+
+  // ==========================================================
+  // SORT
+  // ==========================================================
+
   const uniqueQuestions =
-    questions.filter(
-      (question, index, array) =>
-        index ===
-        array.findIndex(
-          (q) =>
-            q.questionNumber ===
-            question.questionNumber
-        )
+    Array.from(
+      uniqueMap.values()
+    ).sort(
+      (a, b) =>
+        a.questionNumber -
+        b.questionNumber
     );
 
-  // ==================================================
-  // SORT BY QUESTION NUMBER
-  // ==================================================
-  uniqueQuestions.sort(
-    (a, b) =>
-      a.questionNumber -
-      b.questionNumber
+  // ==========================================================
+  // FINAL LOG
+  // ==========================================================
+
+  console.log(
+    "================================================"
   );
 
-  // ==================================================
-  // FINAL LOG
-  // ==================================================
   console.log(
     "TOTAL PARSED QUESTIONS:",
     uniqueQuestions.length
+  );
+
+  console.log(
+    "QUESTION NUMBERS:",
+    uniqueQuestions.map(
+      (q) =>
+        q.questionNumber
+    )
+  );
+
+  console.log(
+    "================================================"
   );
 
   return uniqueQuestions;

@@ -4,8 +4,9 @@ import {
   createQuestion,
   getQuestions,
   updateQuestion,
+  getStudentQuestions,
   deleteQuestion,
-  deleteAllQuestions, // ఇది మీ కంట్రోలర్‌లో ఉండాలి
+  deleteAllQuestions, 
   generateQuestionsFromPDF
 } from "../controllers/questionController";
 
@@ -30,7 +31,10 @@ router.post(
   staffAuth,
   generateQuestionsFromPDF
 );
-
+router.get(
+  "/student",
+  getStudentQuestions
+);
 // ==============================
 // Get Question Bank
 // ==============================

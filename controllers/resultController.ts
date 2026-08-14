@@ -1,14 +1,59 @@
+
 import { Request, Response } from "express";
 
-import Result from "../models/Result";
+import Result from "../models/resultModel";
 import DailyTest from "../models/DailyTest";
 
 
+// ============================================================
+// GET NEXT DAY 8:00 AM
+// ============================================================
+
+const getNextDay8AM = (): Date => {
+
+  const now = new Date();
+
+  const release = new Date(now);
+
+  release.setDate(release.getDate() + 1);
+
+  release.setHours(8, 0, 0, 0);
+
+  return release;
+};
 
 
-// ===============================
+// ============================================================
+// CHECK RESULT AVAILABILITY
+// ============================================================
+
+const isResultAvailable = (
+  result: any
+): boolean => {
+
+  if (result.testCategory !== "mock") {
+    return true;
+  }
+
+  if (result.isResultPublished) {
+    return true;
+  }
+
+  if (
+    result.resultAvailableAt &&
+    new Date() >=
+      new Date(result.resultAvailableAt)
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+
+// ============================================================
 // SUBMIT EXAM RESULT
-// ===============================
+// ============================================================
 
 export const submitResult = async (
   req: Request,
@@ -16,7 +61,6 @@ export const submitResult = async (
 ) => {
 
   try {
-
 
     const {
 
@@ -30,663 +74,901 @@ export const submitResult = async (
 
       timeTaken,
 
-      warnings
+      warnings,
+
+      testCategory
 
     } = req.body;
 
 
+    // ========================================================
+    // VALIDATION
+    // ========================================================
 
+    if (
+      !studentId ||
+      !examId ||
+      !Array.isArray(answers)
+    ) {
 
+      return res.status(400).json({
 
-    const test = await DailyTest.findById(
-      examId
-    );
+        success: false,
 
-
-
-
-    if(!test){
-
-      return res.status(404).json({
-
-        success:false,
-
-        message:"Exam not found"
+        message:
+          "StudentId, ExamId and Answers required"
 
       });
 
     }
 
 
+    // ========================================================
+    // GET TEST
+    // ========================================================
+
+    const test =
+      await DailyTest.findById(examId);
 
 
+    if (!test) {
 
+      return res.status(404).json({
+
+        success: false,
+
+        message: "Exam not found"
+
+      });
+
+    }
+
+
+    // ========================================================
+    // TEST CATEGORY
+    // ========================================================
+
+    const category:
+      "mock" | "daily" | "subject" =
+        testCategory === "mock"
+          ? "mock"
+          : testCategory === "daily"
+          ? "daily"
+          : "subject";
+
+
+    // ========================================================
+    // MARKING
+    // ========================================================
 
     let correctAnswers = 0;
 
     let wrongAnswers = 0;
 
-    let review:any[] = [];
-
-
-
-
-
+    const review: any[] = [];
 
 
     test.questions.forEach(
 
-      (question:any,index:number)=>{
-
+      (question: any, index: number) => {
 
         const selectedAnswer =
-        answers[index];
+          answers[index] || "";
 
+
+        const isAnswered =
+          selectedAnswer.trim() !== "";
 
 
         const isCorrect =
-        selectedAnswer === question.correctAnswer;
+          isAnswered &&
+          selectedAnswer ===
+            question.correctAnswer;
 
 
-
-
-        if(isCorrect){
+        if (isCorrect) {
 
           correctAnswers++;
 
         }
 
-        else if(selectedAnswer){
+        else if (isAnswered) {
 
           wrongAnswers++;
 
         }
 
 
-
-
-
-
         review.push({
 
-          questionId:question._id,
+          questionId:
+            question._id,
 
-          question:question.question,
+          question:
+            question.question,
 
-          selectedAnswer:
-          selectedAnswer || "",
+          selectedAnswer,
 
           correctAnswer:
-          question.correctAnswer,
+            question.correctAnswer,
 
-          isCorrect
+          isCorrect,
+
+          marks:
+            isCorrect
+              ? 4
+              : isAnswered
+              ? -1
+              : 0
 
         });
-
-
 
       }
 
     );
 
 
-
-
-
-
-
-
+    // ========================================================
+    // QUESTION COUNTS
+    // ========================================================
 
     const totalQuestions =
-    test.questions.length;
-
+      test.questions.length;
 
 
     const attemptedQuestions =
-    correctAnswers + wrongAnswers;
-
+      correctAnswers +
+      wrongAnswers;
 
 
     const unansweredQuestions =
-    totalQuestions - attemptedQuestions;
+      totalQuestions -
+      attemptedQuestions;
 
 
-
-
-
-
-
-
-
+    // ========================================================
     // NEET MARKING
+    // CORRECT = +4
+    // WRONG   = -1
+    // EMPTY   = 0
+    // ========================================================
 
     const marks =
-
-    (correctAnswers * 4)
-
-    -
-
-    (wrongAnswers * 1);
+      (correctAnswers * 4) -
+      wrongAnswers;
 
 
+    // ========================================================
+    // PERCENTAGE
+    // ========================================================
 
-
-
-
-
+    const maxMarks =
+      totalQuestions * 4;
 
 
     const percentage =
+      maxMarks > 0
+        ? Number(
 
-    Number(
+            (
+              (marks / maxMarks) *
+              100
 
-      (
+            ).toFixed(2)
 
-        (
-
-          marks /
-
-          (totalQuestions * 4)
-
-        )
-
-        *
-
-        100
-
-      ).toFixed(2)
-
-    );
+          )
+        : 0;
 
 
-
-
-
-
-
+    // ========================================================
+    // GRADE
+    // ========================================================
 
     let grade = "F";
 
-
-    // FIXED TYPESCRIPT TYPE
-
-    let status: "PASS" | "FAIL" = "FAIL";
+    let status:
+      "PASS" | "FAIL" = "FAIL";
 
 
+    if (percentage >= 90) {
 
+      grade = "A+";
 
-
-
-
-    if(percentage >= 90){
-
-      grade="A+";
-
-      status="PASS";
+      status = "PASS";
 
     }
 
-    else if(percentage >= 75){
+    else if (percentage >= 75) {
 
-      grade="A";
+      grade = "A";
 
-      status="PASS";
-
-    }
-
-    else if(percentage >= 60){
-
-      grade="B";
-
-      status="PASS";
+      status = "PASS";
 
     }
 
-    else if(percentage >= 50){
+    else if (percentage >= 60) {
 
-      grade="C";
+      grade = "B";
 
-      status="PASS";
+      status = "PASS";
+
+    }
+
+    else if (percentage >= 50) {
+
+      grade = "C";
+
+      status = "PASS";
+
+    }
+
+    else if (percentage >= 40) {
+
+      grade = "D";
+
+      status = "PASS";
 
     }
 
 
+    // ========================================================
+    // RESULT RELEASE
+    //
+    // DAILY   -> IMMEDIATE
+    // SUBJECT -> IMMEDIATE
+    // MOCK    -> NEXT DAY 8 AM
+    // ========================================================
+
+    let resultAvailableAt: Date;
+
+    let isResultPublished: boolean;
 
 
+    if (category === "mock") {
+
+      resultAvailableAt =
+        getNextDay8AM();
+
+      isResultPublished = false;
+
+    }
+
+    else {
+
+      resultAvailableAt =
+        new Date();
+
+      isResultPublished = true;
+
+    }
 
 
+    // ========================================================
+    // CREATE RESULT
+    // ========================================================
+
+    const result =
+      await Result.create({
+
+        studentId,
+
+        studentName:
+          studentName || "",
+
+        examId,
+
+        examName:
+          test.title,
+
+        testCategory:
+          category,
+
+        subject:
+          test.subject || "General",
+
+        totalQuestions,
+
+        attemptedQuestions,
+
+        unansweredQuestions,
+
+        correctAnswers,
+
+        wrongAnswers,
+
+        marks,
+
+        percentage,
+
+        grade,
+
+        status,
+
+        timeTaken:
+          timeTaken || 0,
+
+        warnings:
+          warnings || 0,
+
+        rank: 0,
+
+        resultAvailableAt,
+
+        isResultPublished,
+
+        review
+
+      });
 
 
+    // ========================================================
+    // RESPONSE
+    //
+    // MOCK -> DON'T SEND RESULT DETAILS
+    // DAILY/SUBJECT -> SEND FULL RESULT
+    // ========================================================
 
-    const result = await Result.create({
+    if (category === "mock") {
 
-      studentId,
+      return res.status(201).json({
 
-      studentName,
+        success: true,
 
-      examId,
+        message:
+          "Mock test submitted successfully. Result will be available tomorrow at 8:00 AM.",
 
-      examName:test.title,
+        result: {
 
-      subject:test.subject,
+          _id:
+            result._id,
 
-      totalQuestions,
+          examName:
+            result.examName,
 
-      attemptedQuestions,
+          testCategory:
+            result.testCategory,
 
-      unansweredQuestions,
+          subject:
+            result.subject,
 
-      correctAnswers,
+          totalQuestions,
 
-      wrongAnswers,
+          resultAvailableAt,
 
-      marks,
+          isResultPublished: false,
 
-      percentage,
+          locked: true
 
-      grade,
+        }
 
-      status,
+      });
 
-      timeTaken,
-
-      warnings:warnings || 0,
-
-      review
-
-    });
-
+    }
 
 
-
-
-
-
+    // ========================================================
+    // IMMEDIATE RESULT
+    // ========================================================
 
     return res.status(201).json({
 
-      success:true,
+      success: true,
 
-      message:"Exam Submitted Successfully",
+      message:
+        "Exam Submitted Successfully",
 
       result
 
     });
 
 
-
-
-
   }
 
-  catch(error:any){
+  catch (error: any) {
+
+    console.error(
+      "SUBMIT RESULT ERROR:",
+      error
+    );
 
 
     return res.status(500).json({
 
-      success:false,
+      success: false,
 
-      message:error.message
+      message:
+        error.message ||
+        "Failed to submit result"
 
     });
 
+  }
+
+};
+
+
+// ============================================================
+// GET ALL RESULTS OF STUDENT
+// ============================================================
+
+export const getStudentResults = async (
+  req: Request,
+  res: Response
+) => {
+
+  try {
+
+    const {
+      studentId
+    } = req.params;
+
+
+    const results =
+      await Result.find({
+
+        studentId
+
+      })
+      .sort({
+
+        createdAt: -1
+
+      });
+
+
+    const processedResults =
+      results.map((result: any) => {
+
+        const available =
+          isResultAvailable(result);
+
+
+        // ====================================================
+        // IMMEDIATE RESULT
+        // ====================================================
+
+        if (available) {
+
+          return {
+
+            ...result.toObject(),
+
+            locked: false,
+
+            isResultPublished: true
+
+          };
+
+        }
+
+
+        // ====================================================
+        // LOCKED MOCK RESULT
+        // ====================================================
+
+        return {
+
+          _id:
+            result._id,
+
+          studentId:
+            result.studentId,
+
+          studentName:
+            result.studentName,
+
+          examId:
+            result.examId,
+
+          examName:
+            result.examName,
+
+          testCategory:
+            result.testCategory,
+
+          subject:
+            result.subject,
+
+          totalQuestions:
+            result.totalQuestions,
+
+          resultAvailableAt:
+            result.resultAvailableAt,
+
+          isResultPublished: false,
+
+          locked: true,
+
+          message:
+            "Result will be available tomorrow at 8:00 AM."
+
+        };
+
+      });
+
+
+    return res.status(200).json({
+
+      success: true,
+
+      count:
+        processedResults.length,
+
+      results:
+        processedResults
+
+    });
 
   }
 
+  catch (error: any) {
+
+    console.error(
+      "GET STUDENT RESULTS ERROR:",
+      error
+    );
+
+
+    return res.status(500).json({
+
+      success: false,
+
+      message:
+        error.message ||
+        "Failed to fetch student results"
+
+    });
+
+  }
 
 };
 
 
-
-
-
-
-
-
-
-// ===============================
-// GET ALL RESULTS OF STUDENT
-// ===============================
-
-export const getStudentResults = async(
-req:Request,
-res:Response
-)=>{
-
-
-try{
-
-
-const {studentId}=req.params;
-
-
-const results = await Result.find({
-
-studentId
-
-})
-
-.sort({
-
-createdAt:-1
-
-});
-
-
-
-
-
-res.status(200).json({
-
-success:true,
-
-count:results.length,
-
-results
-
-});
-
-
-
-}
-
-catch(error:any){
-
-res.status(500).json({
-
-success:false,
-
-message:error.message
-
-});
-
-}
-
-
-};
-
-
-
-
-
-
-
-
-
-// ===============================
+// ============================================================
 // GET SINGLE RESULT
-// ===============================
+// ============================================================
 
-export const getSingleResult = async(
-req:Request,
-res:Response
-)=>{
+export const getSingleResult = async (
+  req: Request,
+  res: Response
+) => {
 
+  try {
 
-try{
-
-
-const result = await Result.findById(
-
-req.params.id
-
-);
+    const result =
+      await Result.findById(
+        req.params.id
+      );
 
 
+    if (!result) {
+
+      return res.status(404).json({
+
+        success: false,
+
+        message:
+          "Result not found"
+
+      });
+
+    }
 
 
-
-if(!result){
-
-return res.status(404).json({
-
-success:false,
-
-message:"Result not found"
-
-});
-
-}
+    const available =
+      isResultAvailable(result);
 
 
+    // ========================================================
+    // LOCKED MOCK
+    // ========================================================
+
+    if (!available) {
+
+      return res.status(200).json({
+
+        success: true,
+
+        locked: true,
+
+        message:
+          "This mock test result is locked until tomorrow at 8:00 AM.",
+
+        result: {
+
+          _id:
+            result._id,
+
+          examName:
+            result.examName,
+
+          testCategory:
+            result.testCategory,
+
+          subject:
+            result.subject,
+
+          totalQuestions:
+            result.totalQuestions,
+
+          resultAvailableAt:
+            result.resultAvailableAt,
+
+          isResultPublished: false
+
+        }
+
+      });
+
+    }
 
 
+    // ========================================================
+    // RESULT AVAILABLE
+    // ========================================================
 
-res.json({
+    // If release time reached, mark it published
 
-success:true,
+    if (
+      result.testCategory === "mock" &&
+      !result.isResultPublished
+    ) {
 
-result
+      result.isResultPublished = true;
 
-});
+      await result.save();
+
+    }
 
 
+    return res.json({
+
+      success: true,
+
+      locked: false,
+
+      result
+
+    });
+
+  }
+
+  catch (error: any) {
+
+    console.error(
+      "GET SINGLE RESULT ERROR:",
+      error
+    );
 
 
+    return res.status(500).json({
 
-}
+      success: false,
 
-catch(error:any){
+      message:
+        error.message ||
+        "Failed to fetch result"
 
-res.status(500).json({
+    });
 
-success:false,
-
-message:error.message
-
-});
-
-}
-
+  }
 
 };
 
 
-
-
-
-
-
-
-
-// ===============================
+// ============================================================
 // GET LATEST RESULT
-// ===============================
+// ============================================================
 
-export const getLatestResult = async(
-req:Request,
-res:Response
-)=>{
+export const getLatestResult = async (
+  req: Request,
+  res: Response
+) => {
 
+  try {
 
-try{
+    const result =
+      await Result.findOne({
 
+        studentId:
+          req.params.studentId
 
-const result = await Result.findOne({
+      })
+      .sort({
 
-studentId:req.params.studentId
+        createdAt: -1
 
-})
-
-.sort({
-
-createdAt:-1
-
-});
-
+      });
 
 
+    if (!result) {
+
+      return res.status(404).json({
+
+        success: false,
+
+        message:
+          "No Result Found"
+
+      });
+
+    }
 
 
-if(!result){
-
-return res.status(404).json({
-
-success:false,
-
-message:"No Result Found"
-
-});
-
-}
+    const available =
+      isResultAvailable(result);
 
 
+    // ========================================================
+    // LOCKED MOCK
+    // ========================================================
+
+    if (!available) {
+
+      return res.status(200).json({
+
+        success: true,
+
+        locked: true,
+
+        result: {
+
+          _id:
+            result._id,
+
+          examName:
+            result.examName,
+
+          testCategory:
+            result.testCategory,
+
+          subject:
+            result.subject,
+
+          totalQuestions:
+            result.totalQuestions,
+
+          resultAvailableAt:
+            result.resultAvailableAt,
+
+          isResultPublished: false
+
+        }
+
+      });
+
+    }
 
 
+    return res.json({
 
-res.json({
+      success: true,
 
-success:true,
+      locked: false,
 
-result
+      result
 
-});
+    });
 
+  }
 
+  catch (error: any) {
 
+    return res.status(500).json({
 
+      success: false,
 
-}
+      message:
+        error.message
 
-catch(error:any){
+    });
 
-res.status(500).json({
-
-success:false,
-
-message:error.message
-
-});
-
-}
-
+  }
 
 };
 
 
-
-
-
-
-
-
-
-// ===============================
+// ============================================================
 // TOP RESULTS
-// ===============================
+// ============================================================
 
-export const getTopResults = async(
-req:Request,
-res:Response
-)=>{
+export const getTopResults = async (
+  req: Request,
+  res: Response
+) => {
 
+  try {
 
-try{
+    const results =
+      await Result.find({
 
+        isResultPublished: true
 
-const results = await Result.find()
+      })
+      .sort({
 
-.sort({
+        marks: -1,
 
-marks:-1,
+        percentage: -1
 
-percentage:-1
-
-})
-
-.limit(20);
-
-
-
+      })
+      .limit(20);
 
 
-res.json({
+    return res.json({
 
-success:true,
+      success: true,
 
-results
+      results
 
-});
+    });
 
+  }
 
+  catch (error: any) {
 
+    return res.status(500).json({
 
+      success: false,
 
-}
+      message:
+        error.message
 
-catch(error:any){
+    });
 
-res.status(500).json({
-
-success:false,
-
-message:error.message
-
-});
-
-}
-
+  }
 
 };
 
 
-
-
-
-
-
-
-
-// ===============================
+// ============================================================
 // SUBJECT RESULTS
-// ===============================
+// ============================================================
 
-export const getSubjectResults = async(
-req:Request,
-res:Response
-)=>{
+export const getSubjectResults = async (
+  req: Request,
+  res: Response
+) => {
 
+  try {
 
-try{
+    const results =
+      await Result.find({
 
+        subject:
+          req.params.subject,
 
-const results = await Result.find({
+        isResultPublished:
+          true
 
-subject:req.params.subject
-
-});
-
-
-
-
-
-res.json({
-
-success:true,
-
-count:results.length,
-
-results
-
-});
+      });
 
 
+    return res.json({
 
+      success: true,
 
+      count:
+        results.length,
 
-}
+      results
 
-catch(error:any){
+    });
 
-res.status(500).json({
+  }
 
-success:false,
+  catch (error: any) {
 
-message:error.message
+    return res.status(500).json({
 
-});
+      success: false,
 
-}
+      message:
+        error.message
 
+    });
+
+  }
 
 };
+

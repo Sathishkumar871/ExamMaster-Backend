@@ -1,34 +1,38 @@
+
 import mongoose from "mongoose";
+import dns from "dns";
 
+// ============================================================
+// FIX NODE DNS FOR MONGODB SRV
+// ============================================================
 
-const connectDB = async()=>{
+dns.setServers(["8.8.8.8"]);
 
-try{
+// ============================================================
+// MONGODB CONNECTION
+// ============================================================
 
-await mongoose.connect(
-process.env.MONGO_URI as string
-);
+const connectDB = async () => {
+  try {
+    await mongoose.connect(
+      process.env.MONGO_URI as string
+    );
 
+    console.log(
+      "✅ MongoDB Connected Successfully"
+    );
 
-console.log(
-"✅ MongoDB Connected Successfully"
-);
+  } catch (error: any) {
 
+    console.log(
+      "❌ MongoDB Connection Failed"
+    );
 
-}
-catch(error:any){
-
-console.log(
-"❌ MongoDB Connection Failed"
-);
-
-
-console.log(error.message);
-
-
-}
-
+    console.log(
+      error.message
+    );
+  }
 };
 
-
 export default connectDB;
+

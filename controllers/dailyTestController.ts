@@ -1,3 +1,4 @@
+
 import { Request, Response } from "express";
 import QuestionBank from "../models/questionModel";
 import ExamSession from "../models/ExamSession";
@@ -21,11 +22,17 @@ export const getDailyTests = async (
   try {
     const { subject, chapter } = req.query;
 
+    // IMPORTANT:
+    // QuestionBank schema uses testCategory
+    // NOT testType
     const filter: any = {
-      testType: "daily",
+      testCategory: "daily",
       isPublished: true,
     };
 
+    // ========================================================
+    // SUBJECT FILTER
+    // ========================================================
     if (
       subject &&
       subject !== "All" &&
@@ -39,6 +46,9 @@ export const getDailyTests = async (
       };
     }
 
+    // ========================================================
+    // CHAPTER FILTER
+    // ========================================================
     if (
       chapter &&
       chapter !== "All" &&
@@ -52,16 +62,77 @@ export const getDailyTests = async (
       };
     }
 
+    // ========================================================
+    // FETCH DAILY QUESTIONS
+    // ========================================================
     const tests = await QuestionBank.find(filter).sort({
       createdAt: -1,
     });
 
+    // ========================================================
+    // SEND QUESTIONS
+    // ========================================================
+    const displayTests = tests.map((q: any) => ({
+      _id: q._id,
+
+      questionId: q._id,
+
+      questionNumber:
+        q.questionNumber,
+
+      question:
+        q.question,
+
+      options:
+        q.options,
+
+      // IMPORTANT
+      subject:
+        q.subject || "",
+
+      chapter:
+        q.chapter || "",
+
+      testTitle:
+        q.testTitle || "Daily Practice Assessment",
+
+      testId:
+        q.testId || "",
+
+      testCategory:
+        q.testCategory,
+
+      examType:
+        q.examType,
+
+      academicYear:
+        q.academicYear,
+
+      totalQuestions:
+        q.totalQuestions,
+
+      testDate:
+        q.testDate || "",
+
+      testTime:
+        q.testTime || "",
+
+      imageUrl:
+        q.imageUrl || "",
+    }));
+
     res.json({
       success: true,
-      total: tests.length,
-      tests,
+
+      total:
+        displayTests.length,
+
+      tests:
+        displayTests,
     });
+
   } catch (error: any) {
+
     console.error(
       "GET DAILY TESTS ERROR:",
       error
@@ -69,6 +140,7 @@ export const getDailyTests = async (
 
     res.status(500).json({
       success: false,
+
       message:
         error.message ||
         "Failed to fetch daily tests",
@@ -85,58 +157,83 @@ export const startDailyTest = async (
   res: Response
 ): Promise<void> => {
   try {
+
     const {
       studentId,
       studentName,
       testTitle,
+      testId,
     } = req.body;
 
+    // ========================================================
+    // VALIDATION
+    // ========================================================
     if (!studentId) {
+
       res.status(400).json({
         success: false,
         message: "StudentId required",
       });
+
       return;
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // GET PUBLISHED DAILY QUESTIONS
-    // --------------------------------------------------------
+    // ========================================================
     const filter: any = {
-      testType: "daily",
+      testCategory: "daily",
       isPublished: true,
     };
 
-    if (testTitle) {
+    // ========================================================
+    // TEST ID FILTER
+    // ========================================================
+    if (testId) {
+      filter.testId = testId;
+    }
+
+    // ========================================================
+    // TEST TITLE FILTER
+    // ========================================================
+    else if (testTitle) {
       filter.testTitle = testTitle;
     }
 
+    // ========================================================
+    // FETCH QUESTIONS
+    // ========================================================
     const questions =
       await QuestionBank.find(filter).sort({
-        createdAt: -1,
+        questionNumber: 1,
       });
 
     if (!questions.length) {
+
       res.status(404).json({
         success: false,
+
         message:
           "No published daily test questions found",
       });
+
       return;
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // CREATE EXAM SESSION
-    // --------------------------------------------------------
+    // ========================================================
     const session =
       await ExamSession.create({
+
         studentId,
 
         examId: null,
 
-        questions: questions.map(
-          (q: any) => q._id
-        ),
+        questions:
+          questions.map(
+            (q: any) => q._id
+          ),
 
         answers: [],
 
@@ -147,13 +244,15 @@ export const startDailyTest = async (
         startTime: new Date(),
       });
 
-    // --------------------------------------------------------
+    // ========================================================
     // SEND QUESTIONS
     // NEVER SEND correctAnswer
-    // --------------------------------------------------------
+    // ========================================================
     const displayQuestions =
       questions.map((q: any) => ({
-        questionId: q._id,
+
+        questionId:
+          q._id,
 
         questionNumber:
           q.questionNumber,
@@ -161,33 +260,63 @@ export const startDailyTest = async (
         question:
           q.question,
 
+        // Shuffle options
         options:
           [...q.options].sort(
             () => Math.random() - 0.5
           ),
 
+        // ====================================================
+        // SUBJECT
+        // ====================================================
         subject:
-          q.subject,
+          q.subject || "",
 
+        // ====================================================
+        // CHAPTER
+        // ====================================================
         chapter:
-          q.chapter,
+          q.chapter || "",
+
+        // ====================================================
+        // TEST INFORMATION
+        // ====================================================
+        testTitle:
+          q.testTitle ||
+          "Daily Practice Assessment",
+
+        testId:
+          q.testId || "",
+
+        testCategory:
+          q.testCategory,
+
+        examType:
+          q.examType,
+
+        academicYear:
+          q.academicYear,
 
         imageUrl:
           q.imageUrl || "",
       }));
 
-    // --------------------------------------------------------
+    // ========================================================
     // DURATION
     // 1 MINUTE / QUESTION
     // MINIMUM 5 MINUTES
-    // --------------------------------------------------------
+    // ========================================================
     const duration =
       Math.max(
         questions.length * 60,
         300
       );
 
+    // ========================================================
+    // RESPONSE
+    // ========================================================
     res.status(200).json({
+
       success: true,
 
       message:
@@ -206,6 +335,27 @@ export const startDailyTest = async (
         questions[0]?.testTitle ||
         "Daily Practice Assessment",
 
+      testId:
+        testId ||
+        questions[0]?.testId ||
+        "",
+
+      subject:
+        questions[0]?.subject ||
+        "",
+
+      chapter:
+        questions[0]?.chapter ||
+        "",
+
+      examType:
+        questions[0]?.examType ||
+        "NEET",
+
+      academicYear:
+        questions[0]?.academicYear ||
+        "",
+
       duration,
 
       totalQuestions:
@@ -214,14 +364,18 @@ export const startDailyTest = async (
       questions:
         displayQuestions,
     });
+
   } catch (error: any) {
+
     console.error(
       "START DAILY TEST ERROR:",
       error
     );
 
     res.status(500).json({
+
       success: false,
+
       message:
         error.message ||
         "Failed to start daily test",
@@ -233,16 +387,19 @@ export const startDailyTest = async (
 // SUBMIT DAILY TEST
 // POST /api/daily-tests/submit
 //
-// NEET STYLE MARKING:
-// Correct   = +4
-// Wrong     = -1
+// NEET STYLE MARKING
+//
+// Correct    = +4
+// Wrong      = -1
 // Unanswered = 0
 // ============================================================
 export const submitDailyTest = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+
   try {
+
     const {
       studentId,
       studentName,
@@ -252,104 +409,132 @@ export const submitDailyTest = async (
       warnings,
     } = req.body;
 
-    // --------------------------------------------------------
+    // ========================================================
     // VALIDATION
-    // --------------------------------------------------------
+    // ========================================================
     if (
       !studentId ||
       !sessionId ||
       !Array.isArray(answers)
     ) {
+
       res.status(400).json({
+
         success: false,
+
         message:
           "StudentId, SessionId and Answers required",
       });
+
       return;
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // FIND SESSION
-    // --------------------------------------------------------
+    // ========================================================
     const session =
       await ExamSession.findById(
         sessionId
       );
 
     if (!session) {
+
       res.status(404).json({
+
         success: false,
+
         message:
           "Daily test session not found",
       });
+
       return;
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // STUDENT SESSION CHECK
-    // --------------------------------------------------------
+    // ========================================================
     if (
       String(session.studentId) !==
       String(studentId)
     ) {
+
       res.status(403).json({
+
         success: false,
+
         message:
           "This exam session does not belong to this student",
       });
+
       return;
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // PREVENT DOUBLE SUBMISSION
-    // --------------------------------------------------------
+    // ========================================================
     if (
       session.status === "completed"
     ) {
+
       res.status(400).json({
+
         success: false,
+
         message:
           "Daily test already submitted",
       });
+
       return;
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // GET QUESTIONS FROM SESSION
-    // --------------------------------------------------------
+    // ========================================================
     const questionIds =
       session.questions || [];
 
     const questions =
       await QuestionBank.find({
+
         _id: {
           $in: questionIds,
         },
+
       });
 
     if (!questions.length) {
+
       res.status(404).json({
+
         success: false,
+
         message:
           "Questions not found",
       });
+
       return;
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // MARKING
-    // --------------------------------------------------------
+    // ========================================================
     let correctAnswers = 0;
+
     let wrongAnswers = 0;
+
     let attemptedQuestions = 0;
+
     let unansweredQuestions = 0;
 
     const review: any[] = [];
 
-    // --------------------------------------------------------
+    // ========================================================
     // CHECK EVERY QUESTION
-    // --------------------------------------------------------
-    for (const question of questions) {
+    // ========================================================
+    for (
+      const question of questions
+    ) {
+
       const submitted =
         answers.find(
           (item: any) =>
@@ -360,30 +545,35 @@ export const submitDailyTest = async (
       const selectedAnswer =
         submitted?.answer || "";
 
-      // ----------------------------
+      // ======================================================
       // UNANSWERED
-      // ----------------------------
+      // ======================================================
       if (
         !selectedAnswer ||
         selectedAnswer.trim() === ""
       ) {
+
         unansweredQuestions++;
 
         review.push({
+
           questionId:
             question._id,
 
           question:
             question.question,
 
-          selectedAnswer: "",
+          selectedAnswer:
+            "",
 
           correctAnswer:
             question.correctAnswer,
 
-          isCorrect: false,
+          isCorrect:
+            false,
 
-          marks: 0,
+          marks:
+            0,
         });
 
         continue;
@@ -391,17 +581,19 @@ export const submitDailyTest = async (
 
       attemptedQuestions++;
 
-      // ----------------------------
+      // ======================================================
       // CORRECT
       // +4
-      // ----------------------------
+      // ======================================================
       if (
         question.correctAnswer ===
         selectedAnswer
       ) {
+
         correctAnswers++;
 
         review.push({
+
           questionId:
             question._id,
 
@@ -413,20 +605,25 @@ export const submitDailyTest = async (
           correctAnswer:
             question.correctAnswer,
 
-          isCorrect: true,
+          isCorrect:
+            true,
 
-          marks: 4,
+          marks:
+            4,
         });
+
       }
 
-      // ----------------------------
+      // ======================================================
       // WRONG
       // -1
-      // ----------------------------
+      // ======================================================
       else {
+
         wrongAnswers++;
 
         review.push({
+
           questionId:
             question._id,
 
@@ -438,32 +635,34 @@ export const submitDailyTest = async (
           correctAnswer:
             question.correctAnswer,
 
-          isCorrect: false,
+          isCorrect:
+            false,
 
-          marks: -1,
+          marks:
+            -1,
         });
       }
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // FINAL NEET SCORE
-    // --------------------------------------------------------
+    // ========================================================
     const marks =
       correctAnswers * 4 -
       wrongAnswers;
 
-    // --------------------------------------------------------
+    // ========================================================
     // MAXIMUM MARKS
-    // --------------------------------------------------------
+    // ========================================================
     const totalQuestions =
       questions.length;
 
     const maxMarks =
       totalQuestions * 4;
 
-    // --------------------------------------------------------
+    // ========================================================
     // PERCENTAGE
-    // --------------------------------------------------------
+    // ========================================================
     const percentage =
       maxMarks > 0
         ? Number(
@@ -474,49 +673,60 @@ export const submitDailyTest = async (
           )
         : 0;
 
-    // --------------------------------------------------------
+    // ========================================================
     // GRADE
-    // --------------------------------------------------------
+    // ========================================================
     let grade = "F";
 
     if (percentage >= 90) {
+
       grade = "A+";
+
     } else if (percentage >= 80) {
+
       grade = "A";
+
     } else if (percentage >= 70) {
+
       grade = "B";
+
     } else if (percentage >= 60) {
+
       grade = "C";
+
     } else if (percentage >= 50) {
+
       grade = "D";
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // PASS / FAIL
-    // --------------------------------------------------------
+    // ========================================================
     const resultStatus =
       percentage >= 40
         ? "PASS"
         : "FAIL";
 
-    // --------------------------------------------------------
+    // ========================================================
     // TEST TITLE
-    // --------------------------------------------------------
+    // ========================================================
     const dailyTestTitle =
       questions[0]?.testTitle ||
       "Daily Practice Assessment";
 
-    // --------------------------------------------------------
+    // ========================================================
     // SAVE RESULT
-    // --------------------------------------------------------
+    // ========================================================
     const result =
       await Result.create({
+
         studentId,
 
         studentName:
           studentName || "",
 
-        examId: null,
+        examId:
+          null,
 
         examName:
           dailyTestTitle,
@@ -550,14 +760,15 @@ export const submitDailyTest = async (
         warnings:
           warnings || 0,
 
-        rank: 0,
+        rank:
+          0,
 
         review,
       });
 
-    // --------------------------------------------------------
+    // ========================================================
     // UPDATE SESSION
-    // --------------------------------------------------------
+    // ========================================================
     session.answers =
       answers;
 
@@ -572,17 +783,20 @@ export const submitDailyTest = async (
 
     await session.save();
 
-    // --------------------------------------------------------
+    // ========================================================
     // RESPONSE
-    // --------------------------------------------------------
+    // ========================================================
     res.status(201).json({
+
       success: true,
 
       message:
         "Daily test submitted successfully",
 
       result: {
-        _id: result._id,
+
+        _id:
+          result._id,
 
         totalQuestions,
 
@@ -614,17 +828,22 @@ export const submitDailyTest = async (
         review,
       },
     });
+
   } catch (error: any) {
+
     console.error(
       "SUBMIT DAILY TEST ERROR:",
       error
     );
 
     res.status(500).json({
+
       success: false,
+
       message:
         error.message ||
         "Failed to submit daily test",
     });
   }
 };
+

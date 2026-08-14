@@ -1,5 +1,13 @@
-import mongoose, { Schema, Document } from "mongoose";
 
+import mongoose, {
+  Schema,
+  Document
+} from "mongoose";
+
+
+// =====================================
+// EXAM INTERFACE
+// =====================================
 
 export interface IExam extends Document {
 
@@ -14,15 +22,17 @@ export interface IExam extends Document {
   examType:
     | "daily"
     | "weekly"
+    | "subject"
     | "mock";
 
-  duration: number; // minutes
+  duration: number;
 
   totalQuestions: number;
 
-  questions: mongoose.Types.ObjectId[];
+  questions:
+    mongoose.Types.ObjectId[];
 
-  createdBy: string; // teacherId
+  createdBy: string;
 
   status:
     | "draft"
@@ -31,184 +41,215 @@ export interface IExam extends Document {
 
   isPublished: boolean;
 
+  createdAt: Date;
+
+  updatedAt: Date;
+
 }
 
 
+// =====================================
+// EXAM SCHEMA
+// =====================================
 
-const ExamSchema: Schema = new Schema(
+const ExamSchema =
+  new Schema<IExam>(
 
-  {
+    {
 
+      // =================================
+      // BASIC INFORMATION
+      // =================================
 
-    title: {
+      title: {
 
-      type: String,
+        type: String,
 
-      required: true,
+        required: true,
 
-      trim: true
+        trim: true
 
-    },
-
-
-
-    subject: {
-
-      type: String,
-
-      required: true,
-
-      trim: true
-
-    },
+      },
 
 
+      subject: {
 
-    chapter: {
+        type: String,
 
-      type: String,
+        required: true,
 
-      default: "All",
+        trim: true
 
-      trim: true
-
-    },
-
+      },
 
 
-    className: {
+      chapter: {
 
-      type: String,
+        type: String,
 
-      required: true
+        default: "All",
 
-    },
+        trim: true
+
+      },
 
 
+      className: {
 
-    examType: {
+        type: String,
 
-      type: String,
+        required: true,
 
-      enum: [
+        trim: true
 
-        "daily",
+      },
 
-        "weekly",
 
-        "mock"
+      // =================================
+      // EXAM TYPE
+      // =================================
+
+      examType: {
+
+        type: String,
+
+        enum: [
+          "daily",
+          "weekly",
+          "subject",
+          "mock"
+        ],
+
+        default: "mock",
+
+        required: true
+
+      },
+
+
+      // =================================
+      // DURATION
+      // =================================
+
+      duration: {
+
+        type: Number,
+
+        required: true,
+
+        default: 180,
+
+        min: 1
+
+      },
+
+
+      // =================================
+      // TOTAL QUESTIONS
+      // =================================
+
+      totalQuestions: {
+
+        type: Number,
+
+        required: true,
+
+        min: 1
+
+      },
+
+
+      // =================================
+      // QUESTION IDS
+      // =================================
+
+      questions: [
+
+        {
+
+          type:
+            mongoose.Schema.Types.ObjectId,
+
+          ref:
+            "QuestionBank",
+
+          required: true
+
+        }
 
       ],
 
-      default: "daily"
 
-    },
+      // =================================
+      // CREATED BY TEACHER
+      // =================================
 
+      createdBy: {
 
+        type: String,
 
-    duration: {
+        required: true,
 
-      type: Number,
+        trim: true
 
-      required: true,
-
-      default: 180
-
-    },
-
+      },
 
 
-    totalQuestions: {
+      // =================================
+      // EXAM STATUS
+      // =================================
 
-      type: Number,
+      status: {
 
-      required: true
+        type: String,
 
-    },
+        enum: [
+          "draft",
+          "published",
+          "completed"
+        ],
+
+        default: "draft",
+
+        required: true
+
+      },
 
 
+      // =================================
+      // PUBLISHED FLAG
+      // =================================
 
-    questions: [
+      isPublished: {
 
-      {
+        type: Boolean,
 
-        type: mongoose.Schema.Types.ObjectId,
-
-        ref: "QuestionBank"
+        default: false
 
       }
 
-    ],
-
-
-
-    createdBy: {
-
-      type: String,
-
-      required: true
-
     },
 
+    {
 
-
-    status: {
-
-      type: String,
-
-      enum: [
-
-        "draft",
-
-        "published",
-
-        "completed"
-
-      ],
-
-      default: "draft"
-
-    },
-
-
-
-    isPublished: {
-
-      type: Boolean,
-
-      default: false
+      timestamps: true
 
     }
-
-
-  },
-
-
-  {
-
-    timestamps: true
-
-  }
-
-
-);
-
-
-
-
-// Prevent OverwriteModelError
-
-const Exam =
-
-  mongoose.models.Exam ||
-
-  mongoose.model<IExam>(
-
-    "Exam",
-
-    ExamSchema
 
   );
 
 
+// =====================================
+// MODEL
+// =====================================
+
+const Exam =
+  mongoose.models.Exam ||
+  mongoose.model<IExam>(
+    "Exam",
+    ExamSchema
+  );
+
+
 export default Exam;
+

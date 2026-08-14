@@ -6,7 +6,6 @@ import { UploadedFile } from "express-fileupload";
 import { PDFParse } from "pdf-parse";
 
 import { parseQuestions } from "../services/pdfQuestionParser";
-import { analyzePDFWithGroq } from "../services/groqQuestionVerifier";
 
 import fs from "fs";
 
@@ -49,11 +48,16 @@ const parseBoolean = (
   defaultValue = true
 ): boolean => {
 
-  if (value === undefined || value === null) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
     return defaultValue;
   }
 
-  if (typeof value === "boolean") {
+  if (
+    typeof value === "boolean"
+  ) {
     return value;
   }
 
@@ -62,15 +66,20 @@ const parseBoolean = (
       .trim()
       .toLowerCase();
 
-  if (normalized === "true") {
+  if (
+    normalized === "true"
+  ) {
     return true;
   }
 
-  if (normalized === "false") {
+  if (
+    normalized === "false"
+  ) {
     return false;
   }
 
   return defaultValue;
+
 };
 
 // ============================================================
@@ -86,15 +95,20 @@ const normalizeTestCategory = (
       .trim()
       .toLowerCase();
 
-  if (category === "mock") {
+  if (
+    category === "mock"
+  ) {
     return "mock";
   }
 
-  if (category === "daily") {
+  if (
+    category === "daily"
+  ) {
     return "daily";
   }
 
   return "subject";
+
 };
 
 // ============================================================
@@ -110,11 +124,14 @@ const normalizeExamType = (
       .trim()
       .toUpperCase();
 
-  if (exam === "JEE") {
+  if (
+    exam === "JEE"
+  ) {
     return "JEE";
   }
 
   return "NEET";
+
 };
 
 // ============================================================
@@ -141,6 +158,7 @@ const normalizeAcademicYear = (
   }
 
   return "1st PUC";
+
 };
 
 // ============================================================
@@ -247,7 +265,8 @@ export const createQuestion = async (
 
   try {
 
-    const head = req.head;
+    const head =
+      req.head;
 
     // ========================================================
     // IMAGE
@@ -580,7 +599,9 @@ export const getQuestions = async (
         testId
       );
 
-    if (testIdFilter) {
+    if (
+      testIdFilter
+    ) {
 
       filter.testId =
         testIdFilter;
@@ -596,7 +617,9 @@ export const getQuestions = async (
         testTitle
       );
 
-    if (titleFilter) {
+    if (
+      titleFilter
+    ) {
 
       filter.testTitle =
         titleFilter;
@@ -612,7 +635,9 @@ export const getQuestions = async (
         subject
       );
 
-    if (subjectFilter) {
+    if (
+      subjectFilter
+    ) {
 
       filter.subject =
         subjectFilter;
@@ -807,7 +832,9 @@ export const getStudentQuestions = async (
         testId
       );
 
-    if (testIdFilter) {
+    if (
+      testIdFilter
+    ) {
 
       filter.testId =
         testIdFilter;
@@ -823,7 +850,9 @@ export const getStudentQuestions = async (
         testTitle
       );
 
-    if (titleFilter) {
+    if (
+      titleFilter
+    ) {
 
       filter.testTitle =
         titleFilter;
@@ -839,7 +868,9 @@ export const getStudentQuestions = async (
         subject
       );
 
-    if (subjectFilter) {
+    if (
+      subjectFilter
+    ) {
 
       filter.subject =
         subjectFilter;
@@ -1380,13 +1411,13 @@ export const deleteAllQuestions = async (
 //  ↓
 // Regex Parser
 //  ↓
-// Groq AI Verification
-//  ↓
 // Validation
 //  ↓
 // Cloudinary PDF
 //  ↓
 // MongoDB
+//
+// NO GROQ AI
 //
 // ============================================================
 
@@ -1395,7 +1426,8 @@ export const generateQuestionsFromPDF = async (
   res: Response
 ): Promise<void> => {
 
-  let parser: PDFParse | null = null;
+  let parser:
+    PDFParse | null = null;
 
   try {
 
@@ -1427,6 +1459,28 @@ export const generateQuestionsFromPDF = async (
     const pdfFile =
       req.files.pdf as UploadedFile;
 
+    console.log(
+      "=========================================="
+    );
+
+    console.log(
+      "📄 PDF UPLOAD STARTED"
+    );
+
+    console.log(
+      "FILE:",
+      pdfFile.name
+    );
+
+    console.log(
+      "SIZE:",
+      pdfFile.size
+    );
+
+    console.log(
+      "=========================================="
+    );
+
     // ========================================================
     // READ PDF
     // ========================================================
@@ -1435,6 +1489,11 @@ export const generateQuestionsFromPDF = async (
       fs.readFileSync(
         pdfFile.tempFilePath
       );
+
+    console.log(
+      "📄 PDF BUFFER:",
+      pdfBuffer.length
+    );
 
     parser =
       new PDFParse({
@@ -1446,6 +1505,11 @@ export const generateQuestionsFromPDF = async (
 
     const extractedText =
       pdfData.text || "";
+
+    console.log(
+      "📄 EXTRACTED TEXT LENGTH:",
+      extractedText.length
+    );
 
     // ========================================================
     // EMPTY PDF
@@ -1461,7 +1525,7 @@ export const generateQuestionsFromPDF = async (
         success: false,
 
         message:
-          "PDF text not found. This PDF may be scanned/image based. OCR/Groq image processing is required for this PDF.",
+          "PDF text not found. This PDF may be scanned/image based. A text-based PDF is required.",
 
       });
 
@@ -1473,10 +1537,31 @@ export const generateQuestionsFromPDF = async (
     // REGEX PARSER
     // ========================================================
 
+    console.log(
+      "=========================================="
+    );
+
+    console.log(
+      "📝 PDF REGEX PARSER STARTED"
+    );
+
+    console.log(
+      "=========================================="
+    );
+
     const parsedQuestions =
       parseQuestions(
         extractedText
       );
+
+    console.log(
+      "📝 PARSED QUESTIONS:",
+      parsedQuestions.length
+    );
+
+    // ========================================================
+    // NO QUESTIONS
+    // ========================================================
 
     if (
       parsedQuestions.length === 0
@@ -1487,7 +1572,10 @@ export const generateQuestionsFromPDF = async (
         success: false,
 
         message:
-          "No questions detected in PDF",
+          "No questions detected in PDF. Please check the PDF question and option format.",
+
+        extractedTextLength:
+          extractedText.length,
 
       });
 
@@ -1496,93 +1584,19 @@ export const generateQuestionsFromPDF = async (
     }
 
     // ========================================================
-    // LOG
+    // FINAL QUESTIONS
+    // DIRECT REGEX PARSER
     // ========================================================
+
+    const finalQuestions =
+      parsedQuestions;
 
     console.log(
       "=========================================="
     );
 
     console.log(
-      "📄 PDF TEXT EXTRACTED"
-    );
-
-    console.log(
-      "📝 REGEX QUESTIONS:",
-      parsedQuestions.length
-    );
-
-    console.log(
-      "🤖 GROQ VERIFICATION STARTED"
-    );
-
-    console.log(
-      "=========================================="
-    );
-
-    // ========================================================
-    // GROQ VERIFICATION
-    // ========================================================
-
-    let finalQuestions: any[] = [];
-
-    try {
-
-      finalQuestions =
-        await analyzePDFWithGroq(
-          extractedText,
-          parsedQuestions
-        );
-
-    } catch (groqError: any) {
-
-      console.error(
-        "❌ GROQ VERIFICATION ERROR:",
-        groqError
-      );
-
-      res.status(500).json({
-
-        success: false,
-
-        message:
-          groqError?.message ||
-          "Groq PDF verification failed",
-
-      });
-
-      return;
-
-    }
-
-    // ========================================================
-    // CHECK GROQ RESULT
-    // ========================================================
-
-    if (
-      !Array.isArray(finalQuestions) ||
-      finalQuestions.length === 0
-    ) {
-
-      res.status(400).json({
-
-        success: false,
-
-        message:
-          "Groq could not reconstruct valid MCQ questions",
-
-      });
-
-      return;
-
-    }
-
-    console.log(
-      "=========================================="
-    );
-
-    console.log(
-      "🤖 GROQ FINAL QUESTIONS:",
+      "📝 FINAL PARSED QUESTIONS:",
       finalQuestions.length
     );
 
@@ -1652,9 +1666,7 @@ export const generateQuestionsFromPDF = async (
     ) {
 
       totalQuestions =
-        testCategory === "subject"
-          ? 100
-          : 180;
+        finalQuestions.length;
 
     }
 
@@ -1689,6 +1701,10 @@ export const generateQuestionsFromPDF = async (
 
     try {
 
+      console.log(
+        "☁️ UPLOADING PDF TO CLOUDINARY..."
+      );
+
       const upload =
         await cloudinary.uploader.upload(
 
@@ -1708,6 +1724,14 @@ export const generateQuestionsFromPDF = async (
 
       pdfUrl =
         upload.secure_url;
+
+      console.log(
+        "☁️ PDF UPLOADED:"
+      );
+
+      console.log(
+        pdfUrl
+      );
 
     } catch (error) {
 
@@ -1729,7 +1753,7 @@ export const generateQuestionsFromPDF = async (
       );
 
     // ========================================================
-    // PREPARE FINAL QUESTIONS
+    // PREPARE QUESTIONS
     // ========================================================
 
     const questionsToSave =
@@ -1740,8 +1764,21 @@ export const generateQuestionsFromPDF = async (
         ) => {
 
           const options =
-            Array.isArray(q.options)
+            Array.isArray(
+              q.options
+            )
               ? q.options
+                  .map(
+                    (option: any) =>
+                      String(
+                        option || ""
+                      ).trim()
+                  )
+                  .filter(
+                    (option: string) =>
+                      option.length > 0
+                  )
+                  .slice(0, 4)
               : [];
 
           return {
@@ -1753,19 +1790,22 @@ export const generateQuestionsFromPDF = async (
 
             question:
               String(
-                q.question || ""
+                q.question ||
+                ""
               ).trim(),
 
             options,
 
             correctAnswer:
               String(
-                q.correctAnswer || ""
+                q.correctAnswer ||
+                ""
               ).trim(),
 
             ansNumber:
               String(
-                q.ansNumber || ""
+                q.ansNumber ||
+                ""
               ).trim(),
 
             questionType:
@@ -1868,7 +1908,7 @@ export const generateQuestionsFromPDF = async (
       );
 
     // ========================================================
-    // REMOVE INVALID QUESTIONS
+    // VALID QUESTIONS
     // ========================================================
 
     const validQuestions =
@@ -1895,7 +1935,7 @@ export const generateQuestionsFromPDF = async (
     );
 
     console.log(
-      "🤖 GROQ QUESTIONS:",
+      "📝 PARSER QUESTIONS:",
       finalQuestions.length
     );
 
@@ -1926,13 +1966,10 @@ export const generateQuestionsFromPDF = async (
         success: false,
 
         message:
-          "Groq returned questions, but no valid MCQ questions with exactly 4 options were found.",
+          "PDF parser found questions, but no valid MCQ questions with exactly 4 options were found.",
 
-        regexQuestions:
+        parsedQuestions:
           parsedQuestions.length,
-
-        groqQuestions:
-          finalQuestions.length,
 
         invalidQuestions:
           invalidQuestions.length,
@@ -1947,6 +1984,10 @@ export const generateQuestionsFromPDF = async (
     // SAVE TO DATABASE
     // ========================================================
 
+    console.log(
+      "💾 SAVING QUESTIONS TO MONGODB..."
+    );
+
     const savedQuestions =
       await QuestionBank.insertMany(
 
@@ -1958,6 +1999,11 @@ export const generateQuestionsFromPDF = async (
 
       );
 
+    console.log(
+      "✅ QUESTIONS SAVED:",
+      savedQuestions.length
+    );
+
     // ========================================================
     // RESPONSE
     // ========================================================
@@ -1967,13 +2013,10 @@ export const generateQuestionsFromPDF = async (
       success: true,
 
       message:
-        "PDF parsed, verified by Groq and questions saved successfully",
+        "PDF parsed and questions saved successfully",
 
-      regexQuestions:
+      parsedQuestions:
         parsedQuestions.length,
-
-      groqQuestions:
-        finalQuestions.length,
 
       validQuestions:
         validQuestions.length,
@@ -2022,7 +2065,10 @@ export const generateQuestionsFromPDF = async (
     );
 
     console.error(
-      "❌ PDF ERROR:",
+      "❌ PDF PARSE ERROR:"
+    );
+
+    console.error(
       error
     );
 
@@ -2046,7 +2092,9 @@ export const generateQuestionsFromPDF = async (
     // DESTROY PDF PARSER
     // ========================================================
 
-    if (parser) {
+    if (
+      parser
+    ) {
 
       try {
 
@@ -2060,6 +2108,41 @@ export const generateQuestionsFromPDF = async (
         );
 
       }
+
+    }
+
+    // ========================================================
+    // REMOVE TEMP PDF
+    // ========================================================
+
+    try {
+
+      const pdfFile =
+        req.files?.pdf as UploadedFile;
+
+      if (
+        pdfFile?.tempFilePath &&
+        fs.existsSync(
+          pdfFile.tempFilePath
+        )
+      ) {
+
+        fs.unlinkSync(
+          pdfFile.tempFilePath
+        );
+
+        console.log(
+          "🗑️ TEMP PDF DELETED"
+        );
+
+      }
+
+    } catch (error) {
+
+      console.log(
+        "TEMP PDF DELETE ERROR:",
+        error
+      );
 
     }
 

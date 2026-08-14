@@ -31,6 +31,38 @@ export interface GroqQuestion {
 }
 
 // ============================================================
+// BATCH SETTINGS
+// ============================================================
+
+// IMPORTANT:
+// PDF ni small batches ga Groq ki pampistunnam.
+// 20 questions per batch is generally safe.
+//
+// If questions are very large, reduce this to 10 or 15.
+
+const BATCH_SIZE = 20;
+
+// Small delay between requests.
+// This helps avoid TPM/RPM rate-limit problems.
+
+const BATCH_DELAY_MS = 1500;
+
+// ============================================================
+// DELAY
+// ============================================================
+
+const delay = (
+  ms: number
+): Promise<void> => {
+
+  return new Promise(
+    (resolve) =>
+      setTimeout(resolve, ms)
+  );
+
+};
+
+// ============================================================
 // NORMALIZE ANSWER
 // ============================================================
 
@@ -50,46 +82,55 @@ const normalizeAnswer = (
     value === "A" ||
     value === "1"
   ) {
+
     return {
       correctAnswer: "A",
       ansNumber: "1",
     };
+
   }
 
   if (
     value === "B" ||
     value === "2"
   ) {
+
     return {
       correctAnswer: "B",
       ansNumber: "2",
     };
+
   }
 
   if (
     value === "C" ||
     value === "3"
   ) {
+
     return {
       correctAnswer: "C",
       ansNumber: "3",
     };
+
   }
 
   if (
     value === "D" ||
     value === "4"
   ) {
+
     return {
       correctAnswer: "D",
       ansNumber: "4",
     };
+
   }
 
   return {
     correctAnswer: "",
     ansNumber: "",
   };
+
 };
 
 // ============================================================
@@ -107,6 +148,7 @@ const cleanOption = (
     )
     .replace(/\s+/g, " ")
     .trim();
+
 };
 
 // ============================================================
@@ -120,6 +162,7 @@ const cleanQuestion = (
   return String(question || "")
     .replace(/\s+/g, " ")
     .trim();
+
 };
 
 // ============================================================
@@ -134,107 +177,207 @@ const cleanGroqResponse = (
     .replace(/```json/gi, "")
     .replace(/```/g, "")
     .trim();
+
 };
 
 // ============================================================
-// ANALYZE PDF WITH GROQ
-// ============================================================
-//
-// IMPORTANT:
-//
-// Groq receives BOTH:
-//
-// 1. Original PDF extracted text
-// 2. Regex parser result
-//
-// Groq compares both and fixes extraction mistakes.
+// NORMALIZE GROQ QUESTIONS
 // ============================================================
 
-export const analyzePDFWithGroq =
-  async (
-    pdfText: string,
-    parsedQuestions: ParsedQuestionInput[]
-  ): Promise<GroqQuestion[]> => {
+const normalizeGroqQuestions = (
+  parsed: any
+): GroqQuestion[] => {
 
-    // ========================================================
-    // VALIDATE PDF TEXT
-    // ========================================================
+  if (
+    !parsed ||
+    !Array.isArray(
+      parsed.questions
+    )
+  ) {
 
-    if (
-      !pdfText ||
-      !pdfText.trim()
-    ) {
+    return [];
 
-      throw new Error(
-        "PDF text is empty"
+  }
+
+  const questions: GroqQuestion[] =
+    parsed.questions
+
+      .map(
+        (
+          item: any,
+          index: number
+        ) => {
+
+          // ==================================================
+          // OPTIONS
+          // ==================================================
+
+          const options =
+            Array.isArray(
+              item.options
+            )
+              ? item.options
+                  .slice(0, 4)
+                  .map(
+                    (
+                      option: any
+                    ) =>
+                      cleanOption(
+                        option
+                      )
+                  )
+                  .filter(
+                    (
+                      option: string
+                    ) =>
+                      option.length > 0
+                  )
+              : [];
+
+          // ==================================================
+          // ANSWER
+          // ==================================================
+
+          const answer =
+            normalizeAnswer(
+              item.correctAnswer ||
+              item.ansNumber ||
+              ""
+            );
+
+          // ==================================================
+          // QUESTION
+          // ==================================================
+
+          return {
+
+            questionNumber:
+              Number(
+                item.questionNumber
+              ) ||
+              index + 1,
+
+            question:
+              cleanQuestion(
+                item.question
+              ),
+
+            options,
+
+            correctAnswer:
+              answer.correctAnswer,
+
+            ansNumber:
+              answer.ansNumber,
+
+            questionType:
+              "MCQ",
+
+          };
+
+        }
+      )
+
+      .filter(
+        (
+          question: GroqQuestion
+        ) => {
+
+          return (
+
+            question.question.length >
+              0 &&
+
+            question.options.length ===
+              4
+
+          );
+
+        }
       );
-    }
 
-    // ========================================================
-    // CHECK API KEY
-    // ========================================================
+  return questions;
 
-    if (
-      !process.env.GROQ_API_KEY
-    ) {
+};
 
-      throw new Error(
-        "GROQ_API_KEY is missing in .env"
-      );
-    }
+// ============================================================
+// CREATE BATCHES
+// ============================================================
 
-    console.log(
-      "=========================================="
+const createBatches = <T>(
+  items: T[],
+  batchSize: number
+): T[][] => {
+
+  const batches: T[][] = [];
+
+  for (
+    let i = 0;
+    i < items.length;
+    i += batchSize
+  ) {
+
+    batches.push(
+      items.slice(
+        i,
+        i + batchSize
+      )
     );
 
-    console.log(
-      "🤖 GROQ PDF VERIFICATION STARTED"
+  }
+
+  return batches;
+
+};
+
+// ============================================================
+// BUILD BATCH PROMPT
+// ============================================================
+
+const buildBatchPrompt = (
+  batchPdfText: string,
+  batchQuestions: ParsedQuestionInput[],
+  batchNumber: number,
+  totalBatches: number
+): string => {
+
+  const parserData =
+    JSON.stringify(
+      batchQuestions,
+      null,
+      2
     );
 
-    console.log(
-      "PDF TEXT LENGTH:",
-      pdfText.length
-    );
+  return `
 
-    console.log(
-      "REGEX QUESTIONS:",
-      parsedQuestions.length
-    );
+You are an expert examination PDF verification
+and question reconstruction AI.
 
-    console.log(
-      "=========================================="
-    );
+This is BATCH ${batchNumber} of ${totalBatches}.
 
-    // ========================================================
-    // PARSER DATA
-    // ========================================================
+You are given TWO SOURCES.
 
-    const parserData =
-      JSON.stringify(
-        parsedQuestions,
-        null,
-        2
-      );
+========================================================
+SOURCE 1 — ORIGINAL PDF TEXT FOR THIS BATCH
+========================================================
 
-    // ========================================================
-    // PROMPT
-    // ========================================================
+${batchPdfText}
 
-    const prompt = `
+========================================================
+SOURCE 1 END
+========================================================
 
-You are an expert examination PDF verification and
-question reconstruction AI.
 
-You are given TWO sources:
+========================================================
+SOURCE 2 — REGEX PARSER RESULT FOR THIS BATCH
+========================================================
 
-SOURCE 1:
-Original text extracted from the PDF.
+${parserData}
 
-SOURCE 2:
-Questions extracted by our local regex parser.
+========================================================
+SOURCE 2 END
+========================================================
 
-Your job is to compare BOTH sources and return the
-MOST ACCURATE final MCQ questions.
 
 ========================================================
 IMPORTANT RULES
@@ -242,19 +385,19 @@ IMPORTANT RULES
 
 1. The ORIGINAL PDF TEXT is the primary source.
 
-2. The regex parsed questions are only helper data.
+2. The regex parser result is helper data.
 
-3. Compare the original PDF text with the parsed questions.
+3. Compare both sources carefully.
 
 4. Correct obvious PDF extraction mistakes.
 
 5. Correct broken question numbers.
 
-6. Correct question text split across multiple lines.
+6. Correct question text split across lines.
 
-7. Correct option text split across multiple lines.
+7. Correct option text split across lines.
 
-8. Remove PDF page numbers.
+8. Remove page numbers.
 
 9. Remove repeated headers.
 
@@ -268,37 +411,38 @@ IMPORTANT RULES
 
 14. Preserve units.
 
-15. Preserve special characters where possible.
+15. Preserve special characters.
 
 16. Preserve the original meaning.
 
-17. Do NOT invent questions.
+17. DO NOT invent questions.
 
-18. Do NOT invent options.
+18. DO NOT invent options.
 
-19. Do NOT invent an answer.
+19. DO NOT invent answers.
 
-20. If the PDF contains an answer key,
+20. If an answer key exists in the source,
     use the answer key.
 
-21. If an answer is present as A/B/C/D,
-    preserve it as A/B/C/D.
+21. If answer is A/B/C/D,
+    preserve it.
 
-22. If an answer is present as 1/2/3/4,
-    convert it:
+22. If answer is 1/2/3/4,
+    convert:
 
     1 → A
     2 → B
     3 → C
     4 → D
 
-23. If the PDF does NOT contain an answer,
+23. If no answer exists,
     return:
 
     "correctAnswer": "",
     "ansNumber": ""
 
-24. Every valid MCQ must contain exactly 4 options.
+24. Every valid MCQ must have exactly
+    4 options.
 
 25. questionType must always be:
 
@@ -312,11 +456,18 @@ IMPORTANT RULES
 
 29. Return ONLY JSON.
 
+30. Do not use general knowledge to silently
+    change questions or answers.
+
+31. Only correct extraction errors when
+    the source text supports the correction.
+
+32. Preserve the original question numbers
+    whenever possible.
+
 ========================================================
 QUESTION FORMATS
 ========================================================
-
-1. Question
 
 1) Question
 
@@ -393,18 +544,6 @@ Correct Answer: B
 Correct: C
 
 ========================================================
-CRITICAL ACCURACY RULE
-========================================================
-
-Do NOT use your general knowledge to silently change
-a question or answer.
-
-Only correct an extraction mistake when the source
-PDF text supports the correction.
-
-If the source is ambiguous, preserve the source data.
-
-========================================================
 OUTPUT FORMAT
 ========================================================
 
@@ -426,36 +565,50 @@ OUTPUT FORMAT
   ]
 }
 
-========================================================
-SOURCE 1 — ORIGINAL PDF TEXT
-========================================================
+Return ONLY the JSON object.
 
-${pdfText}
+Do not include markdown.
 
-========================================================
-SOURCE 1 END
-========================================================
+Do not include explanations.
 
-
-========================================================
-SOURCE 2 — REGEX PARSER RESULT
-========================================================
-
-${parserData}
-
-========================================================
-SOURCE 2 END
-========================================================
-
-Now compare both sources carefully.
-
-Return ONLY the final JSON object.
+Do not include comments.
 
 `;
 
-    // ========================================================
-    // CALL GROQ
-    // ========================================================
+};
+
+// ============================================================
+// ANALYZE SINGLE BATCH
+// ============================================================
+
+const analyzeSingleBatch = async (
+  batchPdfText: string,
+  batchQuestions: ParsedQuestionInput[],
+  batchNumber: number,
+  totalBatches: number
+): Promise<GroqQuestion[]> => {
+
+  console.log(
+    `🤖 GROQ BATCH ${batchNumber}/${totalBatches} STARTED`
+  );
+
+  console.log(
+    `📝 QUESTIONS IN BATCH: ${batchQuestions.length}`
+  );
+
+  console.log(
+    `📄 TEXT LENGTH: ${batchPdfText.length}`
+  );
+
+  const prompt =
+    buildBatchPrompt(
+      batchPdfText,
+      batchQuestions,
+      batchNumber,
+      totalBatches
+    );
+
+  try {
 
     const completion =
       await groq.chat.completions.create({
@@ -463,34 +616,35 @@ Return ONLY the final JSON object.
         model:
           "llama-3.3-70b-versatile",
 
-        temperature: 0,
+        temperature:
+          0,
 
         response_format: {
-          type: "json_object",
+          type:
+            "json_object",
         },
 
         messages: [
 
           {
-            role: "system",
+            role:
+              "system",
 
             content:
               "You are an expert examination PDF parser and verifier. Return JSON only.",
           },
 
           {
-            role: "user",
+            role:
+              "user",
 
-            content: prompt,
+            content:
+              prompt,
           },
 
         ],
 
       });
-
-    // ========================================================
-    // RESPONSE
-    // ========================================================
 
     const content =
       completion
@@ -501,17 +655,14 @@ Return ONLY the final JSON object.
     if (!content) {
 
       throw new Error(
-        "Groq returned empty response"
+        `Groq returned empty response for batch ${batchNumber}`
       );
+
     }
 
     console.log(
-      "🤖 Groq response received"
+      `✅ GROQ BATCH ${batchNumber}/${totalBatches} RESPONSE RECEIVED`
     );
-
-    // ========================================================
-    // PARSE JSON
-    // ========================================================
 
     let parsed: any;
 
@@ -527,138 +678,386 @@ Return ONLY the final JSON object.
     } catch (error) {
 
       console.error(
-        "❌ GROQ JSON PARSE ERROR:",
+        `❌ GROQ JSON ERROR BATCH ${batchNumber}:`,
         error
       );
 
       console.error(
-        "GROQ RAW RESPONSE:",
+        "RAW RESPONSE:",
         content
       );
 
       throw new Error(
-        "Groq returned invalid JSON"
+        `Groq returned invalid JSON for batch ${batchNumber}`
       );
+
     }
 
+    const questions =
+      normalizeGroqQuestions(
+        parsed
+      );
+
+    console.log(
+      `✅ VALID QUESTIONS FROM BATCH ${batchNumber}: ${questions.length}`
+    );
+
+    return questions;
+
+  } catch (error: any) {
+
+    console.error(
+      `❌ GROQ BATCH ${batchNumber} FAILED:`,
+      error?.message ||
+      error
+    );
+
+    throw error;
+
+  }
+
+};
+
+// ============================================================
+// ANALYZE PDF WITH GROQ
+// ============================================================
+//
+// SAME FUNCTION SIGNATURE AS BEFORE.
+//
+// questionController.ts DOES NOT NEED TO CHANGE.
+//
+// Internally:
+// PDF
+// ↓
+// batches
+// ↓
+// Groq batch 1
+// Groq batch 2
+// Groq batch 3
+// ↓
+// combine
+// ↓
+// remove duplicates
+// ↓
+// sort
+// ↓
+// return
+//
+// ============================================================
+
+export const analyzePDFWithGroq =
+  async (
+    pdfText: string,
+    parsedQuestions: ParsedQuestionInput[]
+  ): Promise<GroqQuestion[]> => {
+
     // ========================================================
-    // CHECK QUESTIONS
+    // VALIDATE PDF TEXT
     // ========================================================
 
     if (
-      !parsed ||
-      !Array.isArray(
-        parsed.questions
-      )
+      !pdfText ||
+      !pdfText.trim()
     ) {
 
       throw new Error(
-        "Groq response does not contain questions array"
+        "PDF text is empty"
       );
+
     }
 
     // ========================================================
-    // NORMALIZE
+    // CHECK API KEY
     // ========================================================
 
-    const questions: GroqQuestion[] =
-      parsed.questions
-        .map(
-          (
-            item: any,
-            index: number
-          ) => {
+    if (
+      !process.env.GROQ_API_KEY
+    ) {
 
-            // ----------------------------------------------
-            // OPTIONS
-            // ----------------------------------------------
+      throw new Error(
+        "GROQ_API_KEY is missing in .env"
+      );
 
-            const options =
-              Array.isArray(
-                item.options
-              )
-                ? item.options
-                    .slice(0, 4)
-                    .map(
-                      (
-                        option: any
-                      ) =>
-                        cleanOption(
-                          option
-                        )
-                    )
-                    .filter(
-                      (
-                        option: string
-                      ) =>
-                        option.length > 0
-                    )
-                : [];
+    }
 
-            // ----------------------------------------------
-            // ANSWER
-            // ----------------------------------------------
+    // ========================================================
+    // BASIC LOG
+    // ========================================================
 
-            const answer =
-              normalizeAnswer(
-                item.correctAnswer ||
-                item.ansNumber ||
-                ""
-              );
+    console.log(
+      "=========================================="
+    );
 
-            // ----------------------------------------------
-            // QUESTION
-            // ----------------------------------------------
+    console.log(
+      "🤖 GROQ BATCH PDF VERIFICATION STARTED"
+    );
 
-            return {
+    console.log(
+      "PDF TEXT LENGTH:",
+      pdfText.length
+    );
 
-              questionNumber:
-                Number(
-                  item.questionNumber
-                ) ||
-                index + 1,
+    console.log(
+      "REGEX QUESTIONS:",
+      parsedQuestions.length
+    );
 
-              question:
-                cleanQuestion(
-                  item.question
-                ),
+    console.log(
+      "BATCH SIZE:",
+      BATCH_SIZE
+    );
 
-              options,
+    console.log(
+      "=========================================="
+    );
 
-              correctAnswer:
-                answer.correctAnswer,
+    // ========================================================
+    // NO PARSED QUESTIONS
+    // ========================================================
 
-              ansNumber:
-                answer.ansNumber,
+    if (
+      parsedQuestions.length === 0
+    ) {
 
-              questionType:
-                "MCQ",
+      throw new Error(
+        "No parsed questions available for Groq verification"
+      );
 
-            };
+    }
 
-          }
-        )
-        .filter(
-          (
-            question: GroqQuestion
-          ) => {
+    // ========================================================
+    // CREATE QUESTION BATCHES
+    // ========================================================
 
-            return (
-              question.question.length >
-                0 &&
-              question.options.length ===
-                4
+    const batches =
+      createBatches(
+        parsedQuestions,
+        BATCH_SIZE
+      );
+
+    const totalBatches =
+      batches.length;
+
+    console.log(
+      `📦 TOTAL BATCHES: ${totalBatches}`
+    );
+
+    // ========================================================
+    // ALL FINAL QUESTIONS
+    // ========================================================
+
+    const allQuestions:
+      GroqQuestion[] = [];
+
+    // ========================================================
+    // PROCESS EACH BATCH
+    // ========================================================
+
+    for (
+      let i = 0;
+      i < batches.length;
+      i++
+    ) {
+
+      const batch =
+        batches[i];
+
+      const batchNumber =
+        i + 1;
+
+      // ======================================================
+      // FIND QUESTION NUMBER RANGE
+      // ======================================================
+
+      const firstQuestion =
+        batch[0]?.questionNumber ||
+        1;
+
+      const lastQuestion =
+        batch[
+          batch.length - 1
+        ]?.questionNumber ||
+        firstQuestion;
+
+      console.log(
+        `==========================================`
+      );
+
+      console.log(
+        `📦 PROCESSING BATCH ${batchNumber}/${totalBatches}`
+      );
+
+      console.log(
+        `📝 QUESTIONS: ${firstQuestion} - ${lastQuestion}`
+      );
+
+      console.log(
+        `==========================================`
+      );
+
+      // ======================================================
+      // BUILD BATCH PDF TEXT
+      // ======================================================
+      //
+      // Instead of sending the COMPLETE PDF every time,
+      // only send the relevant question section.
+      //
+      // We locate each parsed question in the extracted
+      // PDF text and create a smaller text section.
+      //
+      // ======================================================
+
+      let batchPdfText = "";
+
+      for (
+        const question of batch
+      ) {
+
+        const questionText =
+          String(
+            question.question ||
+            ""
+          ).trim();
+
+        if (!questionText) {
+          continue;
+        }
+
+        const normalizedQuestion =
+          questionText
+            .replace(
+              /\s+/g,
+              " "
+            )
+            .trim();
+
+        // Try exact-ish search in PDF text
+        const position =
+          pdfText
+            .toLowerCase()
+            .indexOf(
+              normalizedQuestion
+                .toLowerCase()
             );
 
-          }
+        if (
+          position >= 0
+        ) {
+
+          const start =
+            Math.max(
+              0,
+              position - 150
+            );
+
+          const end =
+            Math.min(
+              pdfText.length,
+              position +
+              normalizedQuestion.length +
+              1200
+            );
+
+          batchPdfText +=
+            "\n" +
+            pdfText.slice(
+              start,
+              end
+            ) +
+            "\n";
+
+        }
+
+      }
+
+      // ======================================================
+      // FALLBACK
+      // ======================================================
+      //
+      // If exact question text was not found,
+      // send parser data as the primary batch source.
+      //
+      // This prevents empty Groq requests.
+      //
+      // ======================================================
+
+      if (
+        !batchPdfText.trim()
+      ) {
+
+        batchPdfText =
+          batch
+            .map(
+              (
+                q
+              ) =>
+                `
+Question ${q.questionNumber}:
+${q.question}
+
+A) ${q.options?.[0] || ""}
+B) ${q.options?.[1] || ""}
+C) ${q.options?.[2] || ""}
+D) ${q.options?.[3] || ""}
+`
+            )
+            .join(
+              "\n"
+            );
+
+      }
+
+      // ======================================================
+      // ANALYZE BATCH
+      // ======================================================
+
+      const batchResult =
+        await analyzeSingleBatch(
+          batchPdfText,
+          batch,
+          batchNumber,
+          totalBatches
         );
+
+      // ======================================================
+      // ADD RESULTS
+      // ======================================================
+
+      allQuestions.push(
+        ...batchResult
+      );
+
+      console.log(
+        `📥 TOTAL QUESTIONS SO FAR: ${allQuestions.length}`
+      );
+
+      // ======================================================
+      // DELAY
+      // ======================================================
+
+      if (
+        batchNumber <
+        totalBatches
+      ) {
+
+        console.log(
+          `⏳ Waiting ${BATCH_DELAY_MS}ms before next batch...`
+        );
+
+        await delay(
+          BATCH_DELAY_MS
+        );
+
+      }
+
+    }
 
     // ========================================================
     // REMOVE DUPLICATES
     // ========================================================
 
     const uniqueQuestions =
-      questions.filter(
+      allQuestions.filter(
         (
           question,
           index,
@@ -701,7 +1100,21 @@ Return ONLY the final JSON object.
     );
 
     console.log(
-      "🤖 GROQ FINAL QUESTIONS:",
+      "🤖 GROQ BATCH PROCESSING COMPLETED"
+    );
+
+    console.log(
+      "📦 TOTAL BATCHES:",
+      totalBatches
+    );
+
+    console.log(
+      "📝 GROQ QUESTIONS:",
+      allQuestions.length
+    );
+
+    console.log(
+      "✅ UNIQUE QUESTIONS:",
       uniqueQuestions.length
     );
 
@@ -709,5 +1122,25 @@ Return ONLY the final JSON object.
       "=========================================="
     );
 
+    // ========================================================
+    // NO RESULTS
+    // ========================================================
+
+    if (
+      uniqueQuestions.length === 0
+    ) {
+
+      throw new Error(
+        "Groq returned no valid questions from any batch"
+      );
+
+    }
+
+    // ========================================================
+    // RETURN
+    // ========================================================
+
     return uniqueQuestions;
+
   };
+

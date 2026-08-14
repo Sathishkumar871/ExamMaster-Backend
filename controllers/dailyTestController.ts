@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 
 import QuestionBank from "../models/questionModel";
@@ -30,6 +29,38 @@ const createYearRegex = (year: string): RegExp => {
     )}$`,
     "i"
   );
+};
+
+// ============================================================
+// ACADEMIC YEAR NORMALIZER
+// ============================================================
+
+const getStudentAcademicYear = (student: any): string => {
+  const rawStudentYear = String(student?.year || "")
+    .trim()
+    .replace(/\s+/g, " ");
+
+  const normalized = rawStudentYear.toLowerCase();
+
+  if (
+    rawStudentYear === "1" ||
+    normalized === "1st" ||
+    normalized === "1st year" ||
+    normalized === "1st puc"
+  ) {
+    return "1st PUC";
+  }
+
+  if (
+    rawStudentYear === "2" ||
+    normalized === "2nd" ||
+    normalized === "2nd year" ||
+    normalized === "2nd puc"
+  ) {
+    return "2nd PUC";
+  }
+
+  return rawStudentYear;
 };
 
 // ============================================================
@@ -124,11 +155,8 @@ export const getDailyTests = async (
     // STUDENT YEAR
     // --------------------------------------------------------
 
-    const studentYear = String(
-      (student as any).year || ""
-    )
-      .trim()
-      .replace(/\s+/g, " ");
+    const studentYear =
+      getStudentAcademicYear(student);
 
     const normalizedStudentYear =
       normalizeYear(studentYear);
@@ -155,6 +183,11 @@ export const getDailyTests = async (
     console.log(
       "STUDENT:",
       (student as any).studentId
+    );
+
+    console.log(
+      "STUDENT RAW YEAR:",
+      (student as any).year
     );
 
     console.log(
@@ -374,9 +407,11 @@ export const getDailyTests = async (
             totalQuestions:
               test.questions.length,
 
-            testDate: test.testDate,
+            testDate:
+              test.testDate,
 
-            testTime: test.testTime,
+            testTime:
+              test.testTime,
 
             testCategory:
               test.testCategory,
@@ -535,13 +570,12 @@ export const startDailyTest = async (
     // --------------------------------------------------------
 
     const studentYear =
-      String(
-        (student as any).year || ""
-      )
-        .trim()
-        .replace(/\s+/g, " ");
+      getStudentAcademicYear(student);
 
-    if (!studentYear) {
+    const normalizedStudentYear =
+      normalizeYear(studentYear);
+
+    if (!normalizedStudentYear) {
       res.status(400).json({
         success: false,
         message:
@@ -588,6 +622,11 @@ export const startDailyTest = async (
     );
 
     console.log(
+      "STUDENT RAW YEAR:",
+      (student as any).year
+    );
+
+    console.log(
       "STUDENT YEAR:",
       studentYear
     );
@@ -614,9 +653,6 @@ export const startDailyTest = async (
     // --------------------------------------------------------
     // EXTRA YEAR VALIDATION
     // --------------------------------------------------------
-
-    const normalizedStudentYear =
-      normalizeYear(studentYear);
 
     const invalidQuestion =
       questions.find(
@@ -951,8 +987,6 @@ export const submitDailyTest = async (
 
     // --------------------------------------------------------
     // CREATE ANSWER MAP
-    //
-    // Faster than answers.find() for every question
     // --------------------------------------------------------
 
     const answerMap =
@@ -1297,4 +1331,3 @@ export const submitDailyTest = async (
     });
   }
 };
-

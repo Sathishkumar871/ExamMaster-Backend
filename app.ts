@@ -17,7 +17,7 @@ import studentProgressRoutes from "./routes/studentProgressRoutes";
 import complaintRoutes from "./routes/complaintRoutes";
 import testRoutes from "./routes/testRoutes"; // 👈 1. ఇక్కడ testRoutes ఇంపోర్ట్ చేయండి
 import facultyRoutes from "./routes/facultyRoutes";
-
+import subjectExamRoutes from "./routes/subjectExamRoutes";
 const app = express();
 
 
@@ -169,7 +169,10 @@ app.use(
 ); // 👈 2. ఇక్కడ /api/tests రౌట్‌ను రిజిస్టర్ చేయండి
 
 
-
+app.use(
+  "/api/subject-exams",
+  subjectExamRoutes
+);
 // ================= STUDENT PROGRESS =================
 
 app.use(

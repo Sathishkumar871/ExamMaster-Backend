@@ -31,12 +31,10 @@ type AcademicYear =
 // ============================================================
 
 const escapeRegex = (text: string) => {
-
   return text.replace(
     /[-[\]{}()*+?.,\\^$|#\s]/g,
     "\\$&"
   );
-
 };
 
 // ============================================================
@@ -47,7 +45,6 @@ const parseBoolean = (
   value: any,
   defaultValue = true
 ): boolean => {
-
   if (
     value === undefined ||
     value === null
@@ -55,9 +52,7 @@ const parseBoolean = (
     return defaultValue;
   }
 
-  if (
-    typeof value === "boolean"
-  ) {
+  if (typeof value === "boolean") {
     return value;
   }
 
@@ -66,20 +61,15 @@ const parseBoolean = (
       .trim()
       .toLowerCase();
 
-  if (
-    normalized === "true"
-  ) {
+  if (normalized === "true") {
     return true;
   }
 
-  if (
-    normalized === "false"
-  ) {
+  if (normalized === "false") {
     return false;
   }
 
   return defaultValue;
-
 };
 
 // ============================================================
@@ -89,26 +79,20 @@ const parseBoolean = (
 const normalizeTestCategory = (
   value: any
 ): TestCategory => {
-
   const category =
     String(value || "")
       .trim()
       .toLowerCase();
 
-  if (
-    category === "mock"
-  ) {
+  if (category === "mock") {
     return "mock";
   }
 
-  if (
-    category === "daily"
-  ) {
+  if (category === "daily") {
     return "daily";
   }
 
   return "subject";
-
 };
 
 // ============================================================
@@ -118,20 +102,16 @@ const normalizeTestCategory = (
 const normalizeExamType = (
   value: any
 ): ExamType => {
-
   const exam =
     String(value || "")
       .trim()
       .toUpperCase();
 
-  if (
-    exam === "JEE"
-  ) {
+  if (exam === "JEE") {
     return "JEE";
   }
 
   return "NEET";
-
 };
 
 // ============================================================
@@ -141,7 +121,6 @@ const normalizeExamType = (
 const normalizeAcademicYear = (
   value: any
 ): AcademicYear => {
-
   const year =
     String(value || "")
       .trim()
@@ -152,13 +131,35 @@ const normalizeAcademicYear = (
     year === "second puc" ||
     year === "2"
   ) {
-
     return "2nd PUC";
-
   }
 
   return "1st PUC";
+};
 
+// ============================================================
+// NORMALIZE SUBJECT
+// ============================================================
+//
+// MOCK
+//   => ""
+//
+// DAILY / SUBJECT
+//   => selected subject
+//
+// ============================================================
+
+const normalizeSubject = (
+  value: any,
+  testCategory: TestCategory
+): string => {
+  if (testCategory === "mock") {
+    return "";
+  }
+
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 };
 
 // ============================================================
@@ -168,28 +169,22 @@ const normalizeAcademicYear = (
 const createSubjectFilter = (
   subject: any
 ) => {
-
   if (
     !subject ||
     subject === "All" ||
     subject === "undefined"
   ) {
-
     return undefined;
-
   }
 
   return {
-
     $regex: new RegExp(
       `^${escapeRegex(
         String(subject).trim()
       )}$`,
       "i"
     ),
-
   };
-
 };
 
 // ============================================================
@@ -199,28 +194,22 @@ const createSubjectFilter = (
 const createTitleFilter = (
   testTitle: any
 ) => {
-
   if (
     !testTitle ||
     testTitle === "All" ||
     testTitle === "undefined"
   ) {
-
     return undefined;
-
   }
 
   return {
-
     $regex: new RegExp(
       `^${escapeRegex(
         String(testTitle).trim()
       )}$`,
       "i"
     ),
-
   };
-
 };
 
 // ============================================================
@@ -230,75 +219,37 @@ const createTitleFilter = (
 const createTestIdFilter = (
   testId: any
 ) => {
-
   if (
     !testId ||
     testId === "All" ||
     testId === "undefined"
   ) {
-
     return undefined;
-
   }
 
   return {
-
     $regex: new RegExp(
       `^${escapeRegex(
         String(testId).trim()
       )}$`,
       "i"
     ),
-
   };
-
 };
 
 // ============================================================
-// 1. CREATE QUESTION
+// 1. CREATE MANUAL QUESTION
 // ============================================================
 
 export const createQuestion = async (
   req: any,
   res: Response
 ): Promise<void> => {
-
   try {
-
-    const head =
-      req.head;
+    const head = req.head;
 
     // ========================================================
-    // IMAGE
-    // ========================================================
-
-    let imageUrl =
-      req.body.imageUrl || "";
-
-    if (
-      req.files &&
-      req.files.image
-    ) {
-
-      const imageFile =
-        req.files.image as UploadedFile;
-
-      const upload =
-        await cloudinary.uploader.upload(
-          imageFile.tempFilePath,
-          {
-            folder:
-              "question_images",
-          }
-        );
-
-      imageUrl =
-        upload.secure_url;
-
-    }
-
-    // ========================================================
-    // BASIC VALUES
+    // TEST CATEGORY
     // ========================================================
 
     const testCategory =
@@ -306,27 +257,51 @@ export const createQuestion = async (
         req.body.testCategory
       );
 
+    // ========================================================
+    // EXAM TYPE
+    // ========================================================
+
     const examType =
       normalizeExamType(
         req.body.examType
       );
+
+    // ========================================================
+    // ACADEMIC YEAR
+    // ========================================================
 
     const academicYear =
       normalizeAcademicYear(
         req.body.academicYear
       );
 
+    // ========================================================
+    // SUBJECT
+    // ========================================================
+    //
+    // MOCK => ""
+    // DAILY/SUBJECT => selected subject
+    //
+    // ========================================================
+
     const subject =
-      String(
-        req.body.subject ||
-        "General"
-      ).trim();
+      normalizeSubject(
+        req.body.subject,
+        testCategory
+      );
+
+    // ========================================================
+    // CHAPTER
+    // ========================================================
 
     const chapter =
       String(
-        req.body.chapter ||
-        ""
+        req.body.chapter || ""
       ).trim();
+
+    // ========================================================
+    // TEST TITLE
+    // ========================================================
 
     const testTitle =
       String(
@@ -357,12 +332,10 @@ export const createQuestion = async (
       !totalQuestions ||
       totalQuestions < 1
     ) {
-
       totalQuestions =
         testCategory === "subject"
           ? 100
           : 180;
-
     }
 
     // ========================================================
@@ -371,54 +344,120 @@ export const createQuestion = async (
 
     const testDate =
       String(
-        req.body.testDate ||
-        ""
+        req.body.testDate || ""
       ).trim();
 
     const testTime =
       String(
-        req.body.testTime ||
-        ""
+        req.body.testTime || ""
       ).trim();
 
     // ========================================================
-    // CREATE QUESTION
+    // IMAGE
+    // ========================================================
+
+    let imageUrl =
+      String(
+        req.body.imageUrl || ""
+      ).trim();
+
+    if (
+      req.files &&
+      req.files.image
+    ) {
+      const imageFile =
+        req.files.image as UploadedFile;
+
+      const upload =
+        await cloudinary.uploader.upload(
+          imageFile.tempFilePath,
+          {
+            folder:
+              "question_images",
+          }
+        );
+
+      imageUrl =
+        upload.secure_url;
+    }
+
+    // ========================================================
+    // OPTIONS
+    // ========================================================
+
+    let options: string[] = [];
+
+    if (
+      Array.isArray(
+        req.body.options
+      )
+    ) {
+      options =
+        req.body.options
+          .map(
+            (option: any) =>
+              String(
+                option || ""
+              ).trim()
+          )
+          .filter(
+            (option: string) =>
+              option.length > 0
+          );
+    }
+
+    // ========================================================
+    // CREATE
     // ========================================================
 
     const question =
       await QuestionBank.create({
-
         questionNumber:
           Number(
             req.body.questionNumber
           ) || 1,
 
-        question:
-          req.body.question ||
-          "",
+        subjectQuestionNumber:
+          Number(
+            req.body.subjectQuestionNumber
+          ) || 0,
 
-        options:
-          Array.isArray(
-            req.body.options
-          )
-            ? req.body.options
-            : [],
+        globalQuestionNumber:
+          Number(
+            req.body.globalQuestionNumber
+          ) || 0,
+
+        question:
+          String(
+            req.body.question || ""
+          ).trim(),
+
+        options,
 
         correctAnswer:
-          req.body.correctAnswer ||
-          "",
+          String(
+            req.body.correctAnswer || ""
+          ).trim(),
 
         ansNumber:
-          req.body.ansNumber ||
-          "",
+          String(
+            req.body.ansNumber || ""
+          ).trim(),
 
         questionType:
-          req.body.questionType ||
-          "MCQ",
+          String(
+            req.body.questionType ||
+            "MCQ"
+          ).trim(),
 
         chapter,
 
         subject,
+
+        subjectOrder:
+          Number(
+            req.body.subjectOrder
+          ) || 1,
 
         teacherId:
           head?.headId ||
@@ -426,12 +465,16 @@ export const createQuestion = async (
           "HEAD",
 
         pdfId:
-          req.body.pdfId ||
-          "manual",
+          String(
+            req.body.pdfId ||
+            "manual"
+          ).trim(),
 
         pdfSourceUrl:
-          req.body.pdfSourceUrl ||
-          "",
+          String(
+            req.body.pdfSourceUrl ||
+            ""
+          ).trim(),
 
         status:
           req.body.status ||
@@ -473,11 +516,12 @@ export const createQuestion = async (
         testTime,
 
         targetExamLevel:
-          req.body.targetExamLevel ||
-          "board",
+          String(
+            req.body.targetExamLevel ||
+            "board"
+          ).trim(),
 
         imageUrl,
-
       });
 
     // ========================================================
@@ -485,35 +529,25 @@ export const createQuestion = async (
     // ========================================================
 
     res.status(201).json({
-
       success: true,
-
       message:
         "Question created successfully",
-
       question,
-
     });
 
   } catch (error: any) {
-
     console.log(
       "CREATE QUESTION ERROR:",
       error
     );
 
     res.status(500).json({
-
       success: false,
-
       message:
         error.message ||
         "Failed to create question",
-
     });
-
   }
-
 };
 
 // ============================================================
@@ -524,9 +558,7 @@ export const getQuestions = async (
   req: any,
   res: Response
 ): Promise<void> => {
-
   try {
-
     const {
       subject,
       testCategory,
@@ -548,12 +580,10 @@ export const getQuestions = async (
       testCategory !== "All" &&
       testCategory !== "undefined"
     ) {
-
       filter.testCategory =
         normalizeTestCategory(
           testCategory
         );
-
     }
 
     // ========================================================
@@ -565,12 +595,10 @@ export const getQuestions = async (
       examType !== "All" &&
       examType !== "undefined"
     ) {
-
       filter.examType =
         normalizeExamType(
           examType
         );
-
     }
 
     // ========================================================
@@ -582,12 +610,10 @@ export const getQuestions = async (
       academicYear !== "All" &&
       academicYear !== "undefined"
     ) {
-
       filter.academicYear =
         normalizeAcademicYear(
           academicYear
         );
-
     }
 
     // ========================================================
@@ -595,17 +621,11 @@ export const getQuestions = async (
     // ========================================================
 
     const testIdFilter =
-      createTestIdFilter(
-        testId
-      );
+      createTestIdFilter(testId);
 
-    if (
-      testIdFilter
-    ) {
-
+    if (testIdFilter) {
       filter.testId =
         testIdFilter;
-
     }
 
     // ========================================================
@@ -613,17 +633,11 @@ export const getQuestions = async (
     // ========================================================
 
     const titleFilter =
-      createTitleFilter(
-        testTitle
-      );
+      createTitleFilter(testTitle);
 
-    if (
-      titleFilter
-    ) {
-
+    if (titleFilter) {
       filter.testTitle =
         titleFilter;
-
     }
 
     // ========================================================
@@ -631,17 +645,11 @@ export const getQuestions = async (
     // ========================================================
 
     const subjectFilter =
-      createSubjectFilter(
-        subject
-      );
+      createSubjectFilter(subject);
 
-    if (
-      subjectFilter
-    ) {
-
+    if (subjectFilter) {
       filter.subject =
         subjectFilter;
-
     }
 
     // ========================================================
@@ -653,18 +661,14 @@ export const getQuestions = async (
       chapter !== "All" &&
       chapter !== "undefined"
     ) {
-
       filter.chapter = {
-
         $regex: new RegExp(
           `^${escapeRegex(
             String(chapter).trim()
           )}$`,
           "i"
         ),
-
       };
-
     }
 
     // ========================================================
@@ -672,27 +676,24 @@ export const getQuestions = async (
     // ========================================================
 
     const questions =
-      await QuestionBank.find(
-        filter
-      )
-      .sort({
-        questionNumber: 1,
-        createdAt: 1,
-      });
+      await QuestionBank.find(filter)
+        .sort({
+          testId: 1,
+          questionNumber: 1,
+          createdAt: 1,
+        });
 
     // ========================================================
     // RESPONSE
     // ========================================================
 
     res.json({
-
       success: true,
 
       total:
         questions.length,
 
       filters: {
-
         testCategory:
           testCategory || null,
 
@@ -713,32 +714,24 @@ export const getQuestions = async (
 
         chapter:
           chapter || null,
-
       },
 
       questions,
-
     });
 
   } catch (error: any) {
-
     console.log(
       "GET QUESTIONS ERROR:",
       error
     );
 
     res.status(500).json({
-
       success: false,
-
       message:
         error.message ||
         "Failed to get questions",
-
     });
-
   }
-
 };
 
 // ============================================================
@@ -749,9 +742,7 @@ export const getStudentQuestions = async (
   req: any,
   res: Response
 ): Promise<void> => {
-
   try {
-
     const {
       subject,
       testCategory,
@@ -762,14 +753,8 @@ export const getStudentQuestions = async (
       chapter,
     } = req.query;
 
-    // ========================================================
-    // ONLY PUBLISHED
-    // ========================================================
-
     const filter: any = {
-
       isPublished: true,
-
     };
 
     // ========================================================
@@ -781,12 +766,10 @@ export const getStudentQuestions = async (
       testCategory !== "All" &&
       testCategory !== "undefined"
     ) {
-
       filter.testCategory =
         normalizeTestCategory(
           testCategory
         );
-
     }
 
     // ========================================================
@@ -798,12 +781,10 @@ export const getStudentQuestions = async (
       examType !== "All" &&
       examType !== "undefined"
     ) {
-
       filter.examType =
         normalizeExamType(
           examType
         );
-
     }
 
     // ========================================================
@@ -815,12 +796,10 @@ export const getStudentQuestions = async (
       academicYear !== "All" &&
       academicYear !== "undefined"
     ) {
-
       filter.academicYear =
         normalizeAcademicYear(
           academicYear
         );
-
     }
 
     // ========================================================
@@ -828,17 +807,11 @@ export const getStudentQuestions = async (
     // ========================================================
 
     const testIdFilter =
-      createTestIdFilter(
-        testId
-      );
+      createTestIdFilter(testId);
 
-    if (
-      testIdFilter
-    ) {
-
+    if (testIdFilter) {
       filter.testId =
         testIdFilter;
-
     }
 
     // ========================================================
@@ -846,17 +819,11 @@ export const getStudentQuestions = async (
     // ========================================================
 
     const titleFilter =
-      createTitleFilter(
-        testTitle
-      );
+      createTitleFilter(testTitle);
 
-    if (
-      titleFilter
-    ) {
-
+    if (titleFilter) {
       filter.testTitle =
         titleFilter;
-
     }
 
     // ========================================================
@@ -864,17 +831,11 @@ export const getStudentQuestions = async (
     // ========================================================
 
     const subjectFilter =
-      createSubjectFilter(
-        subject
-      );
+      createSubjectFilter(subject);
 
-    if (
-      subjectFilter
-    ) {
-
+    if (subjectFilter) {
       filter.subject =
         subjectFilter;
-
     }
 
     // ========================================================
@@ -886,18 +847,14 @@ export const getStudentQuestions = async (
       chapter !== "All" &&
       chapter !== "undefined"
     ) {
-
       filter.chapter = {
-
         $regex: new RegExp(
           `^${escapeRegex(
             String(chapter).trim()
           )}$`,
           "i"
         ),
-
       };
-
     }
 
     // ========================================================
@@ -905,27 +862,24 @@ export const getStudentQuestions = async (
     // ========================================================
 
     const questions =
-      await QuestionBank.find(
-        filter
-      )
-      .sort({
-        questionNumber: 1,
-        createdAt: 1,
-      });
+      await QuestionBank.find(filter)
+        .sort({
+          testId: 1,
+          questionNumber: 1,
+          createdAt: 1,
+        });
 
     // ========================================================
     // RESPONSE
     // ========================================================
 
     res.json({
-
       success: true,
 
       total:
         questions.length,
 
       filters: {
-
         testCategory:
           testCategory || null,
 
@@ -946,32 +900,24 @@ export const getStudentQuestions = async (
 
         chapter:
           chapter || null,
-
       },
 
       questions,
-
     });
 
   } catch (error: any) {
-
     console.log(
       "GET STUDENT QUESTIONS ERROR:",
       error
     );
 
     res.status(500).json({
-
       success: false,
-
       message:
         error.message ||
         "Failed to get student questions",
-
     });
-
   }
-
 };
 
 // ============================================================
@@ -982,9 +928,7 @@ export const updateQuestion = async (
   req: any,
   res: Response
 ): Promise<void> => {
-
   try {
-
     const updateData: any = {
       ...req.body,
     };
@@ -998,34 +942,34 @@ export const updateQuestion = async (
       typeof updateData.options ===
         "string"
     ) {
-
       try {
-
         updateData.options =
           JSON.parse(
             updateData.options
           );
-
-      } catch (error) {
-
-        console.log(
-          "OPTIONS PARSE ERROR:",
-          error
-        );
-
+      } catch {
         res.status(400).json({
-
           success: false,
-
           message:
             "Invalid options format",
-
         });
 
         return;
-
       }
+    }
 
+    // ========================================================
+    // TEST CATEGORY
+    // ========================================================
+
+    if (
+      updateData.testCategory !==
+      undefined
+    ) {
+      updateData.testCategory =
+        normalizeTestCategory(
+          updateData.testCategory
+        );
     }
 
     // ========================================================
@@ -1036,12 +980,12 @@ export const updateQuestion = async (
       updateData.subject !==
       undefined
     ) {
-
       updateData.subject =
-        String(
-          updateData.subject
-        ).trim();
-
+        normalizeSubject(
+          updateData.subject,
+          updateData.testCategory ||
+            "subject"
+        );
     }
 
     // ========================================================
@@ -1052,27 +996,10 @@ export const updateQuestion = async (
       updateData.chapter !==
       undefined
     ) {
-
       updateData.chapter =
         String(
           updateData.chapter
         ).trim();
-
-    }
-
-    // ========================================================
-    // TEST CATEGORY
-    // ========================================================
-
-    if (
-      updateData.testCategory
-    ) {
-
-      updateData.testCategory =
-        normalizeTestCategory(
-          updateData.testCategory
-        );
-
     }
 
     // ========================================================
@@ -1080,14 +1007,13 @@ export const updateQuestion = async (
     // ========================================================
 
     if (
-      updateData.examType
+      updateData.examType !==
+      undefined
     ) {
-
       updateData.examType =
         normalizeExamType(
           updateData.examType
         );
-
     }
 
     // ========================================================
@@ -1095,14 +1021,13 @@ export const updateQuestion = async (
     // ========================================================
 
     if (
-      updateData.academicYear
+      updateData.academicYear !==
+      undefined
     ) {
-
       updateData.academicYear =
         normalizeAcademicYear(
           updateData.academicYear
         );
-
     }
 
     // ========================================================
@@ -1110,14 +1035,13 @@ export const updateQuestion = async (
     // ========================================================
 
     if (
-      updateData.testTitle
+      updateData.testTitle !==
+      undefined
     ) {
-
       updateData.testTitle =
         String(
           updateData.testTitle
         ).trim();
-
     }
 
     // ========================================================
@@ -1125,14 +1049,13 @@ export const updateQuestion = async (
     // ========================================================
 
     if (
-      updateData.testId
+      updateData.testId !==
+      undefined
     ) {
-
       updateData.testId =
         String(
           updateData.testId
         ).trim();
-
     }
 
     // ========================================================
@@ -1143,12 +1066,10 @@ export const updateQuestion = async (
       updateData.totalQuestions !==
       undefined
     ) {
-
       updateData.totalQuestions =
         Number(
           updateData.totalQuestions
         );
-
     }
 
     // ========================================================
@@ -1159,12 +1080,10 @@ export const updateQuestion = async (
       updateData.testDate !==
       undefined
     ) {
-
       updateData.testDate =
         String(
           updateData.testDate
         ).trim();
-
     }
 
     // ========================================================
@@ -1175,12 +1094,10 @@ export const updateQuestion = async (
       updateData.testTime !==
       undefined
     ) {
-
       updateData.testTime =
         String(
           updateData.testTime
         ).trim();
-
     }
 
     // ========================================================
@@ -1191,13 +1108,11 @@ export const updateQuestion = async (
       updateData.isPublished !==
       undefined
     ) {
-
       updateData.isPublished =
         parseBoolean(
           updateData.isPublished,
           true
         );
-
     }
 
     // ========================================================
@@ -1208,7 +1123,6 @@ export const updateQuestion = async (
       req.files &&
       req.files.image
     ) {
-
       const imageFile =
         req.files.image as UploadedFile;
 
@@ -1223,7 +1137,6 @@ export const updateQuestion = async (
 
       updateData.imageUrl =
         upload.secure_url;
-
     }
 
     // ========================================================
@@ -1232,31 +1145,22 @@ export const updateQuestion = async (
 
     const question =
       await QuestionBank.findByIdAndUpdate(
-
         req.params.id,
-
         updateData,
-
         {
           new: true,
           runValidators: true,
         }
-
       );
 
     if (!question) {
-
       res.status(404).json({
-
         success: false,
-
         message:
           "Question not found",
-
       });
 
       return;
-
     }
 
     // ========================================================
@@ -1264,35 +1168,25 @@ export const updateQuestion = async (
     // ========================================================
 
     res.json({
-
       success: true,
-
       message:
         "Question updated successfully",
-
       question,
-
     });
 
   } catch (error: any) {
-
     console.log(
       "UPDATE QUESTION ERROR:",
       error
     );
 
     res.status(500).json({
-
       success: false,
-
       message:
         error.message ||
         "Failed to update question",
-
     });
-
   }
-
 };
 
 // ============================================================
@@ -1303,57 +1197,41 @@ export const deleteQuestion = async (
   req: any,
   res: Response
 ): Promise<void> => {
-
   try {
-
     const deleted =
       await QuestionBank.findByIdAndDelete(
         req.params.id
       );
 
     if (!deleted) {
-
       res.status(404).json({
-
         success: false,
-
         message:
           "Question not found",
-
       });
 
       return;
-
     }
 
     res.json({
-
       success: true,
-
       message:
         "Question deleted successfully",
-
     });
 
   } catch (error: any) {
-
     console.log(
       "DELETE QUESTION ERROR:",
       error
     );
 
     res.status(500).json({
-
       success: false,
-
       message:
         error.message ||
         "Failed to delete question",
-
     });
-
   }
-
 };
 
 // ============================================================
@@ -1364,73 +1242,45 @@ export const deleteAllQuestions = async (
   req: any,
   res: Response
 ): Promise<void> => {
-
   try {
-
-    await QuestionBank.deleteMany({});
+    const result =
+      await QuestionBank.deleteMany({});
 
     res.json({
-
       success: true,
-
       message:
         "All questions deleted successfully",
-
+      deletedCount:
+        result.deletedCount,
     });
 
   } catch (error: any) {
-
     console.log(
       "DELETE ALL QUESTIONS ERROR:",
       error
     );
 
     res.status(500).json({
-
       success: false,
-
       message:
         error.message ||
         "Failed to delete questions",
-
     });
-
   }
-
 };
 
 // ============================================================
 // 7. GENERATE QUESTIONS FROM PDF
-// ============================================================
-//
-// FLOW:
-//
-// PDF
-//  ↓
-// pdf-parse
-//  ↓
-// Regex Parser
-//  ↓
-// Validation
-//  ↓
-// Cloudinary PDF
-//  ↓
-// MongoDB
-//
-// NO GROQ AI
-//
 // ============================================================
 
 export const generateQuestionsFromPDF = async (
   req: any,
   res: Response
 ): Promise<void> => {
-
   let parser:
     PDFParse | null = null;
 
   try {
-
     const head =
       req.head;
 
@@ -1442,18 +1292,13 @@ export const generateQuestionsFromPDF = async (
       !req.files ||
       !req.files.pdf
     ) {
-
       res.status(400).json({
-
         success: false,
-
         message:
           "PDF file required",
-
       });
 
       return;
-
     }
 
     const pdfFile =
@@ -1490,11 +1335,6 @@ export const generateQuestionsFromPDF = async (
         pdfFile.tempFilePath
       );
 
-    console.log(
-      "📄 PDF BUFFER:",
-      pdfBuffer.length
-    );
-
     parser =
       new PDFParse({
         data: pdfBuffer,
@@ -1519,35 +1359,18 @@ export const generateQuestionsFromPDF = async (
       !extractedText ||
       extractedText.trim().length === 0
     ) {
-
       res.status(400).json({
-
         success: false,
-
         message:
           "PDF text not found. This PDF may be scanned/image based. A text-based PDF is required.",
-
       });
 
       return;
-
     }
 
     // ========================================================
-    // REGEX PARSER
+    // PARSE QUESTIONS
     // ========================================================
-
-    console.log(
-      "=========================================="
-    );
-
-    console.log(
-      "📝 PDF REGEX PARSER STARTED"
-    );
-
-    console.log(
-      "=========================================="
-    );
 
     const parsedQuestions =
       parseQuestions(
@@ -1566,43 +1389,16 @@ export const generateQuestionsFromPDF = async (
     if (
       parsedQuestions.length === 0
     ) {
-
       res.status(400).json({
-
         success: false,
-
         message:
           "No questions detected in PDF. Please check the PDF question and option format.",
-
         extractedTextLength:
           extractedText.length,
-
       });
 
       return;
-
     }
-
-    // ========================================================
-    // FINAL QUESTIONS
-    // DIRECT REGEX PARSER
-    // ========================================================
-
-    const finalQuestions =
-      parsedQuestions;
-
-    console.log(
-      "=========================================="
-    );
-
-    console.log(
-      "📝 FINAL PARSED QUESTIONS:",
-      finalQuestions.length
-    );
-
-    console.log(
-      "=========================================="
-    );
 
     // ========================================================
     // METADATA
@@ -1623,16 +1419,20 @@ export const generateQuestionsFromPDF = async (
         req.body.academicYear
       );
 
+    // ========================================================
+    // IMPORTANT
+    // MOCK => SUBJECT EMPTY
+    // ========================================================
+
     const subject =
-      String(
-        req.body.subject ||
-        "General"
-      ).trim();
+      normalizeSubject(
+        req.body.subject,
+        testCategory
+      );
 
     const chapter =
       String(
-        req.body.chapter ||
-        ""
+        req.body.chapter || ""
       ).trim();
 
     const testTitle =
@@ -1664,10 +1464,8 @@ export const generateQuestionsFromPDF = async (
       !totalQuestions ||
       totalQuestions < 1
     ) {
-
       totalQuestions =
-        finalQuestions.length;
-
+        parsedQuestions.length;
     }
 
     // ========================================================
@@ -1676,14 +1474,12 @@ export const generateQuestionsFromPDF = async (
 
     const testDate =
       String(
-        req.body.testDate ||
-        ""
+        req.body.testDate || ""
       ).trim();
 
     const testTime =
       String(
-        req.body.testTime ||
-        ""
+        req.body.testTime || ""
       ).trim();
 
     // ========================================================
@@ -1700,50 +1496,37 @@ export const generateQuestionsFromPDF = async (
     let pdfUrl = "";
 
     try {
-
       console.log(
         "☁️ UPLOADING PDF TO CLOUDINARY..."
       );
 
       const upload =
         await cloudinary.uploader.upload(
-
           pdfFile.tempFilePath,
-
           {
-
-            resource_type:
-              "raw",
-
+            resource_type: "raw",
             folder:
               "question_pdfs",
-
           }
-
         );
 
       pdfUrl =
         upload.secure_url;
 
       console.log(
-        "☁️ PDF UPLOADED:"
-      );
-
-      console.log(
+        "☁️ PDF UPLOADED:",
         pdfUrl
       );
 
     } catch (error) {
-
       console.log(
         "PDF CLOUDINARY ERROR:",
         error
       );
-
     }
 
     // ========================================================
-    // PUBLISHED STATUS
+    // PUBLISHED
     // ========================================================
 
     const isPublished =
@@ -1757,12 +1540,11 @@ export const generateQuestionsFromPDF = async (
     // ========================================================
 
     const questionsToSave =
-      finalQuestions.map(
+      parsedQuestions.map(
         (
           q: any,
           index: number
         ) => {
-
           const options =
             Array.isArray(
               q.options
@@ -1782,41 +1564,62 @@ export const generateQuestionsFromPDF = async (
               : [];
 
           return {
+            // ==================================================
+            // QUESTION NUMBER
+            // ==================================================
 
             questionNumber:
               Number(
                 q.questionNumber
               ) || index + 1,
 
+            subjectQuestionNumber:
+              Number(
+                q.subjectQuestionNumber
+              ) || index + 1,
+
+            globalQuestionNumber:
+              Number(
+                q.globalQuestionNumber
+              ) || index + 1,
+
+            // ==================================================
+            // QUESTION
+            // ==================================================
+
             question:
               String(
-                q.question ||
-                ""
+                q.question || ""
               ).trim(),
 
             options,
 
             correctAnswer:
               String(
-                q.correctAnswer ||
-                ""
+                q.correctAnswer || ""
               ).trim(),
 
             ansNumber:
               String(
-                q.ansNumber ||
-                ""
+                q.ansNumber || ""
               ).trim(),
 
             questionType:
-              q.questionType ||
-              "MCQ",
+              String(
+                q.questionType ||
+                "MCQ"
+              ).trim(),
 
             // ==================================================
             // SUBJECT
             // ==================================================
 
             subject,
+
+            subjectOrder:
+              Number(
+                q.subjectOrder
+              ) || 1,
 
             chapter,
 
@@ -1875,35 +1678,15 @@ export const generateQuestionsFromPDF = async (
 
             isPublished,
 
+            // ==================================================
+            // IMAGE
+            // ==================================================
+
             imageUrl:
-              q.imageUrl ||
-              "",
-
+              String(
+                q.imageUrl || ""
+              ).trim(),
           };
-
-        }
-      );
-
-    // ========================================================
-    // VALIDATE QUESTIONS
-    // ========================================================
-
-    const invalidQuestions =
-      questionsToSave.filter(
-        (q: any) => {
-
-          return (
-
-            !q.question ||
-
-            !Array.isArray(
-              q.options
-            ) ||
-
-            q.options.length !== 4
-
-          );
-
         }
       );
 
@@ -1913,40 +1696,47 @@ export const generateQuestionsFromPDF = async (
 
     const validQuestions =
       questionsToSave.filter(
-        (q: any) => {
-
-          return (
-
+        (q: any) =>
+          Boolean(
             q.question &&
-
             Array.isArray(
               q.options
             ) &&
-
             q.options.length === 4
-
-          );
-
-        }
+          )
       );
+
+    const invalidQuestions =
+      questionsToSave.length -
+      validQuestions.length;
 
     console.log(
       "=========================================="
     );
 
     console.log(
-      "📝 PARSER QUESTIONS:",
-      finalQuestions.length
+      "📝 PARSED:",
+      parsedQuestions.length
     );
 
     console.log(
-      "✅ VALID QUESTIONS:",
+      "✅ VALID:",
       validQuestions.length
     );
 
     console.log(
-      "⚠️ INVALID QUESTIONS:",
-      invalidQuestions.length
+      "⚠️ INVALID:",
+      invalidQuestions
+    );
+
+    console.log(
+      "TEST CATEGORY:",
+      testCategory
+    );
+
+    console.log(
+      "SUBJECT:",
+      subject
     );
 
     console.log(
@@ -1960,28 +1750,20 @@ export const generateQuestionsFromPDF = async (
     if (
       validQuestions.length === 0
     ) {
-
       res.status(400).json({
-
         success: false,
-
         message:
           "PDF parser found questions, but no valid MCQ questions with exactly 4 options were found.",
-
         parsedQuestions:
           parsedQuestions.length,
-
-        invalidQuestions:
-          invalidQuestions.length,
-
+        invalidQuestions,
       });
 
       return;
-
     }
 
     // ========================================================
-    // SAVE TO DATABASE
+    // SAVE TO MONGODB
     // ========================================================
 
     console.log(
@@ -1990,13 +1772,10 @@ export const generateQuestionsFromPDF = async (
 
     const savedQuestions =
       await QuestionBank.insertMany(
-
         validQuestions,
-
         {
           ordered: false,
         }
-
       );
 
     console.log(
@@ -2009,7 +1788,6 @@ export const generateQuestionsFromPDF = async (
     // ========================================================
 
     res.status(201).json({
-
       success: true,
 
       message:
@@ -2021,8 +1799,7 @@ export const generateQuestionsFromPDF = async (
       validQuestions:
         validQuestions.length,
 
-      invalidQuestions:
-        invalidQuestions.length,
+      invalidQuestions,
 
       totalQuestions:
         savedQuestions.length,
@@ -2055,20 +1832,15 @@ export const generateQuestionsFromPDF = async (
 
       questions:
         savedQuestions,
-
     });
 
   } catch (error: any) {
-
     console.error(
       "=========================================="
     );
 
     console.error(
-      "❌ PDF PARSE ERROR:"
-    );
-
-    console.error(
+      "❌ PDF PARSE ERROR:",
       error
     );
 
@@ -2077,46 +1849,34 @@ export const generateQuestionsFromPDF = async (
     );
 
     res.status(500).json({
-
       success: false,
-
       message:
         error?.message ||
         "Failed to parse PDF",
-
     });
 
   } finally {
 
     // ========================================================
-    // DESTROY PDF PARSER
+    // DESTROY PARSER
     // ========================================================
 
-    if (
-      parser
-    ) {
-
+    if (parser) {
       try {
-
         await parser.destroy();
-
       } catch (error) {
-
         console.log(
           "PDF PARSER DESTROY ERROR:",
           error
         );
-
       }
-
     }
 
     // ========================================================
-    // REMOVE TEMP PDF
+    // DELETE TEMP PDF
     // ========================================================
 
     try {
-
       const pdfFile =
         req.files?.pdf as UploadedFile;
 
@@ -2126,7 +1886,6 @@ export const generateQuestionsFromPDF = async (
           pdfFile.tempFilePath
         )
       ) {
-
         fs.unlinkSync(
           pdfFile.tempFilePath
         );
@@ -2134,18 +1893,12 @@ export const generateQuestionsFromPDF = async (
         console.log(
           "🗑️ TEMP PDF DELETED"
         );
-
       }
-
     } catch (error) {
-
       console.log(
         "TEMP PDF DELETE ERROR:",
         error
       );
-
     }
-
   }
-
 };

@@ -58,8 +58,9 @@ export const updateQuestionByHead = async (
       existingQuestion.ansNumber = ansNumber;
     }
 
+    // Fixed: changed .explanation to .aiExplanation
     if (explanation !== undefined) {
-      existingQuestion.explanation =
+      existingQuestion.aiExplanation =
         explanation;
     }
 

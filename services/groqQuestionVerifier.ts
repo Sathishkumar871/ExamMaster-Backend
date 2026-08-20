@@ -270,11 +270,11 @@ ${question.examType}
 
 ACADEMIC YEAR:
 
-${question.academicYear}
+${(question as any).academicYear || "Not provided"}
 
 TARGET LEVEL:
 
-${question.targetExamLevel}
+${(question as any).targetExamLevel || "Not provided"}
 
 Return ONLY valid JSON.
 

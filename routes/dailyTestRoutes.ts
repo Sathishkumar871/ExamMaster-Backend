@@ -1,29 +1,9 @@
 import express from "express";
-
-import {
-  getDailyTests,
-  startDailyTest,
-  submitDailyTest,
-} from "../controllers/dailyTestController";
+import { getDailyTestQuestions } from "../controllers/dailyTestController";
 
 const router = express.Router();
 
-// GET published daily tests
-router.get(
-  "/",
-  getDailyTests
-);
-
-// START daily test
-router.post(
-  "/start",
-  startDailyTest
-);
-
-// SUBMIT daily test
-router.post(
-  "/submit",
-  submitDailyTest
-);
+// GET /api/daily-tests
+router.get("/", getDailyTestQuestions);
 
 export default router;

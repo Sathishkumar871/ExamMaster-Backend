@@ -1,10 +1,31 @@
+
+// ============================================================
+// PDF QUESTION PARSER
+// SUBJECT-WISE VERSION
+// ============================================================
+
 export interface ParsedQuestion {
   questionNumber: number;
+
+  // Subject-wise question number
+  subjectQuestionNumber: number;
+
+  // Global question number if available
+  globalQuestionNumber: number;
+
+  subject: string;
+
   question: string;
+
   options: string[];
+
   correctAnswer: string;
+
   ansNumber: string;
+
   questionType: string;
+
+  subjectOrder: number;
 }
 
 // ============================================================
@@ -24,6 +45,171 @@ const cleanText = (text: string): string => {
 };
 
 // ============================================================
+// NORMALIZE SUBJECT
+// ============================================================
+
+const normalizeSubject = (
+  subject: string
+): string => {
+  const value = subject
+    .trim()
+    .toLowerCase()
+    .replace(/[:\-]+$/g, "")
+    .replace(/\s+/g, " ");
+
+  // ----------------------------------------------------------
+  // PHYSICS
+  // ----------------------------------------------------------
+
+  if (
+    value === "physics" ||
+    value === "phy" ||
+    value === "phy." ||
+    value === "phys"
+  ) {
+    return "Physics";
+  }
+
+  // ----------------------------------------------------------
+  // CHEMISTRY
+  // ----------------------------------------------------------
+
+  if (
+    value === "chemistry" ||
+    value === "chem" ||
+    value === "chem."
+  ) {
+    return "Chemistry";
+  }
+
+  // ----------------------------------------------------------
+  // BOTANY
+  // ----------------------------------------------------------
+
+  if (
+    value === "botany" ||
+    value === "bot"
+  ) {
+    return "Botany";
+  }
+
+  // ----------------------------------------------------------
+  // ZOOLOGY
+  // ----------------------------------------------------------
+
+  if (
+    value === "zoology" ||
+    value === "zoo"
+  ) {
+    return "Zoology";
+  }
+
+  // ----------------------------------------------------------
+  // BIOLOGY
+  // ----------------------------------------------------------
+
+  if (
+    value === "biology" ||
+    value === "bio"
+  ) {
+    return "Biology";
+  }
+
+  return subject.trim();
+};
+
+// ============================================================
+// SUBJECT HEADER DETECTOR
+// ============================================================
+
+const detectSubject = (
+  line: string
+): string | null => {
+
+  const value = line
+    .trim()
+    .replace(/[:\-]+$/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+  // ----------------------------------------------------------
+  // DIRECT SUBJECT NAMES
+  // ----------------------------------------------------------
+
+  if (
+    value === "physics" ||
+    value === "phy" ||
+    value === "phy." ||
+    value === "phys"
+  ) {
+    return "Physics";
+  }
+
+  if (
+    value === "chemistry" ||
+    value === "chem" ||
+    value === "chem."
+  ) {
+    return "Chemistry";
+  }
+
+  if (
+    value === "botany" ||
+    value === "bot"
+  ) {
+    return "Botany";
+  }
+
+  if (
+    value === "zoology" ||
+    value === "zoo"
+  ) {
+    return "Zoology";
+  }
+
+  if (
+    value === "biology" ||
+    value === "bio"
+  ) {
+    return "Biology";
+  }
+
+  // ----------------------------------------------------------
+  // COMMON PDF HEADERS
+  // ----------------------------------------------------------
+
+  if (
+    value.includes("physics section") ||
+    value === "section physics"
+  ) {
+    return "Physics";
+  }
+
+  if (
+    value.includes("chemistry section") ||
+    value === "section chemistry"
+  ) {
+    return "Chemistry";
+  }
+
+  if (
+    value.includes("botany section") ||
+    value === "section botany"
+  ) {
+    return "Botany";
+  }
+
+  if (
+    value.includes("zoology section") ||
+    value === "section zoology"
+  ) {
+    return "Zoology";
+  }
+
+  return null;
+};
+
+// ============================================================
 // NORMALIZE ANSWER
 // ============================================================
 
@@ -33,33 +219,46 @@ const normalizeAnswer = (
   correctAnswer: string;
   ansNumber: string;
 } => {
+
   const value = answer
     .trim()
     .toUpperCase()
     .replace(/[().]/g, "");
 
-  if (value === "A" || value === "1") {
+  if (
+    value === "A" ||
+    value === "1"
+  ) {
     return {
       correctAnswer: "1",
       ansNumber: "1",
     };
   }
 
-  if (value === "B" || value === "2") {
+  if (
+    value === "B" ||
+    value === "2"
+  ) {
     return {
       correctAnswer: "2",
       ansNumber: "2",
     };
   }
 
-  if (value === "C" || value === "3") {
+  if (
+    value === "C" ||
+    value === "3"
+  ) {
     return {
       correctAnswer: "3",
       ansNumber: "3",
     };
   }
 
-  if (value === "D" || value === "4") {
+  if (
+    value === "D" ||
+    value === "4"
+  ) {
     return {
       correctAnswer: "4",
       ansNumber: "4",
@@ -74,28 +273,6 @@ const normalizeAnswer = (
 
 // ============================================================
 // OPTION DETECTOR
-//
-// Supports:
-//
-// (1) Option
-// (2) Option
-// (3) Option
-// (4) Option
-//
-// 1) Option
-// 2) Option
-//
-// 1. Option
-// 2. Option
-//
-// (A) Option
-// (B) Option
-//
-// A) Option
-// B) Option
-//
-// A. Option
-// B. Option
 // ============================================================
 
 const getOption = (
@@ -104,6 +281,7 @@ const getOption = (
   number: string;
   text: string;
 } | null => {
+
   const cleanLine = line.trim();
 
   const match = cleanLine.match(
@@ -149,16 +327,6 @@ const getOption = (
 
 // ============================================================
 // ANSWER DETECTOR
-//
-// Supports:
-//
-// Answer: 1
-// Answer: A
-// Ans: 2
-// Ans: B
-// Correct Answer: C
-// Correct: 4
-// Answer - A
 // ============================================================
 
 const getAnswer = (
@@ -167,6 +335,7 @@ const getAnswer = (
   correctAnswer: string;
   ansNumber: string;
 } | null => {
+
   const cleanLine = line.trim();
 
   const match = cleanLine.match(
@@ -184,18 +353,6 @@ const getAnswer = (
 
 // ============================================================
 // QUESTION NUMBER DETECTOR
-//
-// Supports:
-//
-// 1. Question
-// 1) Question
-// 1 Question
-//
-// Q1. Question
-// Q1) Question
-// Q.1 Question
-//
-// Question 1. Question
 // ============================================================
 
 const getQuestionStart = (
@@ -204,12 +361,11 @@ const getQuestionStart = (
   questionNumber: number;
   question: string;
 } | null => {
+
   const cleanLine = line.trim();
 
   // ----------------------------------------------------------
-  // IMPORTANT:
-  // Do NOT treat (1), (2), (3), (4) as question numbers.
-  // Those are options.
+  // DO NOT TREAT OPTIONS AS QUESTIONS
   // ----------------------------------------------------------
 
   if (
@@ -298,12 +454,13 @@ const isAnswerLine = (
 };
 
 // ============================================================
-// REMOVE COMMON PDF NOISE
+// PDF NOISE
 // ============================================================
 
 const isNoiseLine = (
   line: string
 ): boolean => {
+
   const value = line
     .trim()
     .toLowerCase();
@@ -312,7 +469,7 @@ const isNoiseLine = (
     return true;
   }
 
-  // Page number
+  // Page 1
   if (
     /^page\s+\d+$/i.test(
       value
@@ -321,6 +478,7 @@ const isNoiseLine = (
     return true;
   }
 
+  // 1 / 10
   if (
     /^\d+\s*\/\s*\d+$/.test(
       value
@@ -342,14 +500,15 @@ export function parseQuestions(
 
   const questions: ParsedQuestion[] = [];
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // VALIDATION
-  // ----------------------------------------------------------
+  // ==========================================================
 
   if (
     !text ||
     typeof text !== "string"
   ) {
+
     console.log(
       "PDF PARSER: Empty text"
     );
@@ -357,14 +516,15 @@ export function parseQuestions(
     return [];
   }
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // CLEAN
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const normalized =
     cleanText(text);
 
   if (!normalized) {
+
     console.log(
       "PDF PARSER: No text after cleaning"
     );
@@ -372,19 +532,19 @@ export function parseQuestions(
     return [];
   }
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // LINES
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const lines =
     normalized
       .split("\n")
       .map(
-        (line) =>
+        line =>
           line.trim()
       )
       .filter(
-        (line) =>
+        line =>
           !isNoiseLine(line)
       );
 
@@ -393,116 +553,159 @@ export function parseQuestions(
     lines.length
   );
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // CURRENT QUESTION
-  // ----------------------------------------------------------
+  // ==========================================================
 
   let currentQuestion:
     ParsedQuestion | null = null;
 
-  // ----------------------------------------------------------
-  // CURRENT OPTION NUMBER
-  // ----------------------------------------------------------
+  // ==========================================================
+  // CURRENT SUBJECT
+  // ==========================================================
 
-  let currentOptionNumber =
-    "";
+  let currentSubject = "";
+
+  // ==========================================================
+  // SUBJECT ORDER
+  // ==========================================================
+
+  let currentSubjectOrder = 0;
+
+  // ==========================================================
+  // SUBJECT QUESTION NUMBER
+  // ==========================================================
+
+  let currentSubjectQuestionNumber = 0;
+
+  // ==========================================================
+  // CURRENT OPTION
+  // ==========================================================
+
+  let currentOptionNumber = "";
 
   // ==========================================================
   // SAVE CURRENT QUESTION
   // ==========================================================
 
-  const saveCurrentQuestion =
-    () => {
+  const saveCurrentQuestion = () => {
 
-      if (!currentQuestion) {
-        return;
-      }
+    if (!currentQuestion) {
+      return;
+    }
 
-      // --------------------------------------------
-      // CLEAN QUESTION
-      // --------------------------------------------
+    // --------------------------------------------------------
+    // CLEAN QUESTION
+    // --------------------------------------------------------
 
-      currentQuestion.question =
-        currentQuestion.question
-          .replace(/\s+/g, " ")
-          .trim();
+    currentQuestion.question =
+      currentQuestion.question
+        .replace(/\s+/g, " ")
+        .trim();
 
-      // --------------------------------------------
-      // CLEAN OPTIONS
-      // --------------------------------------------
+    // --------------------------------------------------------
+    // CLEAN OPTIONS
+    // --------------------------------------------------------
 
-      currentQuestion.options =
-        currentQuestion.options
-          .map(
-            (option) =>
-              option
-                .replace(/\s+/g, " ")
-                .trim()
-          )
-          .filter(Boolean);
+    currentQuestion.options =
+      currentQuestion.options
+        .map(
+          option =>
+            option
+              .replace(/\s+/g, " ")
+              .trim()
+        )
+        .filter(Boolean);
 
-      // --------------------------------------------
-      // ONLY SAVE VALID MCQ
-      // --------------------------------------------
+    // --------------------------------------------------------
+    // SUBJECT FALLBACK
+    // --------------------------------------------------------
 
-      if (
-        currentQuestion.question &&
-        currentQuestion.options.length >= 4
-      ) {
+    if (
+      !currentQuestion.subject
+    ) {
 
-        const saved: ParsedQuestion = {
-          questionNumber:
-            currentQuestion.questionNumber,
+      currentQuestion.subject =
+        currentSubject ||
+        "General";
+    }
 
-          question:
-            currentQuestion.question,
+    // --------------------------------------------------------
+    // VALID MCQ
+    // --------------------------------------------------------
 
-          options:
-            currentQuestion.options.slice(
-              0,
-              4
-            ),
+    if (
+      currentQuestion.question &&
+      currentQuestion.options.length === 4
+    ) {
 
-          correctAnswer:
-            currentQuestion.correctAnswer,
+      const saved: ParsedQuestion = {
 
-          ansNumber:
-            currentQuestion.ansNumber,
-
-          questionType:
-            "MCQ",
-        };
-
-        questions.push(
-          saved
-        );
-
-        console.log(
-          "QUESTION SAVED:",
-          saved.questionNumber
-        );
-
-      } else {
-
-        console.log(
-          "QUESTION SKIPPED:",
+        questionNumber:
           currentQuestion.questionNumber,
-          "OPTIONS:",
-          currentQuestion.options.length,
-          "QUESTION:",
-          currentQuestion.question.substring(
+
+        subjectQuestionNumber:
+          currentQuestion.subjectQuestionNumber,
+
+        globalQuestionNumber:
+          currentQuestion.globalQuestionNumber,
+
+        subject:
+          currentQuestion.subject,
+
+        question:
+          currentQuestion.question,
+
+        options:
+          currentQuestion.options.slice(
             0,
-            100
-          )
-        );
-      }
+            4
+          ),
 
-      currentQuestion =
-        null;
+        correctAnswer:
+          currentQuestion.correctAnswer,
 
-      currentOptionNumber =
-        "";
-    };
+        ansNumber:
+          currentQuestion.ansNumber,
+
+        questionType:
+          "MCQ",
+
+        subjectOrder:
+          currentQuestion.subjectOrder,
+      };
+
+      questions.push(
+        saved
+      );
+
+      console.log(
+        "QUESTION SAVED:",
+        saved.globalQuestionNumber,
+        "| SUBJECT:",
+        saved.subject,
+        "| SUBJECT Q:",
+        saved.subjectQuestionNumber,
+        "| PDF Q:",
+        saved.questionNumber
+      );
+
+    } else {
+
+      console.log(
+        "QUESTION SKIPPED:",
+        currentQuestion.questionNumber,
+        "| SUBJECT:",
+        currentQuestion.subject,
+        "| OPTIONS:",
+        currentQuestion.options.length
+      );
+    }
+
+    currentQuestion = null;
+
+    currentOptionNumber = "";
+  };
 
   // ==========================================================
   // PROCESS LINES
@@ -518,6 +721,49 @@ export function parseQuestions(
       lines[i];
 
     // ========================================================
+    // SUBJECT HEADER
+    // ========================================================
+
+    const detectedSubject =
+      detectSubject(line);
+
+    if (detectedSubject) {
+
+      // Save previous question
+      saveCurrentQuestion();
+
+      currentSubject =
+        normalizeSubject(
+          detectedSubject
+        );
+
+      currentSubjectOrder++;
+
+      // Reset subject question counter
+      currentSubjectQuestionNumber = 0;
+
+      console.log(
+        "=========================================="
+      );
+
+      console.log(
+        "📚 SUBJECT DETECTED:",
+        currentSubject
+      );
+
+      console.log(
+        "📚 SUBJECT ORDER:",
+        currentSubjectOrder
+      );
+
+      console.log(
+        "=========================================="
+      );
+
+      continue;
+    }
+
+    // ========================================================
     // QUESTION START
     // ========================================================
 
@@ -531,29 +777,56 @@ export function parseQuestions(
       // Save previous
       saveCurrentQuestion();
 
-      // Create new
+      // ------------------------------------------------------
+      // Increment subject question number
+      // ------------------------------------------------------
+
+      currentSubjectQuestionNumber++;
+
+      // ------------------------------------------------------
+      // Create question
+      // ------------------------------------------------------
+
       currentQuestion = {
 
         questionNumber:
           questionStart.questionNumber,
+
+        subjectQuestionNumber:
+          currentSubjectQuestionNumber,
+
+        globalQuestionNumber:
+          questions.length + 1,
+
+        subject:
+          currentSubject ||
+          "General",
 
         question:
           questionStart.question,
 
         options: [],
 
-        correctAnswer:
-          "",
+        correctAnswer: "",
 
-        ansNumber:
-          "",
+        ansNumber: "",
 
         questionType:
           "MCQ",
+
+        subjectOrder:
+          currentSubjectOrder || 1,
       };
 
-      currentOptionNumber =
-        "";
+      currentOptionNumber = "";
+
+      console.log(
+        "QUESTION DETECTED:",
+        questionStart.questionNumber,
+        "| SUBJECT:",
+        currentSubject ||
+          "General"
+      );
 
       continue;
     }
@@ -597,10 +870,6 @@ export function parseQuestions(
 
     if (option) {
 
-      // ------------------------------------------------------
-      // Add option
-      // ------------------------------------------------------
-
       if (
         currentQuestion.options.length <
         4
@@ -612,7 +881,6 @@ export function parseQuestions(
 
         currentOptionNumber =
           option.number;
-
       }
 
       continue;
@@ -620,9 +888,6 @@ export function parseQuestions(
 
     // ========================================================
     // EXTRA QUESTION TEXT
-    //
-    // If options did not start,
-    // line belongs to question.
     // ========================================================
 
     if (
@@ -667,13 +932,14 @@ export function parseQuestions(
     }
 
     // ========================================================
-    // IGNORE EXTRA TEXT AFTER 4 OPTIONS
+    // IGNORE EXTRA TEXT AFTER FOUR OPTIONS
     // ========================================================
 
     if (
       currentQuestion.options.length >=
       4
     ) {
+
       continue;
     }
   }
@@ -687,10 +953,25 @@ export function parseQuestions(
   // ==========================================================
   // REMOVE DUPLICATES
   // ==========================================================
+  //
+  // IMPORTANT:
+  //
+  // DO NOT use only questionNumber.
+  //
+  // Physics Q1
+  // Chemistry Q1
+  //
+  // can both exist.
+  //
+  // Therefore:
+  //
+  // subject + questionNumber
+  //
+  // ==========================================================
 
   const uniqueMap =
     new Map<
-      number,
+      string,
       ParsedQuestion
     >();
 
@@ -698,14 +979,15 @@ export function parseQuestions(
     const question of questions
   ) {
 
+    const key =
+      `${question.subject}__${question.questionNumber}`;
+
     if (
-      !uniqueMap.has(
-        question.questionNumber
-      )
+      !uniqueMap.has(key)
     ) {
 
       uniqueMap.set(
-        question.questionNumber,
+        key,
         question
       );
     }
@@ -719,10 +1001,42 @@ export function parseQuestions(
     Array.from(
       uniqueMap.values()
     ).sort(
-      (a, b) =>
-        a.questionNumber -
-        b.questionNumber
+      (a, b) => {
+
+        // First subject order
+        if (
+          a.subjectOrder !==
+          b.subjectOrder
+        ) {
+
+          return (
+            a.subjectOrder -
+            b.subjectOrder
+          );
+        }
+
+        // Then question number
+        return (
+          a.questionNumber -
+          b.questionNumber
+        );
+      }
     );
+
+  // ==========================================================
+  // RE-CALCULATE GLOBAL NUMBER
+  // ==========================================================
+
+  uniqueQuestions.forEach(
+    (
+      question,
+      index
+    ) => {
+
+      question.globalQuestionNumber =
+        index + 1;
+    }
+  );
 
   // ==========================================================
   // FINAL LOG
@@ -738,11 +1052,60 @@ export function parseQuestions(
   );
 
   console.log(
-    "QUESTION NUMBERS:",
-    uniqueQuestions.map(
-      (q) =>
-        q.questionNumber
-    )
+    "================================================"
+  );
+
+  console.log(
+    "SUBJECT SUMMARY:"
+  );
+
+  const subjectSummary =
+    new Map<
+      string,
+      number
+    >();
+
+  for (
+    const question of uniqueQuestions
+  ) {
+
+    subjectSummary.set(
+      question.subject,
+      (
+        subjectSummary.get(
+          question.subject
+        ) || 0
+      ) + 1
+    );
+  }
+
+  subjectSummary.forEach(
+    (
+      count,
+      subject
+    ) => {
+
+      console.log(
+        `📚 ${subject}: ${count} questions`
+      );
+    }
+  );
+
+  console.log(
+    "================================================"
+  );
+
+  console.log(
+    "QUESTION DETAILS:"
+  );
+
+  uniqueQuestions.forEach(
+    question => {
+
+      console.log(
+        `Q${question.globalQuestionNumber} | ${question.subject} | Subject Q${question.subjectQuestionNumber} | PDF Q${question.questionNumber}`
+      );
+    }
   );
 
   console.log(
@@ -751,3 +1114,4 @@ export function parseQuestions(
 
   return uniqueQuestions;
 }
+

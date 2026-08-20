@@ -5,50 +5,25 @@ import jwt from "jsonwebtoken";
 interface AuthRequest extends Request {
   user?: any;
 }
-
-
-
 const auth = (
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-
-
   try {
-
-
     const token =
       req.headers.authorization?.split(" ")[1];
-
-
-
     if(!token){
-
       return res.status(401).json({
-
         success:false,
-
         message:"Login required"
-
       });
-
     }
-
-
-
-
-
     const decoded:any =
       jwt.verify(
         token,
         process.env.JWT_SECRET as string
       );
-
-
-
-
-
     // Student only access
     if(decoded.role !== "student"){
 
@@ -61,17 +36,8 @@ const auth = (
       });
 
     }
-
-
-
-
-
     req.user = decoded;
-
-
-
     next();
-
 
 
   } catch(error){

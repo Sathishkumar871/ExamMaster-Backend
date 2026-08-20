@@ -1,61 +1,66 @@
-import mongoose,{Schema,Document} from "mongoose";
+import { Schema, model, Document } from "mongoose";
 
+export interface IQuestion extends Document {
+  question: string;
+  options: string[];
+  correctAnswer: string;
 
-export interface IQuestion extends Document{
+  // Question belongs to which subject
+  subject: string;
 
-subject:string;
-
-question:string;
-
-options:string[];
-
-correctAnswer:string;
-
-explanation:string;
-
+  // Where this question should be used
+  type: "mock" | "daily";
 }
 
+const questionSchema = new Schema<IQuestion>(
+  {
+    question: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-const QuestionSchema =
-new Schema<IQuestion>({
+    options: {
+      type: [String],
+      required: true,
+      validate: {
+        validator: (value: string[]) => value.length === 4,
+        message: "Exactly 4 options are required",
+      },
+    },
 
-subject:{
-type:String,
-required:true
-},
+    correctAnswer: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
+    subject: {
+      type: String,
+      required: true,
+      enum: [
+        "Physics",
+        "Chemistry",
+        "Botany",
+        "Zoology",
+        "Mathematics",
+      ],
+    },
 
-question:{
-type:String,
-required:true
-},
+    type: {
+      type: String,
+      required: true,
+      enum: ["mock", "daily"],
+      default: "mock",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 
-
-options:{
-type:[String],
-required:true
-},
-
-
-correctAnswer:{
-type:String,
-required:true
-},
-
-
-explanation:{
-type:String,
-default:""
-}
-
-
-},
-{
-timestamps:true
-});
-
-
-export default mongoose.model<IQuestion>(
-"Question",
-QuestionSchema
+export const Question = model<IQuestion>(
+  "Question",
+  questionSchema,
+  "questions"
 );

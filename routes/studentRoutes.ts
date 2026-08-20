@@ -4,9 +4,7 @@ import {
   loginStudent,
   getStudentProfile,
 } from "../controllers/studentController";
-import { getDailyTests } from "../controllers/dailyTestController"; // 👈 హెడ్ క్రియేట్ చేసిన టెస్ట్‌లను స్టూడెంట్స్ చూడటానికి
-import { getStudentQuestions } from "../controllers/questionController"; // 👈 స్టూడెంట్స్ కోసం పబ్లిష్ అయిన క్వశ్చన్స్ తెచ్చుకోవడానికి
-import studentAuth from "../middleware/studentAuth"; // 👈 స్టూడెంట్ ఆథెంటికేషన్ మిడిల్‌వేర్
+import { getDailyTestQuestions } from "../controllers/dailyTestController";
 
 const router = express.Router();
 
@@ -26,7 +24,7 @@ router.post("/login", loginStudent);
 // STUDENT PROFILE
 // GET /api/student/profile/:studentId
 // =================================
-router.get("/profile/:studentId", studentAuth, getStudentProfile);
+router.get("/profile/:studentId", getStudentProfile);
 
 // =================================
 // 📌 1. GET DAILY TESTS FOR STUDENTS
@@ -34,10 +32,9 @@ router.get("/profile/:studentId", studentAuth, getStudentProfile);
 // =================================
 router.get(
   "/daily-tests",
-  studentAuth,
   (req, res) => {
-    req.query.targetPage = "daily"; // హెడ్ క్రియేట్ చేసిన డైలీ టెస్ట్‌లను స్టూడెంట్స్‌కి తెస్తుంది
-    return getDailyTests(req, res);
+    req.query.targetPage = "daily"; 
+    return getDailyTestQuestions(req, res); // ఇక్కడ getDailyTestQuestions అని ఉండాలి
   }
 );
 
@@ -47,21 +44,10 @@ router.get(
 // =================================
 router.get(
   "/mock-tests",
-  studentAuth,
   (req, res) => {
-    req.query.targetPage = "mock"; // హెడ్ క్రియేట్ చేసిన మాక్ టెస్ట్‌లను స్టూడెంట్స్‌కి తెస్తుంది
-    return getDailyTests(req, res);
+    req.query.targetPage = "mock"; 
+    return getDailyTestQuestions(req, res); // ఇక్కడ కూడా getDailyTestQuestions అని ఉండాలి
   }
-);
-
-// =================================
-// 📌 3. GET QUESTIONS FOR STUDENTS (Only Published)
-// GET /api/student/questions
-// =================================
-router.get(
-  "/questions",
-  studentAuth,
-  getStudentQuestions
 );
 
 export default router;

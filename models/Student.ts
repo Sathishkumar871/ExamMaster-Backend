@@ -9,15 +9,13 @@ export interface IStudent extends Document {
   // Class Details
   classId: string;
   className: string;
-  year: string;
+  academicYear: string; 
   section: string;
 
-  
   examsAttempted: number;
   totalMarks: number;
   rating: number;
 
-  // 👇 మెంటార్ వీక్లీ అప్‌డేట్స్ & పర్ఫార్మెన్స్ ఆప్షన్స్
   weeklyUpdates: {
     healthAndWellbeing: string;
     foodAndMaturation: string;
@@ -62,7 +60,7 @@ const StudentSchema = new Schema<IStudent>(
       required: true,
     },
 
-    year: {
+    academicYear: { // <--- ఇక్కడ కూడా 'year' కి బదులుగా 'academicYear' ఉండాలి
       type: String,
       required: true,
     },
@@ -71,7 +69,6 @@ const StudentSchema = new Schema<IStudent>(
       type: String,
       required: true,
     },
-
 
     examsAttempted: {
       type: Number,
@@ -88,7 +85,6 @@ const StudentSchema = new Schema<IStudent>(
       default: 0,
     },
 
-    // 👇 మెంటార్ వీక్లీ మీటింగ్ కోసం మీరు అడిగిన అన్ని ఆప్షన్స్
     weeklyUpdates: {
       healthAndWellbeing: {
         type: String,

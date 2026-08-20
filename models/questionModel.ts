@@ -1,6 +1,7 @@
 import mongoose, {
   Schema,
   Document,
+  Model,
 } from "mongoose";
 
 // ============================================================
@@ -16,529 +17,426 @@ export type ExamType =
   | "NEET"
   | "JEE";
 
-export type AcademicYear =
+export type ClassName =
   | "1st PUC"
   | "2nd PUC";
-
-// Mock/Daily tests can have empty subject.
-// Subject tests should use physics/chemistry/botany/zoology.
-export type QuestionSubject =
-  | ""
-  | "physics"
-  | "chemistry"
-  | "botany"
-  | "zoology";
 
 export type QuestionStatus =
   | "pending"
   | "completed"
   | "published";
 
+export type AIStatus =
+  | "pending"
+  | "correct"
+  | "wrong"
+  | "not_checked";
+
+export type QuestionType =
+  | "MCQ";
+
+export type TargetExamLevel =
+  | "board"
+  | "NEET"
+  | "JEE"
+  | "NEET/JEE";
+
 // ============================================================
-// INTERFACE
+// AI ISSUE
 // ============================================================
 
-export interface IQuestion extends Document {
-
-  // ==========================================================
-  // QUESTION
-  // ==========================================================
-
-  questionNumber: number;
-
-  subjectQuestionNumber: number;
-
-  globalQuestionNumber: number;
-
-  question: string;
-
-  options: string[];
-
-  correctAnswer: string;
-
-  ansNumber: string;
-
-  questionType: string;
-
-  chapter?: string;
-
-  // ==========================================================
-  // SUBJECT
-  // ==========================================================
-
-  // Subject test:
-  // physics / chemistry / botany / zoology
-  //
-  // Mock test:
-  // ""
-  subject: QuestionSubject;
-
-  // ==========================================================
-  // SUBJECT ORDER
-  // ==========================================================
-
-  // Physics   = 1
-  // Chemistry = 2
-  // Botany    = 3
-  // Zoology   = 4
-  //
-  // Mock test without subject:
-  // 0
-
-  subjectOrder: number;
-
-  // ==========================================================
-  // TEACHER
-  // ==========================================================
-
-  teacherId: string;
-
-  // ==========================================================
-  // PDF
-  // ==========================================================
-
-  pdfId: string;
-
-  pdfSourceUrl: string;
-
-  // ==========================================================
-  // STATUS
-  // ==========================================================
-
-  status: QuestionStatus;
-
-  isAnswerCompleted: boolean;
-
-  isPublished: boolean;
-
-  // ==========================================================
-  // TAGS
-  // ==========================================================
-
-  examTags: string[];
-
-  // ==========================================================
-  // TEST CATEGORY
-  // ==========================================================
-
-  testCategory: TestCategory;
-
-  // ==========================================================
-  // EXAM
-  // ==========================================================
-
-  examType: ExamType;
-
-  // ==========================================================
-  // ACADEMIC YEAR
-  // ==========================================================
-
-  academicYear: AcademicYear;
-
-  // ==========================================================
-  // TEST
-  // ==========================================================
-
-  testTitle: string;
-
-  testId: string;
-
-  totalQuestions: number;
-
-  // ==========================================================
-  // SCHEDULE
-  // ==========================================================
-
-  testDate?: string;
-
-  testTime?: string;
-
-  // ==========================================================
-  // OPTIONAL
-  // ==========================================================
-
-  targetExamLevel?: string;
-
-  imageUrl?: string;
+export interface IAIQuestionIssue {
+  field: string;
+  message: string;
+  severity:
+    | "low"
+    | "medium"
+    | "high";
+  resolved: boolean;
 }
 
 // ============================================================
-// SCHEMA
+// QUESTION DOCUMENT
 // ============================================================
 
-const QuestionSchema =
-  new Schema<IQuestion>(
+export interface IQuestionBank
+  extends Document {
+
+  // ----------------------------------------------------------
+  // QUESTION
+  // ----------------------------------------------------------
+
+  questionNumber: number;
+  subjectQuestionNumber: number;
+  globalQuestionNumber: number;
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  ansNumber: string;
+  questionType: QuestionType;
+
+  // ----------------------------------------------------------
+  // SUBJECT
+  // ----------------------------------------------------------
+
+  subject: string;
+  chapter: string;
+  subjectOrder: number;
+
+  // ----------------------------------------------------------
+  // EXAM
+  // ----------------------------------------------------------
+
+  testCategory: TestCategory;
+  examType: ExamType;
+  className: ClassName; // 👈 academicYear బదులుగా className
+  testTitle: string;
+  testId: string;
+  totalQuestions: number;
+
+  // ----------------------------------------------------------
+  // MARKING
+  // ----------------------------------------------------------
+
+  marksPerQuestion: number;
+  negativeMarks: number;
+
+  // ----------------------------------------------------------
+  // EXAM TIMING
+  // ----------------------------------------------------------
+
+  durationMinutes: number;
+  testDate: string;
+  testTime: string;
+
+  // ----------------------------------------------------------
+  // OWNER
+  // ----------------------------------------------------------
+
+  teacherId: string;
+
+  // ----------------------------------------------------------
+  // PDF
+  // ----------------------------------------------------------
+
+  pdfId: string;
+  pdfSourceUrl: string;
+
+  // ----------------------------------------------------------
+  // STATUS
+  // ----------------------------------------------------------
+
+  status: QuestionStatus;
+  isAnswerCompleted: boolean;
+  isPublished: boolean;
+
+  // ----------------------------------------------------------
+  // EXAM TAGS
+  // ----------------------------------------------------------
+
+  examTags: string[];
+  targetExamLevel: TargetExamLevel;
+
+  // ----------------------------------------------------------
+  // IMAGE
+  // ----------------------------------------------------------
+
+  imageUrl: string;
+
+  // ----------------------------------------------------------
+  // AI
+  // ----------------------------------------------------------
+
+  aiGenerated: boolean;
+  aiVerified: boolean;
+  aiStatus: AIStatus;
+  aiIssues: IAIQuestionIssue[];
+  aiExplanation: string;
+  aiCheckedAt?: Date;
+
+  // ----------------------------------------------------------
+  // SOURCE
+  // ----------------------------------------------------------
+
+  sourceType:
+    | "manual"
+    | "pdf"
+    | "ai";
+
+  // ----------------------------------------------------------
+  // TIMESTAMPS
+  // ----------------------------------------------------------
+
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ============================================================
+// AI ISSUE SCHEMA
+// ============================================================
+
+const aiIssueSchema =
+  new Schema<IAIQuestionIssue>(
     {
+      field: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      message: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      severity: {
+        type: String,
+        enum: [
+          "low",
+          "medium",
+          "high",
+        ],
+        default: "medium",
+      },
+      resolved: {
+        type: Boolean,
+        default: false,
+      },
+    },
+    {
+      _id: false,
+    }
+  );
 
-      // ======================================================
-      // QUESTION NUMBER
-      // ======================================================
+// ============================================================
+// QUESTION SCHEMA
+// ============================================================
 
+const questionSchema =
+  new Schema<IQuestionBank>(
+    {
       questionNumber: {
         type: Number,
         required: true,
       },
-
-      // ======================================================
-      // SUBJECT QUESTION NUMBER
-      // ======================================================
-
       subjectQuestionNumber: {
         type: Number,
-        required: true,
         default: 0,
-        min: 0,
       },
-
-      // ======================================================
-      // GLOBAL QUESTION NUMBER
-      // ======================================================
-
       globalQuestionNumber: {
         type: Number,
-        required: true,
         default: 0,
-        min: 0,
       },
-
-      // ======================================================
-      // QUESTION
-      // ======================================================
-
       question: {
         type: String,
         required: true,
         trim: true,
       },
-
-      // ======================================================
-      // OPTIONS
-      // ======================================================
-
       options: {
         type: [String],
         required: true,
-
         validate: {
           validator: (
-            arr: string[]
+            value: string[]
           ) =>
-            Array.isArray(arr) &&
-            arr.length === 4,
-
+            Array.isArray(value) &&
+            value.length === 4,
           message:
-            "Question must contain exactly 4 options.",
+            "Exactly 4 options are required",
         },
       },
-
-      // ======================================================
-      // CORRECT ANSWER
-      // ======================================================
-
       correctAnswer: {
         type: String,
         default: "",
         trim: true,
       },
-
-      // ======================================================
-      // ANSWER NUMBER
-      // ======================================================
-
       ansNumber: {
         type: String,
         default: "",
         trim: true,
       },
-
-      // ======================================================
-      // QUESTION TYPE
-      // ======================================================
-
       questionType: {
         type: String,
+        enum: ["MCQ"],
         default: "MCQ",
-        trim: true,
       },
-
-      // ======================================================
-      // CHAPTER
-      // ======================================================
-
+      subject: {
+        type: String,
+        required: true,
+        trim: true,
+        enum: [
+          "Physics",
+          "Chemistry",
+          "Botany",
+          "Zoology",
+          "Mathematics",
+        ],
+      },
       chapter: {
         type: String,
         default: "",
         trim: true,
       },
-
-      // ======================================================
-      // SUBJECT
-      // ======================================================
-      //
-      // Subject Test:
-      // physics / chemistry / botany / zoology
-      //
-      // Mock Test:
-      // ""
-      //
-      // Daily Test:
-      // can also be empty if not subject-specific
-      // ======================================================
-
-      subject: {
-        type: String,
-
-        enum: [
-          "",
-          "physics",
-          "chemistry",
-          "botany",
-          "zoology",
-        ],
-
-        default: "",
-
-        trim: true,
-      },
-
-      // ======================================================
-      // SUBJECT ORDER
-      // ======================================================
-
       subjectOrder: {
         type: Number,
-
-        required: true,
-
-        default: 0,
-
-        min: 0,
-
-        max: 4,
+        default: 1,
       },
-
-      // ======================================================
-      // TEACHER
-      // ======================================================
-
-      teacherId: {
-        type: String,
-
-        default: "HEAD",
-
-        trim: true,
-      },
-
-      // ======================================================
-      // PDF ID
-      // ======================================================
-
-      pdfId: {
-        type: String,
-
-        default: "manual",
-
-        trim: true,
-      },
-
-      // ======================================================
-      // PDF SOURCE URL
-      // ======================================================
-
-      pdfSourceUrl: {
-        type: String,
-
-        default: "",
-
-        trim: true,
-      },
-
-      // ======================================================
-      // STATUS
-      // ======================================================
-
-      status: {
-        type: String,
-
-        enum: [
-          "pending",
-          "completed",
-          "published",
-        ],
-
-        default: "pending",
-      },
-
-      // ======================================================
-      // ANSWER COMPLETED
-      // ======================================================
-
-      isAnswerCompleted: {
-        type: Boolean,
-
-        default: false,
-      },
-
-      // ======================================================
-      // EXAM TAGS
-      // ======================================================
-
-      examTags: {
-        type: [String],
-
-        default: [],
-      },
-
-      // ======================================================
-      // PUBLISHED
-      // ======================================================
-
-      isPublished: {
-        type: Boolean,
-
-        default: false,
-      },
-
-      // ======================================================
-      // TEST CATEGORY
-      // ======================================================
-
       testCategory: {
         type: String,
-
         enum: [
           "mock",
           "daily",
           "subject",
         ],
-
         required: true,
-
-        default: "subject",
       },
-
-      // ======================================================
-      // EXAM TYPE
-      // ======================================================
-
       examType: {
         type: String,
-
         enum: [
           "NEET",
           "JEE",
         ],
-
         required: true,
-
-        default: "NEET",
       },
 
-      // ======================================================
-      // ACADEMIC YEAR
-      // ======================================================
-
-      academicYear: {
+      // ========================================================
+      // CLASS NAME (Replaced academicYear)
+      // ========================================================
+      className: {
         type: String,
-
         enum: [
           "1st PUC",
           "2nd PUC",
         ],
-
         required: true,
-
-        default: "1st PUC",
       },
-
-      // ======================================================
-      // TEST TITLE
-      // ======================================================
 
       testTitle: {
         type: String,
-
-        required: true,
-
+        default: "Untitled Test",
         trim: true,
       },
-
-      // ======================================================
-      // TEST ID
-      // ======================================================
-
       testId: {
         type: String,
-
         required: true,
-
-        trim: true,
-
         index: true,
       },
-
-      // ======================================================
-      // TOTAL QUESTIONS
-      // ======================================================
-
       totalQuestions: {
         type: Number,
-
-        required: true,
-
         default: 0,
-
+      },
+      marksPerQuestion: {
+        type: Number,
+        default: 4,
         min: 0,
       },
-
-      // ======================================================
-      // TEST DATE
-      // ======================================================
-
+      negativeMarks: {
+        type: Number,
+        default: 1,
+        min: 0,
+      },
+      durationMinutes: {
+        type: Number,
+        default: 180,
+        min: 1,
+      },
       testDate: {
         type: String,
-
         default: "",
-
         trim: true,
       },
-
-      // ======================================================
-      // TEST TIME
-      // ======================================================
-
       testTime: {
         type: String,
-
         default: "",
-
         trim: true,
       },
-
-      // ======================================================
-      // TARGET EXAM LEVEL
-      // ======================================================
-
+      teacherId: {
+        type: String,
+        default: "HEAD",
+      },
+      pdfId: {
+        type: String,
+        default: "manual",
+        trim: true,
+      },
+      pdfSourceUrl: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+      status: {
+        type: String,
+        enum: [
+          "pending",
+          "completed",
+          "published",
+        ],
+        default: "pending",
+      },
+      isAnswerCompleted: {
+        type: Boolean,
+        default: false,
+      },
+      isPublished: {
+        type: Boolean,
+        default: false,
+      },
+      examTags: {
+        type: [String],
+        default: [],
+      },
       targetExamLevel: {
         type: String,
-
+        enum: [
+          "board",
+          "NEET",
+          "JEE",
+          "NEET/JEE",
+        ],
         default: "board",
-
-        trim: true,
       },
-
-      // ======================================================
-      // IMAGE
-      // ======================================================
-
       imageUrl: {
         type: String,
-
         default: "",
-
         trim: true,
       },
-
+      aiGenerated: {
+        type: Boolean,
+        default: false,
+      },
+      aiVerified: {
+        type: Boolean,
+        default: false,
+      },
+      aiStatus: {
+        type: String,
+        enum: [
+          "pending",
+          "correct",
+          "wrong",
+          "not_checked",
+        ],
+        default: "not_checked",
+      },
+      aiIssues: {
+        type: [aiIssueSchema],
+        default: [],
+      },
+      aiExplanation: {
+        type: String,
+        default: "",
+      },
+      aiCheckedAt: {
+        type: Date,
+      },
+      sourceType: {
+        type: String,
+        enum: [
+          "manual",
+          "pdf",
+          "ai",
+        ],
+        default: "manual",
+      },
     },
     {
       timestamps: true,
@@ -549,58 +447,39 @@ const QuestionSchema =
 // INDEXES
 // ============================================================
 
-// Find questions belonging to one test
-QuestionSchema.index({
-  testId: 1,
-});
-
-// Find tests by category
-QuestionSchema.index({
-  testCategory: 1,
-});
-
-// NEET / JEE + Academic Year
-QuestionSchema.index({
+questionSchema.index({
   examType: 1,
-  academicYear: 1,
+  className: 1, // 👈 ఇక్కడ కూడా academicYear బదులుగా className పెట్టబడింది
+  testCategory: 1,
 });
 
-// Subject questions
-QuestionSchema.index({
-  testCategory: 1,
+questionSchema.index({
   subject: 1,
 });
 
-// Exact test + subject order
-QuestionSchema.index({
+questionSchema.index({
   testId: 1,
-  subjectOrder: 1,
-  subjectQuestionNumber: 1,
+  questionNumber: 1,
 });
 
-// Student test fetching
-QuestionSchema.index({
-  testId: 1,
-  academicYear: 1,
-  examType: 1,
+questionSchema.index({
+  isPublished: 1,
 });
 
-// Publish schedule
-QuestionSchema.index({
-  testCategory: 1,
-  testDate: 1,
-  testTime: 1,
+questionSchema.index({
+  aiStatus: 1,
 });
 
 // ============================================================
 // MODEL
 // ============================================================
 
-const QuestionBank =
+const QuestionBank: Model<IQuestionBank> =
   mongoose.models.QuestionBank ||
-  mongoose.model<IQuestion>(
+  mongoose.model<IQuestionBank>(
     "QuestionBank",
-    QuestionSchema
+    questionSchema,
+    "questionbanks"
   );
 
 export default QuestionBank;

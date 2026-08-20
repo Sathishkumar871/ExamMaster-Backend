@@ -1,10 +1,11 @@
-
 import express from "express";
 import cors from "cors";
 import fileUpload from "express-fileupload";
 import "dotenv/config";
+// ============================================================
+// ROUTES
+// ============================================================
 import studentRoutes from "./routes/studentRoutes";
-import examRoutes from "./routes/examRoutes";
 import resultRoutes from "./routes/resultRoutes";
 import teacherRoutes from "./routes/teacherRoutes";
 import staffRoutes from "./routes/staffRoutes";
@@ -12,202 +13,215 @@ import mentorRoutes from "./routes/mentorRoutes";
 import managerRoutes from "./routes/managerRoutes";
 import headRoutes from "./routes/headRoutes";
 import dailyTestRoutes from "./routes/dailyTestRoutes";
-import questionRoutes from "./routes/questionRoutes";
+import subjectRoutes from "./routes/subjectRoutes";
+import questionRoutes from "./routes/question.routes";
 import studentProgressRoutes from "./routes/studentProgressRoutes";
 import complaintRoutes from "./routes/complaintRoutes";
-import testRoutes from "./routes/testRoutes"; // 👈 1. ఇక్కడ testRoutes ఇంపోర్ట్ చేయండి
+import testRoutes from "./routes/testRoutes";
 import facultyRoutes from "./routes/facultyRoutes";
-import subjectExamRoutes from "./routes/subjectExamRoutes";
+// ============================================================
+// APP
+// ============================================================
 const app = express();
-
-
-// ================= MIDDLEWARE =================
-
-
+// ============================================================
+// MIDDLEWARE
+// ============================================================
 app.use(
   cors({
     origin: "*",
-    credentials: true
+    credentials: true,
   })
 );
-
-
 app.use(
   express.json({
-    limit: "10mb"
+    limit: "10mb",
   })
 );
-
 
 app.use(
   express.urlencoded({
     extended: true,
-    limit: "10mb"
+    limit: "10mb",
   })
 );
 
-
-
-// ================= PDF / IMAGE UPLOAD =================
-
+// ============================================================
+// PDF / IMAGE UPLOAD
+// ============================================================
 
 app.use(
   fileUpload({
     useTempFiles: true,
     tempFileDir: "/tmp/",
     limits: {
-      fileSize: 50 * 1024 * 1024
+      fileSize: 50 * 1024 * 1024,
     },
-    abortOnLimit: true
+    abortOnLimit: true,
   })
 );
 
-
-
-// ================= STUDENT API =================
+// ============================================================
+// STUDENT API
+// ============================================================
 
 app.use(
   "/api/student",
   studentRoutes
 );
 
-
-
-// ================= EXAM API =================
-
-app.use(
-  "/api/exam",
-  examRoutes
-);
-
-
-
-// ================= RESULT API =================
+// ============================================================
+// RESULT API
+// ============================================================
 
 app.use(
-  "/api/result",
+  "/api/results",
   resultRoutes
 );
 
-
-
-// ================= TEACHER API =================
+// ============================================================
+// TEACHER API
+// ============================================================
 
 app.use(
   "/api/teacher",
   teacherRoutes
 );
 
-
-// ================= FACULTY API =================
+// ============================================================
+// FACULTY API
+// ============================================================
 
 app.use(
   "/api/faculty",
   facultyRoutes
 );
 
-
-// ================= STAFF API =================
+// ============================================================
+// STAFF API
+// ============================================================
 
 app.use(
   "/api/staff",
   staffRoutes
 );
 
-
-
-// ================= MENTOR API =================
+// ============================================================
+// MENTOR API
+// ============================================================
 
 app.use(
   "/api/mentor",
   mentorRoutes
 );
 
-
-
-// ================= MANAGER API =================
+// ============================================================
+// MANAGER API
+// ============================================================
 
 app.use(
   "/api/manager",
   managerRoutes
 );
 
-
-
-// ================= HEAD API =================
+// ============================================================
+// HEAD API
+// ============================================================
 
 app.use(
   "/api/head",
   headRoutes
 );
 
-
-
-// ================= DAILY TEST API =================
+// ============================================================
+// DAILY TEST API
+// ============================================================
 
 app.use(
   "/api/daily-tests",
   dailyTestRoutes
 );
-
-
-
-// ================= QUESTION BANK API =================
-
 app.use(
   "/api/questions",
   questionRoutes
 );
+app.use(
+  "/api/subjects",
+   subjectRoutes);
+// ============================================================
+// QUESTION BANK API
+// ============================================================
+// Student:
+// GET /api/questions?type=mock
+// GET /api/questions?type=daily
+//
+// Create:
+// POST /api/questions
+//
+// Single:
+// GET /api/questions/:id
+//
+// Delete:
+// DELETE /api/questions/:id
+// ============================================================
 
-
-
-// ================= TESTS / PUBLISH API =================
+// ============================================================
+// TESTS / PUBLISH API
+// ============================================================
 
 app.use(
   "/api/tests",
   testRoutes
-); // 👈 2. ఇక్కడ /api/tests రౌట్‌ను రిజిస్టర్ చేయండి
-
-
-app.use(
-  "/api/subject-exams",
-  subjectExamRoutes
 );
-// ================= STUDENT PROGRESS =================
+
+// ============================================================
+// STUDENT PROGRESS
+// ============================================================
 
 app.use(
   "/api/student-progress",
   studentProgressRoutes
 );
 
-
-
-// ================= COMPLAINT API =================
+// ============================================================
+// COMPLAINT API
+// ============================================================
 
 app.use(
   "/api/complaints",
   complaintRoutes
 );
 
-
-
-// ================= HEALTH CHECK =================
-
+// ============================================================
+// HEALTH CHECK
+// ============================================================
 
 app.get(
   "/",
   (req, res) => {
-    res.json({
+    return res.status(200).json({
       success: true,
-      message: "ExamMaster API Running 🚀"
+      message: "ExamMaster API Running 🚀",
     });
   }
 );
 
+// ============================================================
+// 404 API HANDLER
+// ============================================================
 
+app.use(
+  (req, res) => {
+    return res.status(404).json({
+      success: false,
+      message: "API route not found",
+      path: req.originalUrl,
+    });
+  }
+);
 
-// ================= ERROR HANDLER =================
-
+// ============================================================
+// ERROR HANDLER
+// ============================================================
 
 app.use(
   (
@@ -216,18 +230,22 @@ app.use(
     res: any,
     next: any
   ) => {
-    console.log(
+    console.error(
       "SERVER ERROR:",
       err
     );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: err.message || "Internal Server Error"
+      message:
+        err?.message ||
+        "Internal Server Error",
     });
   }
 );
 
-
+// ============================================================
+// EXPORT APP
+// ============================================================
 
 export default app;

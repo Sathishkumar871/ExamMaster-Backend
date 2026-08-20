@@ -8,27 +8,33 @@ import mongoose, {
 // ============================================================
 
 export interface IExamSession extends Document {
-  studentId: string;
+  // Student ID optional
+  studentId?: string;
 
-  // Normal Exam ObjectId optional
+  // Exam ID optional
   examId?: mongoose.Types.ObjectId;
 
-  // Subject Exam custom testId
+  // Mock test ki custom identifier
   testId?: string;
 
+  // Questions used in this session
   questions: mongoose.Types.ObjectId[];
 
+  // Student answers
   answers: {
     questionId: string;
     answer: string;
   }[];
 
+  // Score
   score: number;
 
+  // Session status
   status:
     | "started"
     | "completed";
 
+  // Time
   startTime: Date;
 
   endTime?: Date;
@@ -41,29 +47,48 @@ export interface IExamSession extends Document {
 const ExamSessionSchema =
   new Schema<IExamSession>(
     {
+      // ======================================================
+      // STUDENT ID
+      // OPTIONAL
+      // ======================================================
+
       studentId: {
         type: String,
-        required: true,
+        required: false,
+        default: undefined,
       },
 
       // ======================================================
-      // NORMAL EXAM ID
+      // EXAM ID
+      // OPTIONAL
       // ======================================================
 
       examId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type:
+          mongoose.Schema.Types.ObjectId,
+
         ref: "Exam",
+
         required: false,
+
+        default: undefined,
       },
 
       // ======================================================
-      // SUBJECT EXAM TEST ID
+      // TEST ID
+      // OPTIONAL
+      //
+      // Future subject/daily tests kosam
       // ======================================================
 
       testId: {
         type: String,
+
         required: false,
+
         index: true,
+
+        default: undefined,
       },
 
       // ======================================================
@@ -75,7 +100,7 @@ const ExamSessionSchema =
           type:
             mongoose.Schema.Types.ObjectId,
 
-          ref: "QuestionBank",
+          ref: "Question",
 
           required: true,
         },
@@ -89,11 +114,13 @@ const ExamSessionSchema =
         {
           questionId: {
             type: String,
+
             required: true,
           },
 
           answer: {
             type: String,
+
             default: "",
           },
         },
@@ -105,6 +132,7 @@ const ExamSessionSchema =
 
       score: {
         type: Number,
+
         default: 0,
       },
 
@@ -129,6 +157,7 @@ const ExamSessionSchema =
 
       startTime: {
         type: Date,
+
         default: Date.now,
       },
 
@@ -138,6 +167,8 @@ const ExamSessionSchema =
 
       endTime: {
         type: Date,
+
+        required: false,
       },
     },
 
@@ -156,5 +187,9 @@ const ExamSession =
     "ExamSession",
     ExamSessionSchema
   );
+
+// ============================================================
+// EXPORT
+// ============================================================
 
 export default ExamSession;

@@ -1,136 +1,54 @@
 import { Router } from "express";
 
 import {
-
   createExam,
-
   getTeacherExams,
-
+  getPublishedMockExams,
+  getExamById,
   publishExam,
-
   startExam,
-
-  submitExam
-
+  submitExam,
+  deleteExam,
 } from "../controllers/examController";
-
-
-// Middleware optional
-// import { teacherAuth } from "../middleware/teacherAuth";
-// import { studentAuth } from "../middleware/studentAuth";
-
 
 const router = Router();
 
-
-
-
-
-// =====================================
-// TEACHER CREATE EXAM
-// =====================================
-
-
-router.post(
-
-  "/create",
-
-  // teacherAuth,
-
-  createExam
-
-);
-
-
-
-
-
-
-
-// =====================================
-// TEACHER GET EXAMS
-// =====================================
-
-
-router.get(
-
-  "/teacher",
-
-  // teacherAuth,
-
-  getTeacherExams
-
-);
-
-
-
-
-
-
-
-
-// =====================================
-// TEACHER PUBLISH EXAM
-// =====================================
-
-
-router.put(
-
-  "/publish/:id",
-
-  // teacherAuth,
-
-  publishExam
-
-);
-
-
-
-
-
-
-
-
-// =====================================
-// STUDENT START EXAM
-// =====================================
-
-
-router.post(
-
-  "/start",
-
-  // studentAuth,
-
-  startExam
-
-);
-
-
-
-
-
-
-
-
-// =====================================
-// STUDENT SUBMIT EXAM
-// =====================================
-
-
-router.post(
-
-  "/submit",
-
-  // studentAuth,
-
-  submitExam
-
-);
-
-
-
-
-
+// ============================================================
+// MOCK EXAM MANAGEMENT
+// ============================================================
+
+// Create mock exam
+router.post("/create", createExam);
+
+// Get teacher's mock exams
+router.get("/teacher", getTeacherExams);
+
+// Get published mock exams
+// Student can use this to see available mock tests
+router.get("/published", getPublishedMockExams);
+
+// Get single mock exam
+router.get("/:id", getExamById);
+
+// Publish mock exam
+router.patch("/:id/publish", publishExam);
+
+// Delete mock exam
+router.delete("/:id", deleteExam);
+
+// ============================================================
+// SECURE STUDENT EXAM FLOW
+// ============================================================
+
+// Start mock exam
+// Creates ExamSession
+// Sends questions WITHOUT correctAnswer
+router.post("/start", startExam);
+
+// Submit mock exam
+// Backend checks correctAnswer
+// Backend calculates score
+// Backend creates Result
+router.post("/submit", submitExam);
 
 export default router;

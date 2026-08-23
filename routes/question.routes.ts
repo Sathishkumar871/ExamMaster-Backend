@@ -1,89 +1,217 @@
 import { Router } from "express";
 import multer from "multer";
+
 import * as questionController from "../controllers/questionController";
 import { getDailyTestQuestions } from "../controllers/dailyTestController";
 import * as mockTestController from "../controllers/mockTestController";
+
 const router = Router();
 
-const upload = multer({
+// ============================================================
+// MULTER CONFIGURATION
+// ============================================================
+
+// ------------------------------------------------------------
+// PDF UPLOAD
+// Frontend field name:
+// "pdfFile"
+// ------------------------------------------------------------
+const pdfUpload = multer({
   dest: "uploads/",
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100 MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype === "application/pdf" ||
+      file.originalname.toLowerCase().endsWith(".pdf")
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF files are allowed"));
+    }
+  },
+});
+// ------------------------------------------------------------
+// QUESTION IMAGE / DIAGRAM UPLOAD
+// Frontend field name:
+// "image"
+// ------------------------------------------------------------
+
+const imageUpload = multer({
+  dest: "uploads/question-images/",
 });
 
 // ============================================================
 // ADMIN / TEACHER
 // ============================================================
 
-// Publish all
+// ------------------------------------------------------------
+// PUBLISH ALL QUESTIONS
+// ------------------------------------------------------------
+
 router.put(
   "/publish-all",
   questionController.publishAllQuestions
 );
 
-// Delete all
+// ------------------------------------------------------------
+// DELETE ALL QUESTIONS
+// ------------------------------------------------------------
+
 router.delete(
   "/delete-all",
   questionController.deleteAllQuestions
 );
 
-// Parse PDF
+// ============================================================
+// PDF UPLOAD + QUESTION PARSING
+// ============================================================
+
+// Frontend:
+// FormData.append("pdfFile", file)
+//
+// Supports:
+// MCQ
+// Table / Match the Following
+// Image / Diagram data returned by parser
+// ------------------------------------------------------------
+
 router.post(
   "/parse-pdf",
-  upload.single("pdfFile"),
+  pdfUpload.single("pdfFile"),
   questionController.parseAndSavePdfQuestions
+);
+
+// ============================================================
+// QUESTION IMAGE / DIAGRAM UPLOAD
+// ============================================================
+
+// Used for:
+// Physics diagrams
+// Chemistry structures
+// Biology diagrams
+// Mathematical figures
+// Any question image
+// ------------------------------------------------------------
+
+router.post(
+  "/upload-image",
+  imageUpload.single("image"),
+  questionController.uploadQuestionImage
 );
 
 // ============================================================
 // STUDENT QUESTIONS
 // ============================================================
 
-// Published questions
+// ------------------------------------------------------------
+// PUBLISHED QUESTIONS
+// ------------------------------------------------------------
+
 router.get(
   "/published",
   questionController.getPublishedQuestions
 );
 
-// Student-specific questions
+// ------------------------------------------------------------
+// STUDENT QUESTIONS WITH FILTERS
+//
+// Example:
+// /student?subject=Physics&className=1st%20PUC&examType=JEE
+// ------------------------------------------------------------
+
 router.get(
   "/student",
   questionController.getStudentQuestions
 );
 
-// Questions by category
+// ============================================================
+// CATEGORY QUESTIONS
+// IMPORTANT:
+// This must come before "/:id"
+// ============================================================
+
 router.get(
   "/category/:category",
   questionController.getQuestionsByCategory
 );
 
 // ============================================================
-// ALL QUESTIONS
+// SPECIAL TEST QUESTIONS
+// IMPORTANT:
+// These must come before "/:id"
 // ============================================================
 
-// Teacher/Admin dashboard
-router.get(
-  "/",
-  questionController.getAllQuestions
-);
+// ------------------------------------------------------------
+// MOCK TESTS
+// ------------------------------------------------------------
 
 router.get(
   "/mock-tests",
   mockTestController.getMockTestQuestions
 );
+
+// ------------------------------------------------------------
+// DAILY TESTS
+// ------------------------------------------------------------
+
 router.get(
-    "/daily-tests", 
-     getDailyTestQuestions);
+  "/daily-tests",
+  getDailyTestQuestions
+);
+
 // ============================================================
-// QUESTION CRUD
+// ALL QUESTIONS
 // ============================================================
+
+// Teacher / Admin Question Bank
+// ------------------------------------------------------------
+
+router.get(
+  "/",
+  questionController.getAllQuestions
+);
+
+// ============================================================
+// CREATE QUESTION
+// ============================================================
+
+// IMPORTANT CHANGE:
+// imageUpload.single("image")
+//
+// This allows manual question creation with:
+// - normal MCQ
+// - diagram question
+// - image based question
+// - table question
+// ------------------------------------------------------------
 
 router.post(
   "/",
+  imageUpload.single("questionImage"),
   questionController.createQuestion
 );
 
+// ============================================================
+// UPDATE QUESTION
+// ============================================================
+
+// IMPORTANT CHANGE:
+// imageUpload.single("image")
+//
+// Allows replacing an existing diagram/image.
+// ------------------------------------------------------------
+
 router.put(
   "/:id",
+  imageUpload.single("questionImage"),
   questionController.updateQuestion
 );
+
+// ============================================================
+// DELETE QUESTION
+// ============================================================
 
 router.delete(
   "/:id",
@@ -91,12 +219,16 @@ router.delete(
 );
 
 // ============================================================
-// RESULT
+// SUBMIT EXAM / TEST RESULT
 // ============================================================
 
 router.post(
   "/exams/submit",
   questionController.submitTestResult
 );
+
+// ============================================================
+// EXPORT
+// ============================================================
 
 export default router;

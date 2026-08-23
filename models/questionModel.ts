@@ -33,7 +33,9 @@ export type AIStatus =
   | "not_checked";
 
 export type QuestionType =
-  | "MCQ";
+  | "MCQ"
+  | "TABLE"
+  | "DIAGRAM";
 
 export type TargetExamLevel =
   | "board"
@@ -56,6 +58,16 @@ export interface IAIQuestionIssue {
 }
 
 // ============================================================
+// TABLE DATA TYPES
+// ============================================================
+
+export type TableCell = string;
+
+export type TableRow = TableCell[];
+
+export type TableHeaders = string[];
+
+// ============================================================
 // QUESTION DOCUMENT
 // ============================================================
 
@@ -69,11 +81,23 @@ export interface IQuestionBank
   questionNumber: number;
   subjectQuestionNumber: number;
   globalQuestionNumber: number;
+
   question: string;
+
+  // MCQ options
   options: string[];
+
   correctAnswer: string;
   ansNumber: string;
+
   questionType: QuestionType;
+
+  // ----------------------------------------------------------
+  // TABLE DATA
+  // ----------------------------------------------------------
+
+  tableHeaders: TableHeaders;
+  tableRows: TableRow[];
 
   // ----------------------------------------------------------
   // SUBJECT
@@ -89,7 +113,8 @@ export interface IQuestionBank
 
   testCategory: TestCategory;
   examType: ExamType;
-  className: ClassName; // 👈 academicYear బదులుగా className
+  className: ClassName;
+
   testTitle: string;
   testId: string;
   totalQuestions: number;
@@ -138,10 +163,11 @@ export interface IQuestionBank
   targetExamLevel: TargetExamLevel;
 
   // ----------------------------------------------------------
-  // IMAGE
+  // IMAGE / DIAGRAM
   // ----------------------------------------------------------
 
   imageUrl: string;
+  questionImage: string;
 
   // ----------------------------------------------------------
   // AI
@@ -150,8 +176,11 @@ export interface IQuestionBank
   aiGenerated: boolean;
   aiVerified: boolean;
   aiStatus: AIStatus;
+
   aiIssues: IAIQuestionIssue[];
+
   aiExplanation: string;
+
   aiCheckedAt?: Date;
 
   // ----------------------------------------------------------
@@ -183,11 +212,13 @@ const aiIssueSchema =
         required: true,
         trim: true,
       },
+
       message: {
         type: String,
         required: true,
         trim: true,
       },
+
       severity: {
         type: String,
         enum: [
@@ -197,6 +228,7 @@ const aiIssueSchema =
         ],
         default: "medium",
       },
+
       resolved: {
         type: Boolean,
         default: false,
@@ -214,55 +246,112 @@ const aiIssueSchema =
 const questionSchema =
   new Schema<IQuestionBank>(
     {
+      // ======================================================
+      // QUESTION
+      // ======================================================
+
       questionNumber: {
         type: Number,
         required: true,
+        min: 1,
       },
+
       subjectQuestionNumber: {
         type: Number,
         default: 0,
       },
+
       globalQuestionNumber: {
         type: Number,
         default: 0,
       },
+
       question: {
         type: String,
         required: true,
         trim: true,
       },
-      options: {
-        type: [String],
-        required: true,
-        validate: {
-          validator: (
-            value: string[]
-          ) =>
-            Array.isArray(value) &&
-            value.length === 4,
-          message:
-            "Exactly 4 options are required",
-        },
-      },
+
+      // ======================================================
+      // OPTIONS
+      // MCQ -> EXACTLY 4
+      // TABLE / DIAGRAM -> OPTIONAL
+      // ======================================================
+options: {
+  type: [String],
+  default: [],
+  validate: {
+    validator: (value: unknown[]) => {
+      if (!Array.isArray(value)) {
+        return false;
+      }
+
+      // MCQ ki exactly 4 options
+      // TABLE / DIAGRAM ki empty options allowed
+      return value.length === 0 || value.length === 4;
+    },
+    message:
+      "Options must contain either 0 or exactly 4 items",
+  },
+},
+      // ======================================================
+      // ANSWER
+      // ======================================================
+
       correctAnswer: {
         type: String,
         default: "",
         trim: true,
       },
+
       ansNumber: {
         type: String,
         default: "",
         trim: true,
       },
+
+      // ======================================================
+      // QUESTION TYPE
+      // ======================================================
+
       questionType: {
         type: String,
-        enum: ["MCQ"],
+        enum: [
+          "MCQ",
+          "TABLE",
+          "DIAGRAM",
+        ],
         default: "MCQ",
+        required: true,
       },
+
+      // ======================================================
+      // TABLE HEADERS
+      // ======================================================
+
+      tableHeaders: {
+        type: [String],
+        default: [],
+      },
+
+      // ======================================================
+      // TABLE ROWS
+      // ======================================================
+
+      tableRows: {
+        type: [[String]],
+        default: [],
+      },
+
+      // ======================================================
+      // SUBJECT
+      // ======================================================
+
       subject: {
         type: String,
         required: true,
         trim: true,
+
         enum: [
           "Physics",
           "Chemistry",
@@ -271,15 +360,22 @@ const questionSchema =
           "Mathematics",
         ],
       },
+
       chapter: {
         type: String,
         default: "",
         trim: true,
       },
+
       subjectOrder: {
         type: Number,
         default: 1,
       },
+
+      // ======================================================
+      // EXAM
+      // ======================================================
+
       testCategory: {
         type: String,
         enum: [
@@ -289,6 +385,7 @@ const questionSchema =
         ],
         required: true,
       },
+
       examType: {
         type: String,
         enum: [
@@ -298,9 +395,6 @@ const questionSchema =
         required: true,
       },
 
-      // ========================================================
-      // CLASS NAME (Replaced academicYear)
-      // ========================================================
       className: {
         type: String,
         enum: [
@@ -315,54 +409,88 @@ const questionSchema =
         default: "Untitled Test",
         trim: true,
       },
+
       testId: {
         type: String,
         required: true,
         index: true,
+        trim: true,
       },
+
       totalQuestions: {
         type: Number,
         default: 0,
+        min: 0,
       },
+
+      // ======================================================
+      // MARKING
+      // ======================================================
+
       marksPerQuestion: {
         type: Number,
         default: 4,
         min: 0,
       },
+
       negativeMarks: {
         type: Number,
         default: 1,
         min: 0,
       },
+
+      // ======================================================
+      // EXAM TIMING
+      // ======================================================
+
       durationMinutes: {
         type: Number,
         default: 180,
         min: 1,
       },
+
       testDate: {
         type: String,
         default: "",
         trim: true,
       },
+
       testTime: {
         type: String,
         default: "",
         trim: true,
       },
+
+      // ======================================================
+      // OWNER
+      // ======================================================
+
       teacherId: {
         type: String,
         default: "HEAD",
+        trim: true,
       },
+
+      // ======================================================
+      // PDF
+      // ======================================================
+
       pdfId: {
         type: String,
         default: "manual",
         trim: true,
       },
+
       pdfSourceUrl: {
         type: String,
         default: "",
         trim: true,
       },
+
+      // ======================================================
+      // STATUS
+      // ======================================================
+
       status: {
         type: String,
         enum: [
@@ -372,18 +500,26 @@ const questionSchema =
         ],
         default: "pending",
       },
+
       isAnswerCompleted: {
         type: Boolean,
         default: false,
       },
+
       isPublished: {
         type: Boolean,
         default: false,
       },
+
+      // ======================================================
+      // EXAM TAGS
+      // ======================================================
+
       examTags: {
         type: [String],
         default: [],
       },
+
       targetExamLevel: {
         type: String,
         enum: [
@@ -394,19 +530,37 @@ const questionSchema =
         ],
         default: "board",
       },
+
+      // ======================================================
+      // IMAGE / DIAGRAM
+      // ======================================================
+
       imageUrl: {
         type: String,
         default: "",
         trim: true,
       },
+
+      questionImage: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+
+      // ======================================================
+      // AI
+      // ======================================================
+
       aiGenerated: {
         type: Boolean,
         default: false,
       },
+
       aiVerified: {
         type: Boolean,
         default: false,
       },
+
       aiStatus: {
         type: String,
         enum: [
@@ -417,17 +571,26 @@ const questionSchema =
         ],
         default: "not_checked",
       },
+
       aiIssues: {
         type: [aiIssueSchema],
         default: [],
       },
+
       aiExplanation: {
         type: String,
         default: "",
+        trim: true,
       },
+
       aiCheckedAt: {
         type: Date,
       },
+
+      // ======================================================
+      // SOURCE
+      // ======================================================
+
       sourceType: {
         type: String,
         enum: [
@@ -438,6 +601,11 @@ const questionSchema =
         default: "manual",
       },
     },
+
+    // ========================================================
+    // TIMESTAMPS
+    // ========================================================
+
     {
       timestamps: true,
     }
@@ -449,7 +617,7 @@ const questionSchema =
 
 questionSchema.index({
   examType: 1,
-  className: 1, // 👈 ఇక్కడ కూడా academicYear బదులుగా className పెట్టబడింది
+  className: 1,
   testCategory: 1,
 });
 
@@ -468,6 +636,16 @@ questionSchema.index({
 
 questionSchema.index({
   aiStatus: 1,
+});
+
+// Useful for filtering question type
+questionSchema.index({
+  questionType: 1,
+});
+
+// Useful for PDF question-bank queries
+questionSchema.index({
+  pdfId: 1,
 });
 
 // ============================================================

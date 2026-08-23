@@ -17,7 +17,7 @@ export const submitExam = async (req: Request, res: Response) => {
       correctAnswers, 
       wrongAnswers, 
       marks, 
-      score, // ఒకవేళ marks బదులు score అని వస్తే
+      score, 
       percentage, 
       grade, 
       status, 

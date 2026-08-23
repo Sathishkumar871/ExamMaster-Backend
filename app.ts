@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import fileUpload from "express-fileupload";
+
 import "dotenv/config";
 // ============================================================
 // ROUTES
@@ -19,6 +19,8 @@ import studentProgressRoutes from "./routes/studentProgressRoutes";
 import complaintRoutes from "./routes/complaintRoutes";
 import testRoutes from "./routes/testRoutes";
 import facultyRoutes from "./routes/facultyRoutes";
+import leaderboardRoutes from "./routes/leaderboardroutes";
+
 // ============================================================
 // APP
 // ============================================================
@@ -44,22 +46,6 @@ app.use(
     limit: "10mb",
   })
 );
-
-// ============================================================
-// PDF / IMAGE UPLOAD
-// ============================================================
-
-app.use(
-  fileUpload({
-    useTempFiles: true,
-    tempFileDir: "/tmp/",
-    limits: {
-      fileSize: 50 * 1024 * 1024,
-    },
-    abortOnLimit: true,
-  })
-);
-
 // ============================================================
 // STUDENT API
 // ============================================================
@@ -75,6 +61,11 @@ app.use(
 
 app.use(
   "/api/results",
+  resultRoutes
+);
+
+app.use(
+  "/api/result",
   resultRoutes
 );
 
@@ -187,6 +178,10 @@ app.use(
 // ============================================================
 
 app.use(
+  "/api", 
+  leaderboardRoutes);
+
+app.use(
   "/api/complaints",
   complaintRoutes
 );
@@ -204,6 +199,8 @@ app.get(
     });
   }
 );
+
+
 
 // ============================================================
 // 404 API HANDLER

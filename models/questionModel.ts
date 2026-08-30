@@ -1,3 +1,4 @@
+
 import mongoose, {
   Schema,
   Document,
@@ -15,7 +16,8 @@ export type TestCategory =
 
 export type ExamType =
   | "NEET"
-  | "JEE";
+  | "JEE"
+  | "";
 
 export type ClassName =
   | "1st PUC"
@@ -49,11 +51,14 @@ export type TargetExamLevel =
 
 export interface IAIQuestionIssue {
   field: string;
+
   message: string;
+
   severity:
     | "low"
     | "medium"
     | "high";
+
   resolved: boolean;
 }
 
@@ -79,15 +84,17 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   questionNumber: number;
+
   subjectQuestionNumber: number;
+
   globalQuestionNumber: number;
 
   question: string;
 
-  // MCQ options
   options: string[];
 
   correctAnswer: string;
+
   ansNumber: string;
 
   questionType: QuestionType;
@@ -97,6 +104,7 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   tableHeaders: TableHeaders;
+
   tableRows: TableRow[];
 
   // ----------------------------------------------------------
@@ -104,7 +112,9 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   subject: string;
+
   chapter: string;
+
   subjectOrder: number;
 
   // ----------------------------------------------------------
@@ -112,11 +122,15 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   testCategory: TestCategory;
+
   examType: ExamType;
+
   className: ClassName;
 
   testTitle: string;
+
   testId: string;
+
   totalQuestions: number;
 
   // ----------------------------------------------------------
@@ -124,6 +138,7 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   marksPerQuestion: number;
+
   negativeMarks: number;
 
   // ----------------------------------------------------------
@@ -131,8 +146,22 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   durationMinutes: number;
+
   testDate: string;
+
   testTime: string;
+
+  // ----------------------------------------------------------
+  // MOCK TEST SCHEDULE
+  // ----------------------------------------------------------
+  // Only used for Mock Test.
+  //
+  // Daily Test  -> null
+  // Subject Test -> null
+  // Mock Test    -> scheduled Date
+  // ----------------------------------------------------------
+
+  publishAt: Date | null;
 
   // ----------------------------------------------------------
   // OWNER
@@ -145,6 +174,7 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   pdfId: string;
+
   pdfSourceUrl: string;
 
   // ----------------------------------------------------------
@@ -152,7 +182,9 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   status: QuestionStatus;
+
   isAnswerCompleted: boolean;
+
   isPublished: boolean;
 
   // ----------------------------------------------------------
@@ -160,6 +192,7 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   examTags: string[];
+
   targetExamLevel: TargetExamLevel;
 
   // ----------------------------------------------------------
@@ -167,6 +200,7 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   imageUrl: string;
+
   questionImage: string;
 
   // ----------------------------------------------------------
@@ -174,7 +208,9 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   aiGenerated: boolean;
+
   aiVerified: boolean;
+
   aiStatus: AIStatus;
 
   aiIssues: IAIQuestionIssue[];
@@ -197,6 +233,7 @@ export interface IQuestionBank
   // ----------------------------------------------------------
 
   createdAt: Date;
+
   updatedAt: Date;
 }
 
@@ -277,23 +314,32 @@ const questionSchema =
       // MCQ -> EXACTLY 4
       // TABLE / DIAGRAM -> OPTIONAL
       // ======================================================
-options: {
-  type: [String],
-  default: [],
-  validate: {
-    validator: (value: unknown[]) => {
-      if (!Array.isArray(value)) {
-        return false;
-      }
 
-      // MCQ ki exactly 4 options
-      // TABLE / DIAGRAM ki empty options allowed
-      return value.length === 0 || value.length === 4;
-    },
-    message:
-      "Options must contain either 0 or exactly 4 items",
-  },
-},
+      options: {
+        type: [String],
+        default: [],
+
+        validate: {
+          validator: (
+            value: unknown[]
+          ) => {
+            if (!Array.isArray(value)) {
+              return false;
+            }
+
+            // MCQ -> exactly 4
+            // TABLE / DIAGRAM -> empty allowed
+            return (
+              value.length === 0 ||
+              value.length === 4
+            );
+          },
+
+          message:
+            "Options must contain either 0 or exactly 4 items",
+        },
+      },
+
       // ======================================================
       // ANSWER
       // ======================================================
@@ -316,12 +362,15 @@ options: {
 
       questionType: {
         type: String,
+
         enum: [
           "MCQ",
           "TABLE",
           "DIAGRAM",
         ],
+
         default: "MCQ",
+
         required: true,
       },
 
@@ -349,7 +398,9 @@ options: {
 
       subject: {
         type: String,
+
         required: true,
+
         trim: true,
 
         enum: [
@@ -378,48 +429,79 @@ options: {
 
       testCategory: {
         type: String,
+
         enum: [
           "mock",
           "daily",
           "subject",
         ],
+
         required: true,
       },
 
+      // ------------------------------------------------------
+      // Exam Type
+      //
+      // Mock / Daily -> JEE / NEET
+      // Subject       -> "" (Not Applicable)
+      // ------------------------------------------------------
+
       examType: {
         type: String,
+
         enum: [
           "NEET",
           "JEE",
+          "",
         ],
+
         required: true,
+
+        default: "",
       },
 
       className: {
         type: String,
+
         enum: [
           "1st PUC",
           "2nd PUC",
         ],
+
         required: true,
       },
 
       testTitle: {
         type: String,
-        default: "Untitled Test",
+
+        default:
+          "Untitled Test",
+
         trim: true,
       },
 
+      // ------------------------------------------------------
+      // UNIQUE TEST IDENTIFIER
+      // ------------------------------------------------------
+      // Each Mock Test / Daily Test / Subject Test
+      // can have its own testId.
+      // ------------------------------------------------------
+
       testId: {
         type: String,
+
         required: true,
+
         index: true,
+
         trim: true,
       },
 
       totalQuestions: {
         type: Number,
+
         default: 0,
+
         min: 0,
       },
 
@@ -429,13 +511,17 @@ options: {
 
       marksPerQuestion: {
         type: Number,
+
         default: 4,
+
         min: 0,
       },
 
       negativeMarks: {
         type: Number,
+
         default: 1,
+
         min: 0,
       },
 
@@ -445,20 +531,51 @@ options: {
 
       durationMinutes: {
         type: Number,
+
         default: 180,
+
         min: 1,
       },
 
       testDate: {
         type: String,
+
         default: "",
+
         trim: true,
       },
 
       testTime: {
         type: String,
+
         default: "",
+
         trim: true,
+      },
+
+      // ======================================================
+      // MOCK TEST SCHEDULED PUBLISH
+      // ======================================================
+      //
+      // ONLY Mock Test uses this field.
+      //
+      // Daily Test:
+      //   publishAt = null
+      //
+      // Subject Test:
+      //   publishAt = null
+      //
+      // Mock Test:
+      //   publishAt = selected publish date/time
+      //
+      // ======================================================
+
+      publishAt: {
+        type: Date,
+
+        default: null,
+
+        index: true,
       },
 
       // ======================================================
@@ -467,7 +584,9 @@ options: {
 
       teacherId: {
         type: String,
+
         default: "HEAD",
+
         trim: true,
       },
 
@@ -477,13 +596,17 @@ options: {
 
       pdfId: {
         type: String,
+
         default: "manual",
+
         trim: true,
       },
 
       pdfSourceUrl: {
         type: String,
+
         default: "",
+
         trim: true,
       },
 
@@ -493,21 +616,25 @@ options: {
 
       status: {
         type: String,
+
         enum: [
           "pending",
           "completed",
           "published",
         ],
+
         default: "pending",
       },
 
       isAnswerCompleted: {
         type: Boolean,
+
         default: false,
       },
 
       isPublished: {
         type: Boolean,
+
         default: false,
       },
 
@@ -517,17 +644,20 @@ options: {
 
       examTags: {
         type: [String],
+
         default: [],
       },
 
       targetExamLevel: {
         type: String,
+
         enum: [
           "board",
           "NEET",
           "JEE",
           "NEET/JEE",
         ],
+
         default: "board",
       },
 
@@ -537,13 +667,17 @@ options: {
 
       imageUrl: {
         type: String,
+
         default: "",
+
         trim: true,
       },
 
       questionImage: {
         type: String,
+
         default: "",
+
         trim: true,
       },
 
@@ -553,33 +687,40 @@ options: {
 
       aiGenerated: {
         type: Boolean,
+
         default: false,
       },
 
       aiVerified: {
         type: Boolean,
+
         default: false,
       },
 
       aiStatus: {
         type: String,
+
         enum: [
           "pending",
           "correct",
           "wrong",
           "not_checked",
         ],
+
         default: "not_checked",
       },
 
       aiIssues: {
         type: [aiIssueSchema],
+
         default: [],
       },
 
       aiExplanation: {
         type: String,
+
         default: "",
+
         trim: true,
       },
 
@@ -593,11 +734,13 @@ options: {
 
       sourceType: {
         type: String,
+
         enum: [
           "manual",
           "pdf",
           "ai",
         ],
+
         default: "manual",
       },
     },
@@ -615,35 +758,51 @@ options: {
 // INDEXES
 // ============================================================
 
+// Exam category filtering
 questionSchema.index({
   examType: 1,
   className: 1,
   testCategory: 1,
 });
 
+// Subject filtering
 questionSchema.index({
   subject: 1,
 });
 
+// Test + question ordering
 questionSchema.index({
   testId: 1,
   questionNumber: 1,
 });
 
+// Published questions
 questionSchema.index({
   isPublished: 1,
 });
 
+// ============================================================
+// MOCK SCHEDULE INDEX
+// ============================================================
+
+questionSchema.index({
+  testCategory: 1,
+  testId: 1,
+  publishAt: 1,
+  isPublished: 1,
+});
+
+// AI status
 questionSchema.index({
   aiStatus: 1,
 });
 
-// Useful for filtering question type
+// Question type
 questionSchema.index({
   questionType: 1,
 });
 
-// Useful for PDF question-bank queries
+// PDF question-bank queries
 questionSchema.index({
   pdfId: 1,
 });

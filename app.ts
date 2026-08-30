@@ -20,7 +20,7 @@ import complaintRoutes from "./routes/complaintRoutes";
 import testRoutes from "./routes/testRoutes";
 import facultyRoutes from "./routes/facultyRoutes";
 import leaderboardRoutes from "./routes/leaderboardroutes";
-
+import { publishScheduledMockTests } from "./services/mockTestPublisher";
 // ============================================================
 // APP
 // ============================================================
@@ -200,6 +200,12 @@ app.get(
   }
 );
 
+publishScheduledMockTests();
+
+    setInterval(
+      publishScheduledMockTests,
+      30 * 1000
+    );
 
 
 // ============================================================

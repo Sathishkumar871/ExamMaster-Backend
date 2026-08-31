@@ -1,27 +1,24 @@
+require("dotenv").config();
+
+const Groq = require("groq-sdk");
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
+
 async function getAvailableModels() {
-           const apiKey = process.env.GROQ_API_KEY;  
-  console.log("🔄 మీ కీ కి అందుబాటులో ఉన్న మోడల్స్ లిస్ట్ తెప్పిస్తున్నాము...");
-
   try {
-    const response = await fetch("https://api.groq.com/openai/v1/models", {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`
-      }
-    });
+    console.log("Checking Groq models...\n");
 
-    const data = await response.json();
-    console.log("📦 Available Models List:");
-    
-    if (data && data.data) {
-      data.data.forEach(model => {
-        console.log(`- ${model.id}`);
-      });
-    } else {
-      console.log(JSON.stringify(data, null, 2));
-    }
+    const models = await groq.models.list();
+
+    console.log("Available Models:\n");
+
+    models.data.forEach((model) => {
+      console.log("-", model.id);
+    });
   } catch (error) {
-    console.error("❌ Error:", error);
+    console.error("Groq Error:", error.message);
   }
 }
 

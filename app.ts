@@ -21,6 +21,8 @@ import testRoutes from "./routes/testRoutes";
 import facultyRoutes from "./routes/facultyRoutes";
 import leaderboardRoutes from "./routes/leaderboardroutes";
 import { publishScheduledMockTests } from "./services/mockTestPublisher";
+import aiStrategyRoutes from "./routes/aiStrategyRoutes";
+import academicRoutes from "./routes/academicRoutes";
 // ============================================================
 // APP
 // ============================================================
@@ -141,20 +143,13 @@ app.use(
 // ============================================================
 // QUESTION BANK API
 // ============================================================
-// Student:
-// GET /api/questions?type=mock
-// GET /api/questions?type=daily
-//
-// Create:
-// POST /api/questions
-//
-// Single:
-// GET /api/questions/:id
-//
-// Delete:
-// DELETE /api/questions/:id
-// ============================================================
-
+app.use(
+  "/api/ai-strategy",
+  aiStrategyRoutes
+);
+app.use(
+  "/api/academic", 
+  academicRoutes);
 // ============================================================
 // TESTS / PUBLISH API
 // ============================================================

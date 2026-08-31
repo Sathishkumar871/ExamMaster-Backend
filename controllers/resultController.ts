@@ -971,4 +971,90 @@ export const getSubjectResults = async (
   }
 
 };
+// ============================================================
+// GET STUDENT PERFORMANCE ANALYTICS (Weak Areas & Study Plan)
+// ============================================================
 
+export const getStudentPerformanceAnalytics = async (
+  req: Request,
+  res: Response
+) => {
+
+  try {
+
+    const { studentId } = req.params;
+
+    // 1. Fetch all exam results of this student from Result model
+    const results = await Result.find({ studentId });
+
+    if (!results || results.length === 0) {
+      return res.status(200).json({
+        success: true,
+        weakTopics: [],
+        recommendedStudyPlan: []
+      });
+    }
+
+    // 2. Aggregate performance subject-wise using stored result data
+    const subjectMap: { [key: string]: { correct: number; total: number } } = {};
+
+    results.forEach((result: any) => {
+      const subj = result.subject || "General";
+      if (!subjectMap[subj]) {
+        subjectMap[subj] = { correct: 0, total: 0 };
+      }
+      subjectMap[subj].correct += result.correctAnswers || 0;
+      subjectMap[subj].total += result.totalQuestions || 0;
+    });
+
+    const weakTopics: any[] = [];
+    const recommendedStudyPlan: any[] = [];
+
+    // 3. Calculate accuracy and filter weak subjects (< 70% accuracy)
+    Object.keys(subjectMap).forEach((subj, idx) => {
+      const data = subjectMap[subj];
+      const accuracy = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+
+      if (accuracy < 70) {
+        weakTopics.push({
+          id: idx + 1,
+          topic: `${subj} Core Concepts`,
+          subject: subj,
+          accuracy: `${accuracy}%`,
+          priority: accuracy < 50 ? "High Priority" : "Medium Priority"
+        });
+
+        // Auto-allocate study hours based on how low the accuracy is
+        const hours = accuracy < 40 ? 3.5 : accuracy < 55 ? 2.5 : 2.0;
+        recommendedStudyPlan.push({
+          id: idx + 1,
+          subject: `${subj} Revision`,
+          hours,
+          completed: false
+        });
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      weakTopics,
+      recommendedStudyPlan
+    });
+
+  } catch (error: any) {
+
+    console.error(
+      "GET STUDENT PERFORMANCE ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Failed to fetch student performance analytics"
+    });
+
+  }
+
+};

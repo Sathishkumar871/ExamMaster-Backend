@@ -19,7 +19,8 @@ import {
 
   getTopResults,
 
-  getSubjectResults
+  getSubjectResults,
+  getStudentPerformanceAnalytics
 
 } from "../controllers/resultController";
 
@@ -90,6 +91,11 @@ router.get(
 
   getSubjectResults
 
+);
+// PERFORMANCE ANALYTICS ROUTE
+router.get(
+  "/performance/:studentId",
+  getStudentPerformanceAnalytics
 );
 
 

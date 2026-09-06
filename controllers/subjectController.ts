@@ -9,12 +9,11 @@ export const getQuestionsBySubject = async (
     const { className, academicYear, subject, testCategory } = req.query;
     const targetClass = (className || academicYear) as string;
 
-    // అన్ని ఫిల్టర్లు ఒకేసారి అప్లై అవ్వడానికి $and కండిషన్స్ వాడటం
+    
     const andConditions: any[] = [
       { isPublished: true }
     ];
 
-    // 1. Test Category Filter (ఉదాహరణకు: 'daily' లేదా 'mock')
     if (testCategory && testCategory !== "All" && testCategory !== "undefined" && testCategory !== "") {
       andConditions.push({
         $or: [
@@ -24,7 +23,6 @@ export const getQuestionsBySubject = async (
       });
     }
 
-    // 2. Class Name Filter (ఉదాహరణకు: "2nd PUC")
     if (targetClass && targetClass !== "All" && targetClass !== "undefined" && targetClass !== "") {
       const trimmedClass = (targetClass as string).trim();
       const regexClass = trimmedClass.replace(/\s+/g, "\\s*");
@@ -36,7 +34,6 @@ export const getQuestionsBySubject = async (
       });
     }
 
-    // 3. Subject Filter (ఉదాహరణకు: "Chemistry", "Physics", "Mathematics")
     if (subject && subject !== "All" && subject !== "undefined" && subject !== "") {
       andConditions.push({
         subject: { $regex: new RegExp(`^${subject as string}$`, "i") }
@@ -45,10 +42,9 @@ export const getQuestionsBySubject = async (
 
     const matchConditions = { $and: andConditions };
 
-    // అగ్రిగేషన్ ద్వారా పైన చెప్పిన అన్నీ మ్యాచ్ అయ్యే ప్రశ్నలను ర్యాండమ్‌గా తీసుకోవడం
     const questions = await Question.aggregate([
       { $match: matchConditions },
-      { $sample: { size: 100 } } // అవసరమైతే సైజ్ మార్చుకోవచ్చు
+      { $sample: { size: 100 } } 
     ]);
 
     console.log(`🎯 Filters -> Class: ${targetClass || "All"} | Subject: ${subject || "All"} | Category: ${testCategory || "All"} | Found: ${questions.length}`);

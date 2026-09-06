@@ -11,10 +11,12 @@ import teacherRoutes from "./routes/teacherRoutes";
 import staffRoutes from "./routes/staffRoutes";
 import mentorRoutes from "./routes/mentorRoutes";
 import managerRoutes from "./routes/managerRoutes";
+import mockTestRoutes from "./routes/mockTestRoutes";
 import headRoutes from "./routes/headRoutes";
 import dailyTestRoutes from "./routes/dailyTestRoutes";
 import subjectRoutes from "./routes/subjectRoutes";
 import questionRoutes from "./routes/question.routes";
+import departmentFeedbackRoutes from "./routes/departmentFeedbackRoutes";
 import studentProgressRoutes from "./routes/studentProgressRoutes";
 import complaintRoutes from "./routes/complaintRoutes";
 import testRoutes from "./routes/testRoutes";
@@ -159,6 +161,10 @@ app.use(
   testRoutes
 );
 
+app.use(
+  "/api/mock-test",
+  mockTestRoutes
+);
 // ============================================================
 // STUDENT PROGRESS
 // ============================================================
@@ -179,6 +185,10 @@ app.use(
 app.use(
   "/api/complaints",
   complaintRoutes
+);
+app.use(
+  "/api/department-feedback",
+  departmentFeedbackRoutes
 );
 
 // ============================================================

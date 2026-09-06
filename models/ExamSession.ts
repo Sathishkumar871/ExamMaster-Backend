@@ -1,47 +1,163 @@
+
 import mongoose, {
   Schema,
   Document,
 } from "mongoose";
 
 // ============================================================
-// INTERFACE
+// TYPES
 // ============================================================
 
-export interface IExamSession extends Document {
-  // Student ID optional
+export interface IExamSessionAnswer {
+  questionId: string;
+  answer: string;
+}
+
+export interface IExamSession
+  extends Document {
+  // ==========================================================
+  // STUDENT
+  // ==========================================================
+
   studentId?: string;
 
-  // Exam ID optional
+  // ==========================================================
+  // EXAM
+  // ==========================================================
+
   examId?: mongoose.Types.ObjectId;
 
-  // Mock test ki custom identifier
+  // ==========================================================
+  // TEST ID
+  // ==========================================================
+
   testId?: string;
 
-  // Questions used in this session
+  // ==========================================================
+  // QUESTIONS
+  // ==========================================================
+
   questions: mongoose.Types.ObjectId[];
 
-  // Student answers
-  answers: {
-    questionId: string;
-    answer: string;
-  }[];
+  // ==========================================================
+  // ANSWERS
+  // ==========================================================
 
-  // Score
+  answers: IExamSessionAnswer[];
+
+  // ==========================================================
+  // REVIEW MARKS
+  // ==========================================================
+
+  markedForReview: Record<
+    string,
+    boolean
+  >;
+
+  // ==========================================================
+  // CURRENT QUESTION
+  // ==========================================================
+
+  currentQuestion: number;
+
+  // ==========================================================
+  // SCORE
+  // ==========================================================
+
   score: number;
 
-  // Session status
+  // ==========================================================
+  // STATUS
+  // ==========================================================
+
   status:
     | "started"
     | "completed";
 
-  // Time
+  // ==========================================================
+  // START TIME
+  // ==========================================================
+
   startTime: Date;
 
+  // ==========================================================
+  // END / SUBMIT TIME
+  // ==========================================================
+
   endTime?: Date;
+
+  submittedAt?: Date;
+
+  // ==========================================================
+  // SERVER CONTROLLED EXAM DURATION
+  // ==========================================================
+  //
+  // IMPORTANT:
+  // This is stored in SECONDS.
+  //
+  // Example:
+  // 100 questions × 60 sec = 6000 sec
+  //
+  // Timer should always be calculated from:
+  //
+  // startTime + durationSeconds
+  //
+  // So browser refresh cannot reset timer.
+  //
+  // ==========================================================
+
+  durationSeconds: number;
+
+  // ==========================================================
+  // ACTIVE LOGIN SESSION
+  // ==========================================================
+  //
+  // New device login creates a new session ID.
+  //
+  // Old device will fail heartbeat because its
+  // session ID is no longer the current one.
+  //
+  // ==========================================================
+
+  deviceSessionId: string;
+
+  // ==========================================================
+  // DEVICE ID
+  // ==========================================================
+
+  deviceId: string;
+
+  // ==========================================================
+  // LAST ACTIVITY
+  // ==========================================================
+
+  lastActivityAt: Date;
 }
 
 // ============================================================
-// SCHEMA
+// ANSWER SCHEMA
+// ============================================================
+
+const ExamSessionAnswerSchema =
+  new Schema<IExamSessionAnswer>(
+    {
+      questionId: {
+        type: String,
+        required: true,
+      },
+
+      answer: {
+        type: String,
+        default: "",
+      },
+    },
+    {
+      _id: false,
+    }
+  );
+
+// ============================================================
+// MAIN SCHEMA
 // ============================================================
 
 const ExamSessionSchema =
@@ -49,18 +165,20 @@ const ExamSessionSchema =
     {
       // ======================================================
       // STUDENT ID
-      // OPTIONAL
       // ======================================================
 
       studentId: {
         type: String,
+
         required: false,
+
         default: undefined,
+
+        index: true,
       },
 
       // ======================================================
       // EXAM ID
-      // OPTIONAL
       // ======================================================
 
       examId: {
@@ -72,13 +190,12 @@ const ExamSessionSchema =
         required: false,
 
         default: undefined,
+
+        index: true,
       },
 
       // ======================================================
       // TEST ID
-      // OPTIONAL
-      //
-      // Future subject/daily tests kosam
       // ======================================================
 
       testId: {
@@ -110,21 +227,34 @@ const ExamSessionSchema =
       // ANSWERS
       // ======================================================
 
-      answers: [
-        {
-          questionId: {
-            type: String,
+      answers: {
+        type:
+          [ExamSessionAnswerSchema],
 
-            required: true,
-          },
+        default: [],
+      },
 
-          answer: {
-            type: String,
+      // ======================================================
+      // MARKED FOR REVIEW
+      // ======================================================
 
-            default: "",
-          },
-        },
-      ],
+      markedForReview: {
+        type: Schema.Types.Mixed,
+
+        default: {},
+      },
+
+      // ======================================================
+      // CURRENT QUESTION
+      // ======================================================
+
+      currentQuestion: {
+        type: Number,
+
+        default: 0,
+
+        min: 0,
+      },
 
       // ======================================================
       // SCORE
@@ -149,6 +279,8 @@ const ExamSessionSchema =
         ],
 
         default: "started",
+
+        index: true,
       },
 
       // ======================================================
@@ -159,6 +291,8 @@ const ExamSessionSchema =
         type: Date,
 
         default: Date.now,
+
+        index: true,
       },
 
       // ======================================================
@@ -169,6 +303,68 @@ const ExamSessionSchema =
         type: Date,
 
         required: false,
+
+        default: undefined,
+      },
+
+      // ======================================================
+      // SUBMITTED AT
+      // ======================================================
+
+      submittedAt: {
+        type: Date,
+
+        required: false,
+
+        default: undefined,
+      },
+
+      // ======================================================
+      // SERVER CONTROLLED DURATION
+      // ======================================================
+
+      durationSeconds: {
+        type: Number,
+
+        required: true,
+
+        default: 3600,
+
+        min: 1,
+      },
+
+      // ======================================================
+      // CURRENT LOGIN SESSION
+      // ======================================================
+
+      deviceSessionId: {
+        type: String,
+
+        required: true,
+
+        index: true,
+      },
+
+      // ======================================================
+      // DEVICE ID
+      // ======================================================
+
+      deviceId: {
+        type: String,
+
+        required: true,
+      },
+
+      // ======================================================
+      // LAST ACTIVITY
+      // ======================================================
+
+      lastActivityAt: {
+        type: Date,
+
+        default: Date.now,
+
+        index: true,
       },
     },
 
@@ -178,7 +374,46 @@ const ExamSessionSchema =
   );
 
 // ============================================================
-// PREVENT OVERWRITE MODEL ERROR
+// UNIQUE ACTIVE ATTEMPT
+// ============================================================
+//
+// One student + one exam = one ExamSession.
+//
+// So:
+//
+// Student A
+// Exam 123
+//
+// cannot create:
+//
+// Session 1
+// Session 2
+// Session 3
+//
+// after submission.
+//
+// ============================================================
+
+ExamSessionSchema.index(
+  {
+    studentId: 1,
+    examId: 1,
+  },
+  {
+    unique: true,
+    sparse: true,
+  }
+);
+
+// ============================================================
+// MODEL
+// ============================================================
+//
+// Prevent:
+//
+// OverwriteModelError:
+// Cannot overwrite `ExamSession` model.
+//
 // ============================================================
 
 const ExamSession =
@@ -193,3 +428,4 @@ const ExamSession =
 // ============================================================
 
 export default ExamSession;
+

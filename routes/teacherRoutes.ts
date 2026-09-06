@@ -1,26 +1,16 @@
 import express from "express";
 
 import {
-
   teacherLogin,
-
   getStudentsPerformance,
-
   getTopStudents,
-
-  getSubjectAnalysis
-
-}
-from "../controllers/teacherController";
-
+  getSubjectAnalysis,
+  getAllStudentResults,
+} from "../controllers/teacherController";
 
 import teacherAuth from "../middleware/teacherAuth";
 
-
-
 const router = express.Router();
-
-
 
 
 // =================================
@@ -29,19 +19,9 @@ const router = express.Router();
 // =================================
 
 router.post(
-
   "/login",
-
   teacherLogin
-
 );
-
-
-
-
-
-
-
 
 
 // =================================
@@ -53,56 +33,40 @@ router.post(
 // GET /api/teacher/students
 
 router.get(
-
   "/students",
-
   teacherAuth,
-
   getStudentsPerformance
-
 );
-
-
-
-
-
 
 
 // GET /api/teacher/top-students
 
 router.get(
-
   "/top-students",
-
   teacherAuth,
-
   getTopStudents
-
 );
-
-
-
-
-
-
 
 
 // GET /api/teacher/subject-analysis
 
 router.get(
-
   "/subject-analysis",
-
   teacherAuth,
-
   getSubjectAnalysis
-
 );
 
 
+// =================================
+// RESULTS MANAGEMENT
+// GET /api/teacher/results
+// =================================
 
-
-
+router.get(
+  "/results",
+  teacherAuth,
+  getAllStudentResults
+);
 
 
 export default router;

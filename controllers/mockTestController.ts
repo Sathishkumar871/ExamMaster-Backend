@@ -1,3 +1,4 @@
+
 import {
   Request,
   Response,
@@ -149,10 +150,10 @@ const safeNumber = (
   value: unknown,
   fallback = 0
 ): number => {
-  const n = Number(value);
+  const numberValue = Number(value);
 
-  return Number.isFinite(n)
-    ? n
+  return Number.isFinite(numberValue)
+    ? numberValue
     : fallback;
 };
 
@@ -166,8 +167,6 @@ const isValidObjectId = (
   );
 };
 
-// ============================================================
-// ESCAPE REGEX
 // ============================================================
 
 const escapeRegex = (
@@ -193,7 +192,9 @@ const getDurationSeconds = (
       0
     );
 
-  if (durationMinutes > 0) {
+  if (
+    durationMinutes > 0
+  ) {
     return Math.max(
       60,
       Math.floor(
@@ -255,37 +256,41 @@ const isExpired = (
 // ============================================================
 // DISPLAY QUESTIONS
 // ============================================================
-//
-// correctAnswer is NEVER returned to student.
-// ============================================================
 
 const getDisplayQuestions = (
   questions: any[]
 ): any[] => {
   return questions.map(
-    (q: any) => ({
+    (question: any) => ({
       questionId:
-        String(q._id),
+        String(
+          question._id
+        ),
 
       questionNumber:
-        q.questionNumber,
+        question.questionNumber,
 
       question:
-        q.question,
+        question.question,
 
       options:
-        Array.isArray(q.options)
-          ? q.options
+        Array.isArray(
+          question.options
+        )
+          ? question.options
           : [],
 
       subject:
-        q.subject || "",
+        question.subject ||
+        "",
 
       chapter:
-        q.chapter || "",
+        question.chapter ||
+        "",
 
       imageUrl:
-        q.imageUrl || "",
+        question.imageUrl ||
+        "",
     })
   );
 };
@@ -304,7 +309,9 @@ const sanitizeAnswers = (
   const map =
     new Map<string, string>();
 
-  if (!Array.isArray(answers)) {
+  if (
+    !Array.isArray(answers)
+  ) {
     return [];
   }
 
@@ -321,7 +328,7 @@ const sanitizeAnswers = (
     const questionId =
       String(
         item.questionId
-      );
+      ).trim();
 
     if (
       !allowedIds.has(
@@ -402,23 +409,33 @@ const sanitizeReview = (
 const getGrade = (
   percentage: number
 ): string => {
-  if (percentage >= 90) {
+  if (
+    percentage >= 90
+  ) {
     return "A+";
   }
 
-  if (percentage >= 80) {
+  if (
+    percentage >= 80
+  ) {
     return "A";
   }
 
-  if (percentage >= 70) {
+  if (
+    percentage >= 70
+  ) {
     return "B";
   }
 
-  if (percentage >= 60) {
+  if (
+    percentage >= 60
+  ) {
     return "C";
   }
 
-  if (percentage >= 50) {
+  if (
+    percentage >= 50
+  ) {
     return "D";
   }
 
@@ -431,14 +448,14 @@ const getGrade = (
 
 const getResultStatus = (
   percentage: number
-): string => {
+): "PASS" | "FAIL" => {
   return percentage >= 40
     ? "PASS"
     : "FAIL";
 };
 
 // ============================================================
-// RESULT AVAILABLE TIME
+// RESULT AVAILABLE
 // ============================================================
 
 const getResultAvailableAt =
@@ -461,18 +478,78 @@ const getResultAvailableAt =
   };
 
 // ============================================================
-// GET MOCK TEST QUESTIONS
+// EXAM RESPONSE
 // ============================================================
-//
-// FLOW:
-//
-// 1. Find existing Questions.
-// 2. Find published Exam.
-// 3. If Exam does not exist, create a REAL Exam.
-// 4. Existing Question._id values are linked to Exam.questions.
-// 5. Return real Exam._id.
-// 6. startMockTest validates the same real Exam.
-//
+
+const buildExamResponse = (
+  exam: any,
+  questionCount: number
+) => {
+  return {
+    id:
+      exam._id,
+
+    _id:
+      exam._id,
+
+    title:
+      exam.title ||
+      "Mock Test",
+
+    examName:
+      exam.examName ||
+      exam.title ||
+      "Mock Test",
+
+    testCategory:
+      "mock",
+
+    examType:
+      exam.examType ||
+      "NEET",
+
+    targetExam:
+      exam.targetExam ||
+      exam.examType ||
+      "NEET",
+
+    subject:
+      exam.subject ||
+      "",
+
+    chapter:
+      exam.chapter ||
+      "Full Assessment",
+
+    className:
+      exam.className ||
+      "",
+
+    duration:
+      safeNumber(
+        exam.duration,
+        180
+      ),
+
+    totalQuestions:
+      questionCount,
+
+    marksPerQuestion:
+      safeNumber(
+        exam.marksPerQuestion,
+        4
+      ),
+
+    negativeMarks:
+      safeNumber(
+        exam.negativeMarks,
+        1
+      ),
+  };
+};
+
+// ============================================================
+// GET MOCK TEST QUESTIONS
 // ============================================================
 
 export const getMockTestQuestions =
@@ -486,11 +563,9 @@ export const getMockTestQuestions =
         academicYear,
         examType,
         subject,
+        chapter,
+        chapterName,
       } = req.query;
-
-      // ======================================================
-      // INPUT
-      // ======================================================
 
       const targetClass =
         String(
@@ -507,17 +582,22 @@ export const getMockTestQuestions =
 
       const cleanSubject =
         String(
-          subject || ""
+          subject ||
+            ""
         ).trim();
 
-      // ======================================================
-      // QUESTION FILTER
-      // ======================================================
+      const cleanChapter =
+        String(
+          chapterName ||
+            chapter ||
+            ""
+        ).trim();
 
       const questionConditions: any[] =
         [
           {
-            isPublished: true,
+            isPublished:
+              true,
           },
 
           {
@@ -539,107 +619,110 @@ export const getMockTestQuestions =
           },
         ];
 
-      // ======================================================
-      // EXAM TYPE
-      // ======================================================
-
       if (
         cleanExamType &&
-        cleanExamType.toLowerCase() !==
-          "all" &&
-        cleanExamType.toLowerCase() !==
-          "undefined"
+        ![
+          "all",
+          "undefined",
+        ].includes(
+          cleanExamType.toLowerCase()
+        )
       ) {
-        const escapedExamType =
-          escapeRegex(
-            cleanExamType
-          );
-
         questionConditions.push({
           examType: {
             $regex:
-              `^${escapedExamType}$`,
-            $options: "i",
+              `^${escapeRegex(
+                cleanExamType
+              )}$`,
+            $options:
+              "i",
           },
         });
       }
-
-      // ======================================================
-      // CLASS
-      // ======================================================
 
       if (
         targetClass &&
-        targetClass.toLowerCase() !==
-          "all" &&
-        targetClass.toLowerCase() !==
-          "undefined"
+        ![
+          "all",
+          "undefined",
+        ].includes(
+          targetClass.toLowerCase()
+        )
       ) {
-        const escapedClass =
-          escapeRegex(
-            targetClass
-          );
-
         questionConditions.push({
           className: {
             $regex:
-              escapedClass,
-            $options: "i",
+              escapeRegex(
+                targetClass
+              ),
+            $options:
+              "i",
           },
         });
       }
-
-      // ======================================================
-      // SUBJECT
-      // ======================================================
 
       if (
         cleanSubject &&
-        cleanSubject.toLowerCase() !==
-          "all" &&
-        cleanSubject.toLowerCase() !==
-          "undefined"
+        ![
+          "all",
+          "undefined",
+        ].includes(
+          cleanSubject.toLowerCase()
+        )
       ) {
-        const escapedSubject =
-          escapeRegex(
-            cleanSubject
-          );
-
         questionConditions.push({
           subject: {
             $regex:
-              `^${escapedSubject}$`,
-            $options: "i",
+              `^${escapeRegex(
+                cleanSubject
+              )}$`,
+            $options:
+              "i",
           },
         });
       }
 
-      const questionQuery = {
-        $and:
-          questionConditions,
-      };
-
-      console.log(
-        "=================================================="
-      );
-
-      console.log(
-        "🔎 MOCK QUESTION FILTER:",
-        JSON.stringify(
-          questionQuery,
-          null,
-          2
+      if (
+        cleanChapter &&
+        ![
+          "all",
+          "undefined",
+        ].includes(
+          cleanChapter.toLowerCase()
         )
-      );
+      ) {
+        questionConditions.push({
+          $or: [
+            {
+              chapter: {
+                $regex:
+                  `^${escapeRegex(
+                    cleanChapter
+                  )}$`,
+                $options:
+                  "i",
+              },
+            },
 
-      // ======================================================
-      // FIND EXISTING QUESTIONS
-      // ======================================================
+            {
+              chapterName: {
+                $regex:
+                  `^${escapeRegex(
+                    cleanChapter
+                  )}$`,
+                $options:
+                  "i",
+              },
+            },
+          ],
+        });
+      }
 
       const questions =
-        await Question.find(
-          questionQuery
-        ).sort({
+        await Question.find({
+          $and:
+            questionConditions,
+        }).sort({
           globalQuestionNumber:
             1,
 
@@ -650,16 +733,9 @@ export const getMockTestQuestions =
             1,
         });
 
-      console.log(
-        `🎯 EXISTING MOCK QUESTIONS FOUND: ${questions.length}`
-      );
-
-      // ======================================================
-      // NO QUESTIONS
-      // ======================================================
-
       if (
-        questions.length === 0
+        questions.length ===
+        0
       ) {
         return res.status(404).json({
           success: false,
@@ -668,13 +744,9 @@ export const getMockTestQuestions =
             "MOCK_QUESTIONS_NOT_FOUND",
 
           message:
-            "No published mock questions were found for the selected class and exam type.",
+            "No published mock questions were found.",
         });
       }
-
-      // ======================================================
-      // EXAM FILTER
-      // ======================================================
 
       const examFilter: any = {
         testCategory:
@@ -687,93 +759,101 @@ export const getMockTestQuestions =
           true,
       };
 
-      // ======================================================
-      // EXAM TYPE
-      // ======================================================
-
       if (
         cleanExamType &&
-        cleanExamType.toLowerCase() !==
-          "all" &&
-        cleanExamType.toLowerCase() !==
-          "undefined"
+        ![
+          "all",
+          "undefined",
+        ].includes(
+          cleanExamType.toLowerCase()
+        )
       ) {
-        const escapedExamType =
-          escapeRegex(
-            cleanExamType
-          );
-
         examFilter.examType = {
           $regex:
-            `^${escapedExamType}$`,
+            `^${escapeRegex(
+              cleanExamType
+            )}$`,
 
           $options:
             "i",
         };
       }
-
-      // ======================================================
-      // CLASS
-      // ======================================================
 
       if (
         targetClass &&
-        targetClass.toLowerCase() !==
-          "all" &&
-        targetClass.toLowerCase() !==
-          "undefined"
+        ![
+          "all",
+          "undefined",
+        ].includes(
+          targetClass.toLowerCase()
+        )
       ) {
-        const escapedClass =
-          escapeRegex(
-            targetClass
-          );
-
         examFilter.className = {
           $regex:
-            escapedClass,
+            escapeRegex(
+              targetClass
+            ),
 
           $options:
             "i",
         };
       }
-
-      // ======================================================
-      // SUBJECT
-      // ======================================================
 
       if (
         cleanSubject &&
-        cleanSubject.toLowerCase() !==
-          "all" &&
-        cleanSubject.toLowerCase() !==
-          "undefined"
+        ![
+          "all",
+          "undefined",
+        ].includes(
+          cleanSubject.toLowerCase()
+        )
       ) {
-        const escapedSubject =
-          escapeRegex(
-            cleanSubject
-          );
-
         examFilter.subject = {
           $regex:
-            `^${escapedSubject}$`,
+            `^${escapeRegex(
+              cleanSubject
+            )}$`,
 
           $options:
             "i",
         };
       }
 
-      console.log(
-        "🔎 MOCK EXAM FILTER:",
-        JSON.stringify(
-          examFilter,
-          null,
-          2
+      if (
+        cleanChapter &&
+        ![
+          "all",
+          "undefined",
+        ].includes(
+          cleanChapter.toLowerCase()
         )
-      );
+      ) {
+        examFilter.$or = [
+          {
+            chapter: {
+              $regex:
+                `^${escapeRegex(
+                  cleanChapter
+                )}$`,
 
-      // ======================================================
-      // FIND EXISTING PUBLISHED MOCK EXAM
-      // ======================================================
+              $options:
+                "i",
+            },
+          },
+
+          {
+            chapterName: {
+              $regex:
+                `^${escapeRegex(
+                  cleanChapter
+                )}$`,
+
+              $options:
+                "i",
+            },
+          },
+        ];
+      }
 
       let exam =
         await Exam.findOne(
@@ -783,90 +863,7 @@ export const getMockTestQuestions =
             -1,
         });
 
-      // ======================================================
-      // LOG MATCH
-      // ======================================================
-
-      console.log(
-        "🎯 MATCHED MOCK EXAM:",
-        exam
-          ? {
-              _id:
-                String(
-                  exam._id
-                ),
-
-              title:
-                exam.title,
-
-              examName:
-                exam.examName,
-
-              examType:
-                exam.examType,
-
-              className:
-                exam.className,
-
-              subject:
-                exam.subject,
-
-              testCategory:
-                exam.testCategory,
-
-              status:
-                exam.status,
-
-              isPublished:
-                exam.isPublished,
-
-              questionCount:
-                Array.isArray(
-                  exam.questions
-                )
-                  ? exam.questions
-                      .length
-                  : 0,
-            }
-          : null
-      );
-
-      // ======================================================
-      // CREATE REAL EXAM
-      // ======================================================
-      //
-      // IMPORTANT:
-      // Existing Questions are NOT duplicated.
-      //
-      // Only their _id values are stored inside Exam.questions.
-      //
-      // ======================================================
-
       if (!exam) {
-        console.log(
-          "⚠️ No published mock Exam found."
-        );
-
-        const questionIds =
-          questions.map(
-            (question: any) =>
-              question._id
-          );
-
-        // ====================================================
-        // IMPORTANT TYPESCRIPT FIX
-        // ====================================================
-        //
-        // Do NOT access:
-        // questions[0].exam
-        // questions[0].targetExam
-        // questions[0].class
-        // questions[0].academicYear
-        //
-        // Those fields are not part of the current interface.
-        //
-        // ====================================================
-
         const firstQuestion: any =
           questions[0];
 
@@ -890,15 +887,26 @@ export const getMockTestQuestions =
           String(
             cleanSubject ||
               firstQuestion?.subject ||
-              ""
+              "General"
+          ).trim();
+
+        const detectedChapter =
+          String(
+            cleanChapter ||
+              firstQuestion?.chapter ||
+              firstQuestion?.chapterName ||
+              "Full Assessment"
           ).trim();
 
         const examTitle =
-          `${detectedClass} ${detectedExamType} Mock Test`;
-
-        // ====================================================
-        // REQUIRED EXAM DATES
-        // ====================================================
+          [
+            detectedClass,
+            detectedExamType,
+            "Mock Test",
+            detectedChapter,
+          ]
+            .filter(Boolean)
+            .join(" ");
 
         const startDate =
           new Date();
@@ -906,30 +914,13 @@ export const getMockTestQuestions =
         const endDate =
           new Date(
             startDate.getTime() +
-              180 * 60 * 1000
+              180 *
+                60 *
+                1000
           );
 
         const resultReleaseAt =
-          new Date();
-
-        resultReleaseAt.setDate(
-          resultReleaseAt.getDate() + 1
-        );
-
-        resultReleaseAt.setHours(
-          9,
-          0,
-          0,
-          0
-        );
-
-        console.log(
-          `🛠️ Creating REAL Exam using ${questionIds.length} existing question IDs...`
-        );
-
-        // ====================================================
-        // CREATE REAL MONGODB EXAM
-        // ====================================================
+          getResultAvailableAt();
 
         exam =
           await Exam.create({
@@ -943,7 +934,7 @@ export const getMockTestQuestions =
               detectedSubject,
 
             chapter:
-              "",
+              detectedChapter,
 
             className:
               detectedClass,
@@ -957,12 +948,14 @@ export const getMockTestQuestions =
             targetExam:
               detectedExamType,
 
-            // Existing question IDs
             questions:
-              questionIds,
+              questions.map(
+                (question: any) =>
+                  question._id
+              ),
 
             totalQuestions:
-              questionIds.length,
+              questions.length,
 
             duration:
               180,
@@ -973,7 +966,6 @@ export const getMockTestQuestions =
             negativeMarks:
               1,
 
-            // REQUIRED FIELDS
             startDate,
 
             endDate,
@@ -989,76 +981,9 @@ export const getMockTestQuestions =
             isPublished:
               true,
           });
-
-        console.log(
-          "✅ REAL MOCK EXAM CREATED"
-        );
-
-        console.log(
-          "✅ REAL EXAM ID:",
-          String(
-            exam._id
-          )
-        );
-
-        console.log(
-          "✅ LINKED QUESTIONS:",
-          questionIds.length
-        );
       }
 
-      // ======================================================
-      // EXAM SAFETY CHECK
-      // ======================================================
-
-      if (
-        !exam ||
-        !exam._id
-      ) {
-        return res.status(500).json({
-          success: false,
-
-          code:
-            "MOCK_EXAM_CREATE_FAILED",
-
-          message:
-            "Unable to create or find a mock exam.",
-        });
-      }
-
-      // ======================================================
-      // ENSURE PUBLISHED
-      // ======================================================
-
-      if (
-        exam.testCategory !==
-        "mock"
-      ) {
-        exam.testCategory =
-          "mock";
-      }
-
-      if (
-        exam.status !==
-        "published"
-      ) {
-        exam.status =
-          "published";
-      }
-
-      if (
-        exam.isPublished !==
-        true
-      ) {
-        exam.isPublished =
-          true;
-      }
-
-      // ======================================================
-      // LINK QUESTIONS WHEN EMPTY
-      // ======================================================
-
-      const currentExamQuestionIds =
+      const linkedIds =
         Array.isArray(
           exam.questions
         )
@@ -1069,7 +994,7 @@ export const getMockTestQuestions =
           : [];
 
       if (
-        currentExamQuestionIds.length ===
+        linkedIds.length ===
         0
       ) {
         exam.questions =
@@ -1082,15 +1007,7 @@ export const getMockTestQuestions =
           questions.length;
 
         await exam.save();
-
-        console.log(
-          "✅ EXISTING EXAM UPDATED WITH QUESTION IDs"
-        );
       }
-
-      // ======================================================
-      // AUTHORITATIVE QUESTIONS
-      // ======================================================
 
       let finalQuestions: any[] =
         [];
@@ -1136,22 +1053,10 @@ export const getMockTestQuestions =
           });
       }
 
-      // ======================================================
-      // FALLBACK SYNC
-      // ======================================================
-
       if (
         finalQuestions.length ===
         0
       ) {
-        console.log(
-          "⚠️ Exam has no usable linked questions."
-        );
-
-        console.log(
-          "🔄 Syncing existing question IDs..."
-        );
-
         exam.questions =
           questions.map(
             (question: any) =>
@@ -1160,15 +1065,6 @@ export const getMockTestQuestions =
 
         exam.totalQuestions =
           questions.length;
-
-        exam.testCategory =
-          "mock";
-
-        exam.status =
-          "published";
-
-        exam.isPublished =
-          true;
 
         await exam.save();
 
@@ -1206,10 +1102,6 @@ export const getMockTestQuestions =
           });
       }
 
-      // ======================================================
-      // NO FINAL QUESTIONS
-      // ======================================================
-
       if (
         finalQuestions.length ===
         0
@@ -1221,65 +1113,9 @@ export const getMockTestQuestions =
             "MOCK_QUESTIONS_NOT_FOUND",
 
           message:
-            "Mock exam exists, but no published questions are linked to it.",
-
-          examId:
-            String(
-              exam._id
-            ),
+            "Mock exam exists, but no published questions are linked.",
         });
       }
-
-      // ======================================================
-      // SAFE DISPLAY QUESTIONS
-      // ======================================================
-
-      const safeQuestions =
-        getDisplayQuestions(
-          finalQuestions
-        );
-
-      // ======================================================
-      // FINAL LOG
-      // ======================================================
-
-      console.log(
-        "=================================================="
-      );
-
-      console.log(
-        "✅ MOCK TEST READY"
-      );
-
-      console.log(
-        "✅ REAL EXAM ID:",
-        String(
-          exam._id
-        )
-      );
-
-      console.log(
-        "✅ EXAM TYPE:",
-        exam.examType
-      );
-
-      console.log(
-        "✅ CLASS:",
-        exam.className
-      );
-
-      console.log(
-        "✅ TOTAL QUESTIONS:",
-        safeQuestions.length
-      );
-
-      console.log(
-        "=================================================="
-      );
-
-      // ======================================================
-      // RESPONSE
-      // ======================================================
 
       return res.status(200).json({
         success: true,
@@ -1297,76 +1133,18 @@ export const getMockTestQuestions =
             : "",
 
         total:
-          safeQuestions.length,
+          finalQuestions.length,
 
-        exam: {
-          _id:
-            String(
-              exam._id
-            ),
-
-          id:
-            String(
-              exam._id
-            ),
-
-          title:
-            exam.title ||
-            "Mock Test",
-
-          examName:
-            exam.examName ||
-            exam.title ||
-            "Mock Test",
-
-          testCategory:
-            "mock",
-
-          examType:
-            exam.examType ||
-            "NEET",
-
-          targetExam:
-            exam.targetExam ||
-            exam.examType ||
-            "NEET",
-
-          subject:
-            exam.subject ||
-            "",
-
-          chapter:
-            exam.chapter ||
-            "",
-
-          className:
-            exam.className ||
-            "",
-
-          duration:
-            safeNumber(
-              exam.duration,
-              180
-            ),
-
-          totalQuestions:
-            safeQuestions.length,
-
-          marksPerQuestion:
-            safeNumber(
-              exam.marksPerQuestion,
-              4
-            ),
-
-          negativeMarks:
-            safeNumber(
-              exam.negativeMarks,
-              1
-            ),
-        },
+        exam:
+          buildExamResponse(
+            exam,
+            finalQuestions.length
+          ),
 
         questions:
-          safeQuestions,
+          getDisplayQuestions(
+            finalQuestions
+          ),
       });
     } catch (error: any) {
       console.error(
@@ -1378,14 +1156,14 @@ export const getMockTestQuestions =
         success: false,
 
         message:
-          error.message ||
+          error?.message ||
           "Failed to get mock test questions",
       });
     }
   };
 
 // ============================================================
-// START / RESUME MOCK TEST
+// START / RESUME
 // ============================================================
 
 export const startMockTest =
@@ -1406,10 +1184,6 @@ export const startMockTest =
 
       let deviceSessionId =
         getDeviceSessionId(req);
-
-      // ======================================================
-      // VALIDATION
-      // ======================================================
 
       if (
         !studentId ||
@@ -1441,10 +1215,6 @@ export const startMockTest =
           generateDeviceId();
       }
 
-      // ======================================================
-      // FIND PUBLISHED MOCK EXAM
-      // ======================================================
-
       const exam =
         await Exam.findOne({
           _id:
@@ -1468,10 +1238,6 @@ export const startMockTest =
             "Published mock exam not found",
         });
       }
-
-      // ======================================================
-      // QUESTIONS
-      // ======================================================
 
       const questions =
         await Question.find({
@@ -1518,19 +1284,14 @@ export const startMockTest =
         });
       }
 
-      // ======================================================
-      // EXISTING SESSION
-      // ======================================================
-
       let session =
         await ExamSession.findOne({
           studentId,
-
           examId,
         });
 
       // ======================================================
-      // COMPLETED
+      // ALREADY SUBMITTED
       // ======================================================
 
       if (
@@ -1544,6 +1305,9 @@ export const startMockTest =
           code:
             "EXAM_ALREADY_SUBMITTED",
 
+          submitted:
+            true,
+
           message:
             "This exam has already been submitted and cannot be reopened.",
 
@@ -1555,7 +1319,7 @@ export const startMockTest =
       }
 
       // ======================================================
-      // CREATE SESSION
+      // CREATE
       // ======================================================
 
       if (!session) {
@@ -1580,8 +1344,8 @@ export const startMockTest =
 
             questions:
               questions.map(
-                (q: any) =>
-                  q._id
+                (question: any) =>
+                  question._id
               ),
 
             answers: [],
@@ -1654,50 +1418,11 @@ export const startMockTest =
           markedForReview:
             {},
 
-          exam: {
-            id:
-              exam._id,
-
-            _id:
-              exam._id,
-
-            title:
-              exam.title,
-
-            examName:
-              exam.examName ||
-              exam.title,
-
-            testCategory:
-              "mock",
-
-            examType:
-              exam.examType,
-
-            targetExam:
-              exam.targetExam,
-
-            subject:
-              exam.subject,
-
-            chapter:
-              exam.chapter,
-
-            className:
-              exam.className,
-
-            duration:
-              exam.duration,
-
-            totalQuestions:
-              questions.length,
-
-            marksPerQuestion:
-              exam.marksPerQuestion,
-
-            negativeMarks:
-              exam.negativeMarks,
-          },
+          exam:
+            buildExamResponse(
+              exam,
+              questions.length
+            ),
 
           questions:
             getDisplayQuestions(
@@ -1707,7 +1432,7 @@ export const startMockTest =
       }
 
       // ======================================================
-      // TIMER
+      // EXPIRED
       // ======================================================
 
       if (
@@ -1735,7 +1460,7 @@ export const startMockTest =
       }
 
       // ======================================================
-      // DEVICE CHECK
+      // DEVICE
       // ======================================================
 
       const oldDeviceId =
@@ -1767,7 +1492,7 @@ export const startMockTest =
         );
 
       // ======================================================
-      // DEVICE TAKEOVER
+      // TAKEOVER
       // ======================================================
 
       if (
@@ -1828,56 +1553,18 @@ export const startMockTest =
             session.durationSeconds,
 
           answers:
-            session.answers,
+            session.answers ||
+            [],
 
           markedForReview:
             session.markedForReview ||
             {},
 
-          exam: {
-            id:
-              exam._id,
-
-            _id:
-              exam._id,
-
-            title:
-              exam.title,
-
-            examName:
-              exam.examName ||
-              exam.title,
-
-            testCategory:
-              "mock",
-
-            examType:
-              exam.examType,
-
-            targetExam:
-              exam.targetExam,
-
-            subject:
-              exam.subject,
-
-            chapter:
-              exam.chapter,
-
-            className:
-              exam.className,
-
-            duration:
-              exam.duration,
-
-            totalQuestions:
-              questions.length,
-
-            marksPerQuestion:
-              exam.marksPerQuestion,
-
-            negativeMarks:
-              exam.negativeMarks,
-          },
+          exam:
+            buildExamResponse(
+              exam,
+              questions.length
+            ),
 
           questions:
             getDisplayQuestions(
@@ -1887,7 +1574,7 @@ export const startMockTest =
       }
 
       // ======================================================
-      // NORMAL RESUME
+      // RESUME
       // ======================================================
 
       session.lastActivityAt =
@@ -1933,56 +1620,18 @@ export const startMockTest =
           session.durationSeconds,
 
         answers:
-          session.answers,
+          session.answers ||
+          [],
 
         markedForReview:
           session.markedForReview ||
           {},
 
-        exam: {
-          id:
-            exam._id,
-
-          _id:
-            exam._id,
-
-          title:
-            exam.title,
-
-          examName:
-            exam.examName ||
-            exam.title,
-
-          testCategory:
-            "mock",
-
-          examType:
-            exam.examType,
-
-          targetExam:
-            exam.targetExam,
-
-          subject:
-            exam.subject,
-
-          chapter:
-            exam.chapter,
-
-          className:
-            exam.className,
-
-          duration:
-            exam.duration,
-
-          totalQuestions:
-            questions.length,
-
-          marksPerQuestion:
-            exam.marksPerQuestion,
-
-          negativeMarks:
-            exam.negativeMarks,
-        },
+        exam:
+          buildExamResponse(
+            exam,
+            questions.length
+          ),
 
         questions:
           getDisplayQuestions(
@@ -1999,14 +1648,14 @@ export const startMockTest =
         success: false,
 
         message:
-          error.message ||
+          error?.message ||
           "Failed to start mock test",
       });
     }
   };
 
 // ============================================================
-// SAVE EXAM PROGRESS
+// SAVE PROGRESS
 // ============================================================
 
 export const saveMockTestProgress =
@@ -2071,7 +1720,9 @@ export const saveMockTestProgress =
         String(
           session.studentId
         ) !==
-        String(studentId)
+        String(
+          studentId
+        )
       ) {
         return res.status(403).json({
           success: false,
@@ -2093,6 +1744,9 @@ export const saveMockTestProgress =
 
           code:
             "EXAM_ALREADY_SUBMITTED",
+
+          submitted:
+            true,
 
           message:
             "Exam already submitted",
@@ -2169,9 +1823,8 @@ export const saveMockTestProgress =
         });
       }
 
-      const allowedIds:
-        Set<string> =
-        new Set(
+      const allowedIds =
+        new Set<string>(
           session.questions.map(
             (
               id:
@@ -2194,11 +1847,16 @@ export const saveMockTestProgress =
           );
       }
 
-      session.markedForReview =
-        sanitizeReview(
-          markedForReview,
-          allowedIds
-        );
+      if (
+        markedForReview !==
+        undefined
+      ) {
+        session.markedForReview =
+          sanitizeReview(
+            markedForReview,
+            allowedIds
+          );
+      }
 
       let safeCurrent =
         safeNumber(
@@ -2251,7 +1909,8 @@ export const saveMockTestProgress =
           session.answers,
 
         markedForReview:
-          session.markedForReview,
+          session.markedForReview ||
+          {},
       });
     } catch (error: any) {
       console.error(
@@ -2263,7 +1922,7 @@ export const saveMockTestProgress =
         success: false,
 
         message:
-          error.message ||
+          error?.message ||
           "Failed to save exam progress",
       });
     }
@@ -2319,13 +1978,18 @@ export const mockTestHeartbeat =
         String(
           session.studentId
         ) !==
-        String(studentId)
+        String(
+          studentId
+        )
       ) {
         return res.status(403).json({
           success: false,
 
           code:
             "SESSION_OWNER_MISMATCH",
+
+          message:
+            "Invalid exam session owner",
         });
       }
 
@@ -2338,6 +2002,9 @@ export const mockTestHeartbeat =
 
           code:
             "EXAM_ALREADY_SUBMITTED",
+
+          submitted:
+            true,
 
           message:
             "Exam already submitted",
@@ -2426,7 +2093,8 @@ export const mockTestHeartbeat =
       return res.status(200).json({
         success: true,
 
-        active: true,
+        active:
+          true,
 
         sessionId:
           String(
@@ -2436,7 +2104,10 @@ export const mockTestHeartbeat =
         remainingSeconds,
 
         currentQuestion:
-          session.currentQuestion,
+          safeNumber(
+            session.currentQuestion,
+            0
+          ),
 
         deviceSessionId:
           session.deviceSessionId,
@@ -2451,7 +2122,7 @@ export const mockTestHeartbeat =
         success: false,
 
         message:
-          error.message ||
+          error?.message ||
           "Heartbeat failed",
       });
     }
@@ -2502,7 +2173,6 @@ export const getMockSession =
       const session =
         await ExamSession.findOne({
           studentId,
-
           examId,
         });
 
@@ -2641,6 +2311,22 @@ export const getMockSession =
 
           isPublished:
             true,
+
+          $or: [
+            {
+              testCategory: {
+                $regex:
+                  /^mock$/i,
+              },
+            },
+
+            {
+              category: {
+                $regex:
+                  /^mock$/i,
+              },
+            },
+          ],
         }).sort({
           globalQuestionNumber:
             1,
@@ -2687,7 +2373,10 @@ export const getMockSession =
           session.deviceId,
 
         currentQuestion:
-          session.currentQuestion,
+          safeNumber(
+            session.currentQuestion,
+            0
+          ),
 
         remainingSeconds:
           getRemainingSeconds(
@@ -2698,53 +2387,18 @@ export const getMockSession =
           session.durationSeconds,
 
         answers:
-          session.answers,
+          session.answers ||
+          [],
 
         markedForReview:
           session.markedForReview ||
           {},
 
-        exam: {
-          id:
-            exam._id,
-
-          _id:
-            exam._id,
-
-          title:
-            exam.title,
-
-          examName:
-            exam.examName ||
-            exam.title,
-
-          subject:
-            exam.subject,
-
-          chapter:
-            exam.chapter,
-
-          className:
-            exam.className,
-
-          examType:
-            exam.examType,
-
-          testCategory:
-            "mock",
-
-          duration:
-            exam.duration,
-
-          totalQuestions:
-            questions.length,
-
-          marksPerQuestion:
-            exam.marksPerQuestion,
-
-          negativeMarks:
-            exam.negativeMarks,
-        },
+        exam:
+          buildExamResponse(
+            exam,
+            questions.length
+          ),
 
         questions:
           getDisplayQuestions(
@@ -2761,7 +2415,7 @@ export const getMockSession =
         success: false,
 
         message:
-          error.message ||
+          error?.message ||
           "Failed to get exam session",
       });
     }
@@ -2789,6 +2443,10 @@ export const submitMockTest =
         warnings,
         autoSubmitted,
       } = req.body;
+
+      // ======================================================
+      // VALIDATION
+      // ======================================================
 
       if (
         !studentId ||
@@ -2832,11 +2490,17 @@ export const submitMockTest =
         });
       }
 
+      // ======================================================
+      // OWNER
+      // ======================================================
+
       if (
         String(
           session.studentId
         ) !==
-        String(studentId)
+        String(
+          studentId
+        )
       ) {
         return res.status(403).json({
           success: false,
@@ -2849,23 +2513,9 @@ export const submitMockTest =
         });
       }
 
-      if (
-        session.status ===
-        "completed"
-      ) {
-        return res.status(409).json({
-          success: false,
-
-          code:
-            "EXAM_ALREADY_SUBMITTED",
-
-          submitted:
-            true,
-
-          message:
-            "Mock test already submitted",
-        });
-      }
+      // ======================================================
+      // DEVICE
+      // ======================================================
 
       const token =
         getDeviceSessionId(
@@ -2918,6 +2568,128 @@ export const submitMockTest =
         });
       }
 
+      // ======================================================
+      // ALREADY SUBMITTED
+      // ======================================================
+
+      if (
+        session.status ===
+        "completed"
+      ) {
+        const existingResult =
+          await Result.findOne({
+            studentId,
+
+            examId:
+              session.examId,
+
+            testCategory:
+              "mock",
+          });
+
+        return res.status(409).json({
+          success: false,
+
+          code:
+            "EXAM_ALREADY_SUBMITTED",
+
+          submitted:
+            true,
+
+          message:
+            "Mock test already submitted",
+
+          result:
+            existingResult
+              ? {
+                  id:
+                    existingResult._id,
+
+                  examId:
+                    existingResult.examId,
+
+                  examName:
+                    existingResult.examName,
+
+                  testCategory:
+                    existingResult.testCategory,
+
+                  examType:
+                    existingResult.examType,
+
+                  subject:
+                    existingResult.subject,
+
+                  chapter:
+                    existingResult.chapter,
+
+                  className:
+                    existingResult.className,
+
+                  totalQuestions:
+                    existingResult.totalQuestions,
+
+                  attemptedQuestions:
+                    existingResult.attemptedQuestions,
+
+                  unansweredQuestions:
+                    existingResult.unansweredQuestions,
+
+                  correctAnswers:
+                    existingResult.correctAnswers,
+
+                  wrongAnswers:
+                    existingResult.wrongAnswers,
+
+                  marks:
+                    existingResult.marks,
+
+                  maxMarks:
+                    existingResult.maxMarks,
+
+                  marksPerQuestion:
+                    existingResult.marksPerQuestion,
+
+                  negativeMarks:
+                    existingResult.negativeMarks,
+
+                  percentage:
+                    existingResult.percentage,
+
+                  grade:
+                    existingResult.grade,
+
+                  status:
+                    existingResult.status,
+
+                  timeTaken:
+                    existingResult.timeTaken,
+
+                  warnings:
+                    existingResult.warnings,
+
+                  autoSubmitted:
+                    existingResult.autoSubmitted,
+
+                  resultAvailableAt:
+                    existingResult.resultAvailableAt,
+
+                  isResultPublished:
+                    existingResult.isResultPublished,
+
+                  review:
+                    existingResult.isResultPublished
+                      ? existingResult.review
+                      : [],
+                }
+              : undefined,
+        });
+      }
+
+      // ======================================================
+      // EXAM
+      // ======================================================
+
       const exam =
         await Exam.findOne({
           _id:
@@ -2942,24 +2714,43 @@ export const submitMockTest =
         });
       }
 
+      // ======================================================
+      // SERVER TIME
+      // ======================================================
+
       const remainingSeconds =
         getRemainingSeconds(
           session
         );
 
-      const elapsedSeconds =
+      const durationSeconds =
         Math.max(
           0,
           safeNumber(
             session.durationSeconds,
             0
-          ) -
+          )
+        );
+
+      const elapsedSeconds =
+        Math.max(
+          0,
+          durationSeconds -
             remainingSeconds
         );
 
-      const allowedIds:
-        Set<string> =
-        new Set(
+      const finalAutoSubmitted =
+        Boolean(
+          autoSubmitted
+        ) ||
+        remainingSeconds <= 0;
+
+      // ======================================================
+      // ALLOWED IDS
+      // ======================================================
+
+      const allowedIds =
+        new Set<string>(
           session.questions.map(
             (
               id:
@@ -2969,6 +2760,10 @@ export const submitMockTest =
               String(id)
           )
         );
+
+      // ======================================================
+      // MERGE ANSWERS
+      // ======================================================
 
       let finalAnswers =
         sanitizeAnswers(
@@ -3027,6 +2822,10 @@ export const submitMockTest =
           );
       }
 
+      // ======================================================
+      // ANSWER MAP
+      // ======================================================
+
       const answerMap =
         new Map<
           string,
@@ -3042,6 +2841,10 @@ export const submitMockTest =
           item.answer
         );
       }
+
+      // ======================================================
+      // QUESTIONS
+      // ======================================================
 
       const questions =
         await Question.find({
@@ -3068,6 +2871,10 @@ export const submitMockTest =
             "Questions not found",
         });
       }
+
+      // ======================================================
+      // MARKING CONFIG
+      // ======================================================
 
       const marksPerQuestion =
         Math.max(
@@ -3125,11 +2932,14 @@ export const submitMockTest =
             ) || ""
           );
 
-        const correctAnswer =
+        const rawCorrectAnswer =
           normalizeAnswer(
-            question.correctAnswer ||
-              ""
+            question.correctAnswer
           );
+
+        // ====================================================
+        // UNANSWERED
+        // ====================================================
 
         if (
           selectedAnswer ===
@@ -3142,13 +2952,15 @@ export const submitMockTest =
               question._id,
 
             question:
-              question.question,
+              question.question ||
+              "Question",
 
             selectedAnswer:
-              "",
+              "Not Attempted",
 
             correctAnswer:
-              question.correctAnswer,
+              rawCorrectAnswer ||
+              "Not Available",
 
             isCorrect:
               false,
@@ -3163,12 +2975,56 @@ export const submitMockTest =
           continue;
         }
 
+        // ====================================================
+        // ATTEMPTED
+        // ====================================================
+
         attemptedQuestions++;
+
+        // ====================================================
+        // MISSING ANSWER KEY
+        // ====================================================
+
+        if (
+          rawCorrectAnswer ===
+          ""
+        ) {
+          review.push({
+            questionId:
+              question._id,
+
+            question:
+              question.question ||
+              "Question",
+
+            selectedAnswer:
+              selectedAnswer ||
+              "Not Attempted",
+
+            correctAnswer:
+              "Not Available",
+
+            isCorrect:
+              false,
+
+            marks:
+              0,
+
+            result:
+              "not_evaluated",
+          });
+
+          continue;
+        }
+
+        // ====================================================
+        // CORRECT
+        // ====================================================
 
         if (
           sameAnswer(
             selectedAnswer,
-            correctAnswer
+            rawCorrectAnswer
           )
         ) {
           correctAnswers++;
@@ -3181,12 +3037,13 @@ export const submitMockTest =
               question._id,
 
             question:
-              question.question,
+              question.question ||
+              "Question",
 
             selectedAnswer,
 
             correctAnswer:
-              question.correctAnswer,
+              rawCorrectAnswer,
 
             isCorrect:
               true,
@@ -3197,7 +3054,13 @@ export const submitMockTest =
             result:
               "correct",
           });
-        } else {
+        }
+
+        // ====================================================
+        // WRONG
+        // ====================================================
+
+        else {
           wrongAnswers++;
 
           marks -=
@@ -3208,12 +3071,13 @@ export const submitMockTest =
               question._id,
 
             question:
-              question.question,
+              question.question ||
+              "Question",
 
             selectedAnswer,
 
             correctAnswer:
-              question.correctAnswer,
+              rawCorrectAnswer,
 
             isCorrect:
               false,
@@ -3232,8 +3096,7 @@ export const submitMockTest =
       // ======================================================
 
       const totalQuestions =
-        session.questions
-          .length;
+        session.questions.length;
 
       const maxMarks =
         totalQuestions *
@@ -3266,34 +3129,18 @@ export const submitMockTest =
             )
           : 0;
 
-      // ======================================================
-      // GRADE
-      // ======================================================
-
       const grade =
         getGrade(
           percentage
         );
-
-      // ======================================================
-      // STATUS
-      // ======================================================
 
       const status =
         getResultStatus(
           percentage
         );
 
-      // ======================================================
-      // RESULT AVAILABLE
-      // ======================================================
-
       const resultAvailableAt =
         getResultAvailableAt();
-
-      // ======================================================
-      // TIME TAKEN
-      // ======================================================
 
       const timeTaken =
         Math.max(
@@ -3303,10 +3150,6 @@ export const submitMockTest =
               60
           )
         );
-
-      // ======================================================
-      // WARNING COUNT
-      // ======================================================
 
       const warningCount =
         Math.max(
@@ -3318,7 +3161,115 @@ export const submitMockTest =
         );
 
       // ======================================================
-      // ATOMIC COMPLETE
+      // RESULT PAYLOAD
+      // ======================================================
+
+      const resultPayload = {
+        studentId,
+
+        studentName:
+          studentName ||
+          "Student",
+
+        examId:
+          session.examId,
+
+        examName:
+          exam.examName ||
+          exam.title ||
+          "Mock Test",
+
+        testCategory:
+          "mock",
+
+        examType:
+          exam.examType ||
+          "NEET",
+
+        subject:
+          exam.subject ||
+          "General",
+
+        chapter:
+          normalizeAnswer(
+            exam.chapter
+          ) ||
+          "Full Assessment",
+
+        className:
+          normalizeAnswer(
+            exam.className
+          ) ||
+          "",
+
+        totalQuestions,
+
+        attemptedQuestions,
+
+        unansweredQuestions,
+
+        correctAnswers,
+
+        wrongAnswers,
+
+        marks:
+          finalMarks,
+
+        maxMarks,
+
+        marksPerQuestion,
+
+        negativeMarks,
+
+        percentage,
+
+        grade,
+
+        status,
+
+        timeTaken,
+
+        warnings:
+          warningCount,
+
+        autoSubmitted:
+          finalAutoSubmitted,
+
+        rank:
+          0,
+
+        resultAvailableAt,
+
+        isResultPublished:
+          false,
+
+        review,
+      };
+
+      // ======================================================
+      // CREATE / REUSE RESULT
+      // ======================================================
+
+      let result =
+        await Result.findOne({
+          studentId,
+
+          examId:
+            session.examId,
+
+          testCategory:
+            "mock",
+        });
+
+      if (!result) {
+        result =
+          await Result.create(
+            resultPayload
+          );
+      }
+
+      // ======================================================
+      // COMPLETE SESSION
       // ======================================================
 
       const completedSession =
@@ -3335,6 +3286,7 @@ export const submitMockTest =
             deviceSessionId:
               session.deviceSessionId,
           },
+
           {
             $set: {
               answers:
@@ -3356,6 +3308,7 @@ export const submitMockTest =
                 new Date(),
             },
           },
+
           {
             new: true,
           }
@@ -3364,6 +3317,17 @@ export const submitMockTest =
       if (
         !completedSession
       ) {
+        const existingResult =
+          await Result.findOne({
+            studentId,
+
+            examId:
+              session.examId,
+
+            testCategory:
+              "mock",
+          });
+
         return res.status(409).json({
           success: false,
 
@@ -3375,112 +3339,96 @@ export const submitMockTest =
 
           message:
             "Exam has already been submitted.",
+
+          result:
+            existingResult
+              ? {
+                  id:
+                    existingResult._id,
+
+                  examId:
+                    existingResult.examId,
+
+                  examName:
+                    existingResult.examName,
+
+                  testCategory:
+                    existingResult.testCategory,
+
+                  examType:
+                    existingResult.examType,
+
+                  subject:
+                    existingResult.subject,
+
+                  chapter:
+                    existingResult.chapter,
+
+                  className:
+                    existingResult.className,
+
+                  totalQuestions:
+                    existingResult.totalQuestions,
+
+                  attemptedQuestions:
+                    existingResult.attemptedQuestions,
+
+                  unansweredQuestions:
+                    existingResult.unansweredQuestions,
+
+                  correctAnswers:
+                    existingResult.correctAnswers,
+
+                  wrongAnswers:
+                    existingResult.wrongAnswers,
+
+                  marks:
+                    existingResult.marks,
+
+                  maxMarks:
+                    existingResult.maxMarks,
+
+                  marksPerQuestion:
+                    existingResult.marksPerQuestion,
+
+                  negativeMarks:
+                    existingResult.negativeMarks,
+
+                  percentage:
+                    existingResult.percentage,
+
+                  grade:
+                    existingResult.grade,
+
+                  status:
+                    existingResult.status,
+
+                  timeTaken:
+                    existingResult.timeTaken,
+
+                  warnings:
+                    existingResult.warnings,
+
+                  autoSubmitted:
+                    existingResult.autoSubmitted,
+
+                  resultAvailableAt:
+                    existingResult.resultAvailableAt,
+
+                  isResultPublished:
+                    existingResult.isResultPublished,
+
+                  review:
+                    existingResult.isResultPublished
+                      ? existingResult.review
+                      : [],
+                }
+              : undefined,
         });
       }
 
       // ======================================================
-      // EXISTING RESULT
-      // ======================================================
-
-      let result =
-        await Result.findOne({
-          studentId,
-
-          examId:
-            session.examId,
-
-          testCategory:
-            "mock",
-        });
-
-      // ======================================================
-      // CREATE RESULT
-      // ======================================================
-
-      if (!result) {
-        result =
-          await Result.create({
-            studentId,
-
-            studentName:
-              studentName || "",
-
-            examId:
-              session.examId,
-
-            examName:
-              exam.examName ||
-              exam.title ||
-              "Mock Test",
-
-            testCategory:
-              "mock",
-
-            subject:
-              exam.subject ||
-              "General",
-
-            chapter:
-              exam.chapter ||
-              "",
-
-            className:
-              exam.className ||
-              "",
-
-            examType:
-              exam.examType ||
-              "MOCK",
-
-            totalQuestions,
-
-            attemptedQuestions,
-
-            unansweredQuestions,
-
-            correctAnswers,
-
-            wrongAnswers,
-
-            marks:
-              finalMarks,
-
-            maxMarks,
-
-            marksPerQuestion,
-
-            negativeMarks,
-
-            percentage,
-
-            grade,
-
-            status,
-
-            timeTaken,
-
-            warnings:
-              warningCount,
-
-            autoSubmitted:
-              Boolean(
-                autoSubmitted
-              ),
-
-            rank:
-              0,
-
-            resultAvailableAt,
-
-            isResultPublished:
-              false,
-
-            review,
-          });
-      }
-
-      // ======================================================
-      // RESPONSE
+      // SUCCESS
       // ======================================================
 
       return res.status(201).json({
@@ -3569,7 +3517,9 @@ export const submitMockTest =
             result.isResultPublished,
 
           review:
-            result.review,
+            result.isResultPublished
+              ? result.review
+              : [],
         },
 
         examSession: {
@@ -3595,12 +3545,18 @@ export const submitMockTest =
         error
       );
 
+      /*
+       * Never expose raw Mongoose validation details
+       * to the student.
+       */
       return res.status(500).json({
         success: false,
 
+        code:
+          "MOCK_TEST_SUBMIT_FAILED",
+
         message:
-          error.message ||
-          "Failed to submit mock test",
+          "Unable to submit the exam right now. Please try again.",
       });
     }
   };

@@ -25,6 +25,7 @@ import leaderboardRoutes from "./routes/leaderboardroutes";
 import { publishScheduledMockTests } from "./services/mockTestPublisher";
 import aiStrategyRoutes from "./routes/aiStrategyRoutes";
 import academicRoutes from "./routes/academicRoutes";
+import otpRoutes from "./routes/otpRoutes";
 // ============================================================
 // APP
 // ============================================================
@@ -58,7 +59,7 @@ app.use(
   "/api/student",
   studentRoutes
 );
-
+app.use("/api/otp", otpRoutes);
 // ============================================================
 // RESULT API
 // ============================================================

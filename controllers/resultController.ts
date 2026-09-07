@@ -1,55 +1,71 @@
-
 import { Request, Response } from "express";
 
 import Result from "../models/resultModel";
 import DailyTest from "../models/DailyTest";
 
-
 // ============================================================
-// GET NEXT DAY 8:00 AM
+// HELPER
 // ============================================================
 
-const getNextDay8AM = (): Date => {
-
-  const now = new Date();
-
-  const release = new Date(now);
-
-  release.setDate(release.getDate() + 1);
-
-  release.setHours(8, 0, 0, 0);
-
-  return release;
+const normalizeText = (
+  value: unknown
+): string => {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
 };
 
-
 // ============================================================
-// CHECK RESULT AVAILABILITY
+// NORMALIZE CATEGORY
 // ============================================================
 
-const isResultAvailable = (
-  result: any
-): boolean => {
+const normalizeCategory = (
+  value: unknown
+): "mock" | "daily" | "subject" => {
+  const category =
+    normalizeText(value).toLowerCase();
 
-  if (result.testCategory !== "mock") {
-    return true;
+  if (category === "mock") {
+    return "mock";
   }
 
-  if (result.isResultPublished) {
-    return true;
+  if (category === "daily") {
+    return "daily";
   }
 
-  if (
-    result.resultAvailableAt &&
-    new Date() >=
-      new Date(result.resultAvailableAt)
-  ) {
-    return true;
-  }
-
-  return false;
+  return "subject";
 };
 
+// ============================================================
+// SUBJECT ORDER
+// ============================================================
+
+const SUBJECT_ORDER = [
+  "Physics",
+  "Chemistry",
+  "Botany",
+  "Zoology",
+  "Mathematics",
+];
+
+// ============================================================
+// GET SUBJECT ORDER
+// ============================================================
+
+const getSubjectOrder = (
+  subject: string
+): number => {
+  const index =
+    SUBJECT_ORDER.findIndex(
+      (item) =>
+        item.toLowerCase() ===
+        subject.toLowerCase()
+    );
+
+  return index === -1
+    ? 999
+    : index;
+};
 
 // ============================================================
 // SUBMIT EXAM RESULT
@@ -58,28 +74,17 @@ const isResultAvailable = (
 export const submitResult = async (
   req: Request,
   res: Response
-) => {
-
+): Promise<any> => {
   try {
-
     const {
-
       studentId,
-
       studentName,
-
       examId,
-
       answers,
-
       timeTaken,
-
       warnings,
-
-      testCategory
-
+      testCategory,
     } = req.body;
-
 
     // ========================================================
     // VALIDATION
@@ -90,402 +95,966 @@ export const submitResult = async (
       !examId ||
       !Array.isArray(answers)
     ) {
-
       return res.status(400).json({
-
         success: false,
 
         message:
-          "StudentId, ExamId and Answers required"
-
+          "StudentId, ExamId and Answers required",
       });
-
     }
-
 
     // ========================================================
     // GET TEST
     // ========================================================
 
     const test =
-      await DailyTest.findById(examId);
-
+      await DailyTest.findById(
+        examId
+      );
 
     if (!test) {
-
       return res.status(404).json({
-
         success: false,
 
-        message: "Exam not found"
-
+        message:
+          "Exam not found",
       });
-
     }
 
-
     // ========================================================
-    // TEST CATEGORY
-    // ========================================================
-
-    const category:
-      "mock" | "daily" | "subject" =
-        testCategory === "mock"
-          ? "mock"
-          : testCategory === "daily"
-          ? "daily"
-          : "subject";
-
-
-    // ========================================================
-    // MARKING
+    // CATEGORY
     // ========================================================
 
-    let correctAnswers = 0;
+    const category =
+      normalizeCategory(
+        testCategory ||
+          (test as any).testCategory
+      );
 
-    let wrongAnswers = 0;
+    // ========================================================
+    // TEST LEVEL EXAM TYPE
+    // ========================================================
 
-    const review: any[] = [];
+    const testExamType =
+      normalizeText(
+        (test as any).examType
+      ) ||
+      normalizeText(
+        (test as any).targetExamLevel
+      ) ||
+      "";
 
+    // ========================================================
+    // EVALUATED QUESTION TYPE
+    // ========================================================
+
+    interface EvaluatedQuestion {
+      questionId: any;
+
+      question: string;
+
+      questionType?:
+        | "MCQ"
+        | "TABLE"
+        | "DIAGRAM";
+
+      options?: string[];
+
+      imageUrl?: string;
+
+      questionImage?: string;
+
+      tableHeaders?: string[];
+
+      tableRows?: string[][];
+
+      selectedAnswer: string;
+
+      correctAnswer: string;
+
+      isCorrect: boolean;
+
+      marks: number;
+
+      result:
+        | "correct"
+        | "wrong"
+        | "unanswered"
+        | "not_evaluated";
+
+      explanation?: string;
+
+      subject: string;
+
+      examType: string;
+    }
+
+    const evaluatedQuestions: EvaluatedQuestion[] =
+      [];
+
+    // ========================================================
+    // EVALUATE ALL QUESTIONS
+    // ========================================================
 
     test.questions.forEach(
-
-      (question: any, index: number) => {
-
+      (
+        question: any,
+        index: number
+      ) => {
         const selectedAnswer =
-          answers[index] || "";
+          normalizeText(
+            answers[index]
+          );
 
+        const correctAnswer =
+          normalizeText(
+            question.correctAnswer
+          );
 
         const isAnswered =
-          selectedAnswer.trim() !== "";
-
+          selectedAnswer !== "";
 
         const isCorrect =
           isAnswered &&
-          selectedAnswer ===
-            question.correctAnswer;
+          correctAnswer !== "" &&
+          selectedAnswer.toLowerCase() ===
+            correctAnswer.toLowerCase();
 
+        // ----------------------------------------------------
+        // SUBJECT
+        // ----------------------------------------------------
+
+        const questionSubject =
+          normalizeText(
+            question.subject
+          ) ||
+          normalizeText(
+            (question as any)
+              .subjectName
+          ) ||
+          normalizeText(
+            (test as any)
+              .subject
+          ) ||
+          "General";
+
+        // ----------------------------------------------------
+        // EXAM TYPE
+        // ----------------------------------------------------
+
+        const questionExamType =
+          normalizeText(
+            question.examType
+          ) ||
+          normalizeText(
+            question.targetExamLevel
+          ) ||
+          testExamType ||
+          "N/A";
+
+        // ----------------------------------------------------
+        // QUESTION MARKS
+        // ----------------------------------------------------
+
+        const marksPerQuestion =
+          Number(
+            question.marksPerQuestion
+          ) > 0
+            ? Number(
+                question.marksPerQuestion
+              )
+            : Number(
+                (test as any)
+                  .marksPerQuestion
+              ) > 0
+              ? Number(
+                  (test as any)
+                    .marksPerQuestion
+                )
+              : 4;
+
+        const negativeMarks =
+          Number(
+            question.negativeMarks
+          ) >= 0
+            ? Number(
+                question.negativeMarks
+              )
+            : Number(
+                (test as any)
+                  .negativeMarks
+              ) >= 0
+              ? Number(
+                  (test as any)
+                    .negativeMarks
+                )
+              : 1;
+
+        // ----------------------------------------------------
+        // CALCULATE QUESTION MARKS
+        // ----------------------------------------------------
+
+        let questionMarks = 0;
+
+        let questionResult:
+          | "correct"
+          | "wrong"
+          | "unanswered" =
+          "unanswered";
 
         if (isCorrect) {
+          questionMarks =
+            marksPerQuestion;
 
-          correctAnswers++;
+          questionResult =
+            "correct";
+        } else if (
+          isAnswered
+        ) {
+          questionMarks =
+            -negativeMarks;
 
+          questionResult =
+            "wrong";
+        } else {
+          questionMarks = 0;
+
+          questionResult =
+            "unanswered";
         }
 
-        else if (isAnswered) {
+        // ----------------------------------------------------
+        // REVIEW
+        // ----------------------------------------------------
 
-          wrongAnswers++;
-
-        }
-
-
-        review.push({
-
+        evaluatedQuestions.push({
           questionId:
             question._id,
 
           question:
-            question.question,
+            question.question ||
+            "Question",
 
-          selectedAnswer,
+          questionType:
+            question.questionType,
+
+          options:
+            Array.isArray(
+              question.options
+            )
+              ? question.options
+              : [],
+
+          imageUrl:
+            question.imageUrl ||
+            "",
+
+          questionImage:
+            question.questionImage ||
+            "",
+
+          tableHeaders:
+            Array.isArray(
+              question.tableHeaders
+            )
+              ? question.tableHeaders
+              : [],
+
+          tableRows:
+            Array.isArray(
+              question.tableRows
+            )
+              ? question.tableRows
+              : [],
+
+          selectedAnswer:
+            isAnswered
+              ? selectedAnswer
+              : "Not Attempted",
 
           correctAnswer:
-            question.correctAnswer,
+            correctAnswer ||
+            "Not Available",
 
           isCorrect,
 
           marks:
-            isCorrect
-              ? 4
-              : isAnswered
-              ? -1
-              : 0
+            questionMarks,
 
-        });
+          result:
+            questionResult,
 
-      }
-
-    );
-
-
-    // ========================================================
-    // QUESTION COUNTS
-    // ========================================================
-
-    const totalQuestions =
-      test.questions.length;
-
-
-    const attemptedQuestions =
-      correctAnswers +
-      wrongAnswers;
-
-
-    const unansweredQuestions =
-      totalQuestions -
-      attemptedQuestions;
-
-
-    // ========================================================
-    // NEET MARKING
-    // CORRECT = +4
-    // WRONG   = -1
-    // EMPTY   = 0
-    // ========================================================
-
-    const marks =
-      (correctAnswers * 4) -
-      wrongAnswers;
-
-
-    // ========================================================
-    // PERCENTAGE
-    // ========================================================
-
-    const maxMarks =
-      totalQuestions * 4;
-
-
-    const percentage =
-      maxMarks > 0
-        ? Number(
-
-            (
-              (marks / maxMarks) *
-              100
-
-            ).toFixed(2)
-
-          )
-        : 0;
-
-
-    // ========================================================
-    // GRADE
-    // ========================================================
-
-    let grade = "F";
-
-    let status:
-      "PASS" | "FAIL" = "FAIL";
-
-
-    if (percentage >= 90) {
-
-      grade = "A+";
-
-      status = "PASS";
-
-    }
-
-    else if (percentage >= 75) {
-
-      grade = "A";
-
-      status = "PASS";
-
-    }
-
-    else if (percentage >= 60) {
-
-      grade = "B";
-
-      status = "PASS";
-
-    }
-
-    else if (percentage >= 50) {
-
-      grade = "C";
-
-      status = "PASS";
-
-    }
-
-    else if (percentage >= 40) {
-
-      grade = "D";
-
-      status = "PASS";
-
-    }
-
-
-    // ========================================================
-    // RESULT RELEASE
-    //
-    // DAILY   -> IMMEDIATE
-    // SUBJECT -> IMMEDIATE
-    // MOCK    -> NEXT DAY 8 AM
-    // ========================================================
-
-    let resultAvailableAt: Date;
-
-    let isResultPublished: boolean;
-
-
-    if (category === "mock") {
-
-      resultAvailableAt =
-        getNextDay8AM();
-
-      isResultPublished = false;
-
-    }
-
-    else {
-
-      resultAvailableAt =
-        new Date();
-
-      isResultPublished = true;
-
-    }
-
-
-    // ========================================================
-    // CREATE RESULT
-    // ========================================================
-
-    const result =
-      await Result.create({
-
-        studentId,
-
-        studentName:
-          studentName || "",
-
-        examId,
-
-        examName:
-          test.title,
-
-        testCategory:
-          category,
-
-        subject:
-          test.subject || "General",
-
-        totalQuestions,
-
-        attemptedQuestions,
-
-        unansweredQuestions,
-
-        correctAnswers,
-
-        wrongAnswers,
-
-        marks,
-
-        percentage,
-
-        grade,
-
-        status,
-
-        timeTaken:
-          timeTaken || 0,
-
-        warnings:
-          warnings || 0,
-
-        rank: 0,
-
-        resultAvailableAt,
-
-        isResultPublished,
-
-        review
-
-      });
-
-
-    // ========================================================
-    // RESPONSE
-    //
-    // MOCK -> DON'T SEND RESULT DETAILS
-    // DAILY/SUBJECT -> SEND FULL RESULT
-    // ========================================================
-
-    if (category === "mock") {
-
-      return res.status(201).json({
-
-        success: true,
-
-        message:
-          "Mock test submitted successfully. Result will be available tomorrow at 8:00 AM.",
-
-        result: {
-
-          _id:
-            result._id,
-
-          examName:
-            result.examName,
-
-          testCategory:
-            result.testCategory,
+          explanation:
+            question.explanation ||
+            "",
 
           subject:
-            result.subject,
+            questionSubject,
+
+          examType:
+            questionExamType,
+        });
+      }
+    );
+
+    // ========================================================
+    // GROUP QUESTIONS BY SUBJECT
+    // ========================================================
+
+    const subjectGroups =
+      new Map<
+        string,
+        EvaluatedQuestion[]
+      >();
+
+    evaluatedQuestions.forEach(
+      (
+        question
+      ) => {
+        const subject =
+          question.subject ||
+          "General";
+
+        if (
+          !subjectGroups.has(
+            subject
+          )
+        ) {
+          subjectGroups.set(
+            subject,
+            []
+          );
+        }
+
+        subjectGroups
+          .get(subject)!
+          .push(
+            question
+          );
+      }
+    );
+
+    // ========================================================
+    // SORT SUBJECTS
+    // ========================================================
+
+    const sortedSubjectGroups =
+      Array.from(
+        subjectGroups.entries()
+      ).sort(
+        (
+          [subjectA],
+          [subjectB]
+        ) =>
+          getSubjectOrder(
+            subjectA
+          ) -
+            getSubjectOrder(
+              subjectB
+            ) ||
+          subjectA.localeCompare(
+            subjectB
+          )
+      );
+
+    // ========================================================
+    // DELETE PREVIOUS DUPLICATE RESULTS
+    // ========================================================
+    // This prevents duplicate records when the same test
+    // is accidentally submitted more than once.
+    // ========================================================
+
+    await Result.deleteMany({
+      studentId,
+
+      examId,
+
+      testCategory:
+        category,
+    });
+
+    // ========================================================
+    // CREATE SUBJECT RESULTS
+    // ========================================================
+
+    const createdResults: any[] =
+      [];
+
+    for (
+      const [
+        subject,
+        questions,
+      ] of sortedSubjectGroups
+    ) {
+      // ======================================================
+      // COUNTERS
+      // ======================================================
+
+      let correctAnswers =
+        0;
+
+      let wrongAnswers =
+        0;
+
+      let attemptedQuestions =
+        0;
+
+      let unansweredQuestions =
+        0;
+
+      let subjectMarks =
+        0;
+
+      // ======================================================
+      // EXAM TYPE
+      // ======================================================
+
+      const subjectExamType =
+        questions.find(
+          (
+            question
+          ) =>
+            normalizeText(
+              question.examType
+            )
+        )?.examType ||
+        testExamType ||
+        "N/A";
+
+      // ======================================================
+      // CALCULATE SUBJECT RESULT
+      // ======================================================
+
+      questions.forEach(
+        (
+          question
+        ) => {
+          if (
+            question.result ===
+            "correct"
+          ) {
+            correctAnswers++;
+
+            attemptedQuestions++;
+
+            subjectMarks +=
+              question.marks;
+          } else if (
+            question.result ===
+            "wrong"
+          ) {
+            wrongAnswers++;
+
+            attemptedQuestions++;
+
+            subjectMarks +=
+              question.marks;
+          } else {
+            unansweredQuestions++;
+          }
+        }
+      );
+
+      // ======================================================
+      // SUBJECT TOTAL QUESTIONS
+      // ======================================================
+
+      const totalQuestions =
+        questions.length;
+
+      // ======================================================
+      // MARKING CONFIGURATION
+      // ======================================================
+
+      const marksPerQuestion =
+        questions[0]
+          ?.marks &&
+        questions[0]
+          .marks > 0
+          ? Math.max(
+              ...questions.map(
+                (
+                  question
+                ) =>
+                  question.marks > 0
+                    ? question.marks
+                    : 0
+              )
+            )
+          : Number(
+              (test as any)
+                .marksPerQuestion
+            ) > 0
+            ? Number(
+                (test as any)
+                  .marksPerQuestion
+              )
+            : 4;
+
+      const negativeMarks =
+        Number(
+          (test as any)
+            .negativeMarks
+        ) >= 0
+          ? Number(
+              (test as any)
+                .negativeMarks
+            )
+          : 1;
+
+      // ======================================================
+      // MAX MARKS
+      // ======================================================
+
+      const maxMarks =
+        totalQuestions *
+        marksPerQuestion;
+
+      // ======================================================
+      // FINAL SUBJECT MARKS
+      // ======================================================
+
+      const finalMarks =
+        Number(
+          subjectMarks.toFixed(
+            2
+          )
+        );
+
+      // ======================================================
+      // PERCENTAGE
+      // ======================================================
+
+      const percentage =
+        maxMarks > 0
+          ? Number(
+              (
+                (finalMarks /
+                  maxMarks) *
+                100
+              ).toFixed(2)
+            )
+          : 0;
+
+      // ======================================================
+      // GRADE
+      // ======================================================
+
+      let grade =
+        "F";
+
+      if (
+        percentage >=
+        90
+      ) {
+        grade =
+          "A+";
+      } else if (
+        percentage >=
+        80
+      ) {
+        grade =
+          "A";
+      } else if (
+        percentage >=
+        70
+      ) {
+        grade =
+          "B";
+      } else if (
+        percentage >=
+        60
+      ) {
+        grade =
+          "C";
+      } else if (
+        percentage >=
+        50
+      ) {
+        grade =
+          "D";
+      }
+
+      // ======================================================
+      // PASS / FAIL
+      // ======================================================
+
+      const status:
+        | "PASS"
+        | "FAIL" =
+        percentage >=
+        40
+          ? "PASS"
+          : "FAIL";
+
+      // ======================================================
+      // RESULT TIME
+      // ======================================================
+
+      const resultAvailableAt =
+        new Date();
+
+      // ======================================================
+      // CREATE RESULT DOCUMENT
+      // ======================================================
+
+      const subjectResult =
+        await Result.create({
+          // --------------------------------------------------
+          // STUDENT
+          // --------------------------------------------------
+
+          studentId,
+
+          studentName:
+            studentName ||
+            "Student",
+
+          // --------------------------------------------------
+          // EXAM
+          // --------------------------------------------------
+
+          examId,
+
+          examName:
+            (test as any)
+              .title ||
+            (test as any)
+              .testTitle ||
+            "Mock Test",
+
+          // --------------------------------------------------
+          // CATEGORY
+          // --------------------------------------------------
+
+          testCategory:
+            category,
+
+          // --------------------------------------------------
+          // EXAM TYPE
+          // --------------------------------------------------
+
+          examType:
+            subjectExamType,
+
+          // --------------------------------------------------
+          // SUBJECT
+          // --------------------------------------------------
+
+          subject,
+
+          // --------------------------------------------------
+          // CHAPTER
+          // --------------------------------------------------
+
+          chapter:
+            normalizeText(
+              (test as any)
+                .chapter
+            ) ||
+            "Full Assessment",
+
+          // --------------------------------------------------
+          // CLASS
+          // --------------------------------------------------
+
+          className:
+            normalizeText(
+              (test as any)
+                .className
+            ),
+
+          // --------------------------------------------------
+          // COUNTS
+          // --------------------------------------------------
 
           totalQuestions,
 
+          attemptedQuestions,
+
+          unansweredQuestions,
+
+          correctAnswers,
+
+          wrongAnswers,
+
+          // --------------------------------------------------
+          // MARKS
+          // --------------------------------------------------
+
+          marks:
+            finalMarks,
+
+          maxMarks,
+
+          marksPerQuestion,
+
+          negativeMarks,
+
+          percentage,
+
+          grade,
+
+          status,
+
+          // --------------------------------------------------
+          // EXAM INFO
+          // --------------------------------------------------
+
+          timeTaken:
+            Number(
+              timeTaken
+            ) || 0,
+
+          warnings:
+            Number(
+              warnings
+            ) || 0,
+
+          autoSubmitted:
+            Boolean(
+              (req.body as any)
+                .autoSubmitted
+            ),
+
+          rank: 0,
+
+          // --------------------------------------------------
+          // RESULT RELEASE
+          // --------------------------------------------------
+
           resultAvailableAt,
 
-          isResultPublished: false,
+          isResultPublished:
+            true,
 
-          locked: true
+          // --------------------------------------------------
+          // REVIEW
+          // --------------------------------------------------
 
-        }
+          review:
+            questions.map(
+              (
+                question
+              ) => ({
+                questionId:
+                  question.questionId,
 
-      });
+                question:
+                  question.question,
 
+                questionType:
+                  question.questionType,
+
+                options:
+                  question.options,
+
+                imageUrl:
+                  question.imageUrl,
+
+                questionImage:
+                  question.questionImage,
+
+                tableHeaders:
+                  question.tableHeaders,
+
+                tableRows:
+                  question.tableRows,
+
+                selectedAnswer:
+                  question.selectedAnswer,
+
+                correctAnswer:
+                  question.correctAnswer,
+
+                isCorrect:
+                  question.isCorrect,
+
+                marks:
+                  question.marks,
+
+                result:
+                  question.result,
+
+                explanation:
+                  question.explanation,
+              })
+            ),
+        });
+
+      createdResults.push(
+        subjectResult
+      );
     }
 
+    // ========================================================
+    // SAFETY CHECK
+    // ========================================================
+
+    if (
+      createdResults.length ===
+      0
+    ) {
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "No subject results could be generated.",
+      });
+    }
 
     // ========================================================
-    // IMMEDIATE RESULT
+    // RESPONSE
     // ========================================================
 
     return res.status(201).json({
-
       success: true,
 
       message:
-        "Exam Submitted Successfully",
+        "Exam submitted successfully with subject-wise results.",
 
-      result
+      // ------------------------------------------------------
+      // MAIN INFO
+      // ------------------------------------------------------
 
+      examId,
+
+      examName:
+        (test as any)
+          .title ||
+        (test as any)
+          .testTitle ||
+        "Mock Test",
+
+      testCategory:
+        category,
+
+      examType:
+        testExamType ||
+        createdResults[0]
+          ?.examType ||
+        "N/A",
+
+      // ------------------------------------------------------
+      // SUBJECT RESULTS
+      // ------------------------------------------------------
+
+      subjectResults:
+        createdResults.map(
+          (
+            result
+          ) => ({
+            id:
+              result._id,
+
+            _id:
+              result._id,
+
+            examId:
+              result.examId,
+
+            examName:
+              result.examName,
+
+            testCategory:
+              result.testCategory,
+
+            examType:
+              result.examType,
+
+            subject:
+              result.subject,
+
+            chapter:
+              result.chapter,
+
+            className:
+              result.className,
+
+            totalQuestions:
+              result.totalQuestions,
+
+            attemptedQuestions:
+              result.attemptedQuestions,
+
+            unansweredQuestions:
+              result.unansweredQuestions,
+
+            correctAnswers:
+              result.correctAnswers,
+
+            wrongAnswers:
+              result.wrongAnswers,
+
+            marks:
+              result.marks,
+
+            maxMarks:
+              result.maxMarks,
+
+            marksPerQuestion:
+              result.marksPerQuestion,
+
+            negativeMarks:
+              result.negativeMarks,
+
+            percentage:
+              result.percentage,
+
+            grade:
+              result.grade,
+
+            status:
+              result.status,
+
+            timeTaken:
+              result.timeTaken,
+
+            warnings:
+              result.warnings,
+
+            resultAvailableAt:
+              result.resultAvailableAt,
+
+            isResultPublished:
+              true,
+
+            locked:
+              false,
+
+            review:
+              result.review ||
+              [],
+          })
+        ),
+
+      // ------------------------------------------------------
+      // COUNT
+      // ------------------------------------------------------
+
+      totalSubjectResults:
+        createdResults.length,
     });
-
-
-  }
-
-  catch (error: any) {
-
+  } catch (error: any) {
     console.error(
       "SUBMIT RESULT ERROR:",
       error
     );
 
-
     return res.status(500).json({
-
       success: false,
 
       message:
-        error.message ||
-        "Failed to submit result"
+        "Failed to submit result. Please try again.",
 
+      error:
+        process.env.NODE_ENV ===
+        "development"
+          ? error?.message
+          : undefined,
     });
-
   }
-
 };
-
 
 // ============================================================
 // GET ALL RESULTS OF STUDENT
@@ -494,135 +1063,67 @@ export const submitResult = async (
 export const getStudentResults = async (
   req: Request,
   res: Response
-) => {
-
+): Promise<any> => {
   try {
-
     const {
-      studentId
+      studentId,
     } = req.params;
 
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Student ID is required",
+      });
+    }
 
     const results =
       await Result.find({
-
-        studentId
-
-      })
-      .sort({
-
-        createdAt: -1
-
+        studentId,
+      }).sort({
+        createdAt: -1,
       });
-
 
     const processedResults =
-      results.map((result: any) => {
+      results.map(
+        (result: any) => ({
+          ...result.toObject(),
 
-        const available =
-          isResultAvailable(result);
+          locked:
+            false,
 
+          isResultPublished:
+            true,
 
-        // ====================================================
-        // IMMEDIATE RESULT
-        // ====================================================
-
-        if (available) {
-
-          return {
-
-            ...result.toObject(),
-
-            locked: false,
-
-            isResultPublished: true
-
-          };
-
-        }
-
-
-        // ====================================================
-        // LOCKED MOCK RESULT
-        // ====================================================
-
-        return {
-
-          _id:
-            result._id,
-
-          studentId:
-            result.studentId,
-
-          studentName:
-            result.studentName,
-
-          examId:
-            result.examId,
-
-          examName:
-            result.examName,
-
-          testCategory:
-            result.testCategory,
-
-          subject:
-            result.subject,
-
-          totalQuestions:
-            result.totalQuestions,
-
-          resultAvailableAt:
-            result.resultAvailableAt,
-
-          isResultPublished: false,
-
-          locked: true,
-
-          message:
-            "Result will be available tomorrow at 8:00 AM."
-
-        };
-
-      });
-
+          review:
+            result.review || [],
+        })
+      );
 
     return res.status(200).json({
-
       success: true,
 
       count:
         processedResults.length,
 
       results:
-        processedResults
-
+        processedResults,
     });
-
-  }
-
-  catch (error: any) {
-
+  } catch (error: any) {
     console.error(
       "GET STUDENT RESULTS ERROR:",
       error
     );
 
-
     return res.status(500).json({
-
       success: false,
 
       message:
-        error.message ||
-        "Failed to fetch student results"
-
+        "Failed to fetch student results",
     });
-
   }
-
 };
-
 
 // ============================================================
 // GET SINGLE RESULT
@@ -631,130 +1132,65 @@ export const getStudentResults = async (
 export const getSingleResult = async (
   req: Request,
   res: Response
-) => {
-
+): Promise<any> => {
   try {
-
     const result =
       await Result.findById(
         req.params.id
       );
 
-
     if (!result) {
-
       return res.status(404).json({
-
         success: false,
 
         message:
-          "Result not found"
-
+          "Result not found",
       });
-
     }
-
-
-    const available =
-      isResultAvailable(result);
-
-
-    // ========================================================
-    // LOCKED MOCK
-    // ========================================================
-
-    if (!available) {
-
-      return res.status(200).json({
-
-        success: true,
-
-        locked: true,
-
-        message:
-          "This mock test result is locked until tomorrow at 8:00 AM.",
-
-        result: {
-
-          _id:
-            result._id,
-
-          examName:
-            result.examName,
-
-          testCategory:
-            result.testCategory,
-
-          subject:
-            result.subject,
-
-          totalQuestions:
-            result.totalQuestions,
-
-          resultAvailableAt:
-            result.resultAvailableAt,
-
-          isResultPublished: false
-
-        }
-
-      });
-
-    }
-
-
-    // ========================================================
-    // RESULT AVAILABLE
-    // ========================================================
-
-    // If release time reached, mark it published
 
     if (
-      result.testCategory === "mock" &&
       !result.isResultPublished
     ) {
+      result.isResultPublished =
+        true;
 
-      result.isResultPublished = true;
+      result.resultAvailableAt =
+        new Date();
 
       await result.save();
-
     }
 
-
-    return res.json({
-
+    return res.status(200).json({
       success: true,
 
       locked: false,
 
-      result
+      result: {
+        ...result.toObject(),
 
+        locked: false,
+
+        isResultPublished:
+          true,
+
+        review:
+          result.review || [],
+      },
     });
-
-  }
-
-  catch (error: any) {
-
+  } catch (error: any) {
     console.error(
       "GET SINGLE RESULT ERROR:",
       error
     );
 
-
     return res.status(500).json({
-
       success: false,
 
       message:
-        error.message ||
-        "Failed to fetch result"
-
+        "Failed to fetch result",
     });
-
   }
-
 };
-
 
 // ============================================================
 // GET LATEST RESULT
@@ -763,298 +1199,321 @@ export const getSingleResult = async (
 export const getLatestResult = async (
   req: Request,
   res: Response
-) => {
-
+): Promise<any> => {
   try {
-
     const result =
       await Result.findOne({
-
         studentId:
-          req.params.studentId
-
-      })
-      .sort({
-
-        createdAt: -1
-
+          req.params.studentId,
+      }).sort({
+        createdAt: -1,
       });
 
-
     if (!result) {
-
       return res.status(404).json({
-
         success: false,
 
         message:
-          "No Result Found"
-
+          "No Result Found",
       });
-
     }
 
+    if (
+      !result.isResultPublished
+    ) {
+      result.isResultPublished =
+        true;
 
-    const available =
-      isResultAvailable(result);
+      result.resultAvailableAt =
+        new Date();
 
-
-    // ========================================================
-    // LOCKED MOCK
-    // ========================================================
-
-    if (!available) {
-
-      return res.status(200).json({
-
-        success: true,
-
-        locked: true,
-
-        result: {
-
-          _id:
-            result._id,
-
-          examName:
-            result.examName,
-
-          testCategory:
-            result.testCategory,
-
-          subject:
-            result.subject,
-
-          totalQuestions:
-            result.totalQuestions,
-
-          resultAvailableAt:
-            result.resultAvailableAt,
-
-          isResultPublished: false
-
-        }
-
-      });
-
+      await result.save();
     }
 
-
-    return res.json({
-
+    return res.status(200).json({
       success: true,
 
       locked: false,
 
-      result
+      result: {
+        ...result.toObject(),
 
-    });
-
-  }
-
-  catch (error: any) {
-
-    return res.status(500).json({
-
-      success: false,
-
-      message:
-        error.message
-
-    });
-
-  }
-
-};
-
-
-// ============================================================
-// TOP RESULTS
-// ============================================================
-
-export const getTopResults = async (
-  req: Request,
-  res: Response
-) => {
-
-  try {
-
-    const results =
-      await Result.find({
-
-        isResultPublished: true
-
-      })
-      .sort({
-
-        marks: -1,
-
-        percentage: -1
-
-      })
-      .limit(20);
-
-
-    return res.json({
-
-      success: true,
-
-      results
-
-    });
-
-  }
-
-  catch (error: any) {
-
-    return res.status(500).json({
-
-      success: false,
-
-      message:
-        error.message
-
-    });
-
-  }
-
-};
-
-
-// ============================================================
-// SUBJECT RESULTS
-// ============================================================
-
-export const getSubjectResults = async (
-  req: Request,
-  res: Response
-) => {
-
-  try {
-
-    const results =
-      await Result.find({
-
-        subject:
-          req.params.subject,
+        locked: false,
 
         isResultPublished:
-          true
+          true,
 
-      });
-
-
-    return res.json({
-
-      success: true,
-
-      count:
-        results.length,
-
-      results
-
+        review:
+          result.review || [],
+      },
     });
-
-  }
-
-  catch (error: any) {
-
-    return res.status(500).json({
-
-      success: false,
-
-      message:
-        error.message
-
-    });
-
-  }
-
-};
-// ============================================================
-// GET STUDENT PERFORMANCE ANALYTICS (Weak Areas & Study Plan)
-// ============================================================
-
-export const getStudentPerformanceAnalytics = async (
-  req: Request,
-  res: Response
-) => {
-
-  try {
-
-    const { studentId } = req.params;
-
-    // 1. Fetch all exam results of this student from Result model
-    const results = await Result.find({ studentId });
-
-    if (!results || results.length === 0) {
-      return res.status(200).json({
-        success: true,
-        weakTopics: [],
-        recommendedStudyPlan: []
-      });
-    }
-
-    // 2. Aggregate performance subject-wise using stored result data
-    const subjectMap: { [key: string]: { correct: number; total: number } } = {};
-
-    results.forEach((result: any) => {
-      const subj = result.subject || "General";
-      if (!subjectMap[subj]) {
-        subjectMap[subj] = { correct: 0, total: 0 };
-      }
-      subjectMap[subj].correct += result.correctAnswers || 0;
-      subjectMap[subj].total += result.totalQuestions || 0;
-    });
-
-    const weakTopics: any[] = [];
-    const recommendedStudyPlan: any[] = [];
-
-    // 3. Calculate accuracy and filter weak subjects (< 70% accuracy)
-    Object.keys(subjectMap).forEach((subj, idx) => {
-      const data = subjectMap[subj];
-      const accuracy = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
-
-      if (accuracy < 70) {
-        weakTopics.push({
-          id: idx + 1,
-          topic: `${subj} Core Concepts`,
-          subject: subj,
-          accuracy: `${accuracy}%`,
-          priority: accuracy < 50 ? "High Priority" : "Medium Priority"
-        });
-
-        // Auto-allocate study hours based on how low the accuracy is
-        const hours = accuracy < 40 ? 3.5 : accuracy < 55 ? 2.5 : 2.0;
-        recommendedStudyPlan.push({
-          id: idx + 1,
-          subject: `${subj} Revision`,
-          hours,
-          completed: false
-        });
-      }
-    });
-
-    return res.status(200).json({
-      success: true,
-      weakTopics,
-      recommendedStudyPlan
-    });
-
   } catch (error: any) {
-
     console.error(
-      "GET STUDENT PERFORMANCE ERROR:",
+      "GET LATEST RESULT ERROR:",
       error
     );
 
     return res.status(500).json({
       success: false,
+
       message:
-        error.message ||
-        "Failed to fetch student performance analytics"
+        "Failed to fetch latest result",
     });
-
   }
+};
 
+// ============================================================
+// GET TOP RESULTS
+// ============================================================
+
+export const getTopResults = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  try {
+    const results =
+      await Result.find({
+        isResultPublished:
+          true,
+      })
+        .sort({
+          marks: -1,
+          percentage: -1,
+        })
+        .limit(20);
+
+    return res.status(200).json({
+      success: true,
+
+      results,
+    });
+  } catch (error: any) {
+    console.error(
+      "GET TOP RESULTS ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        "Failed to fetch top results",
+    });
+  }
+};
+
+// ============================================================
+// GET SUBJECT RESULTS
+// ============================================================
+
+export const getSubjectResults = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  try {
+    const results =
+      await Result.find({
+        subject:
+          req.params.subject,
+
+        isResultPublished:
+          true,
+      });
+
+    return res.status(200).json({
+      success: true,
+
+      count:
+        results.length,
+
+      results,
+    });
+  } catch (error: any) {
+    console.error(
+      "GET SUBJECT RESULTS ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        "Failed to fetch subject results",
+    });
+  }
+};
+
+// ============================================================
+// GET STUDENT PERFORMANCE ANALYTICS
+// ============================================================
+
+export const getStudentPerformanceAnalytics =
+  async (
+    req: Request,
+    res: Response
+  ): Promise<any> => {
+    try {
+      const {
+        studentId,
+      } = req.params;
+
+      const results =
+        await Result.find({
+          studentId,
+        });
+
+      if (
+        !results ||
+        results.length === 0
+      ) {
+        return res.status(200).json({
+          success: true,
+
+          weakTopics: [],
+
+          recommendedStudyPlan: [],
+        });
+      }
+
+      const subjectMap: {
+        [key: string]: {
+          correct: number;
+          total: number;
+        };
+      } = {};
+
+      results.forEach(
+        (result: any) => {
+          const subject =
+            result.subject ||
+            "General";
+
+          if (
+            !subjectMap[subject]
+          ) {
+            subjectMap[subject] = {
+              correct: 0,
+              total: 0,
+            };
+          }
+
+          subjectMap[
+            subject
+          ].correct +=
+            result.correctAnswers ||
+            0;
+
+          subjectMap[
+            subject
+          ].total +=
+            result.totalQuestions ||
+            0;
+        }
+      );
+
+      const weakTopics: any[] =
+        [];
+
+      const recommendedStudyPlan: any[] =
+        [];
+
+      Object.keys(
+        subjectMap
+      ).forEach(
+        (
+          subject,
+          index
+        ) => {
+          const data =
+            subjectMap[subject];
+
+          const accuracy =
+            data.total > 0
+              ? Math.round(
+                  (
+                    (data.correct /
+                      data.total) *
+                    100
+                  )
+                )
+              : 0;
+
+          if (
+            accuracy < 70
+          ) {
+            weakTopics.push({
+              id:
+                index + 1,
+
+              topic:
+                `${subject} Core Concepts`,
+
+              subject,
+
+              accuracy:
+                `${accuracy}%`,
+
+              priority:
+                accuracy < 50
+                  ? "High Priority"
+                  : "Medium Priority",
+            });
+
+            const hours =
+              accuracy < 40
+                ? 3.5
+                : accuracy < 55
+                  ? 2.5
+                  : 2.0;
+
+            recommendedStudyPlan.push({
+              id:
+                index + 1,
+
+              subject:
+                `${subject} Revision`,
+
+              hours,
+
+              completed:
+                false,
+            });
+          }
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+
+        weakTopics,
+
+        recommendedStudyPlan,
+      });
+    } catch (error: any) {
+      console.error(
+        "GET STUDENT PERFORMANCE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+
+        message:
+          "Failed to fetch student performance analytics",
+      });
+    }
+  };
+
+// ============================================================
+// DEFAULT EXPORT
+// ============================================================
+
+export default {
+  submitResult,
+  getStudentResults,
+  getSingleResult,
+  getLatestResult,
+  getTopResults,
+  getSubjectResults,
+  getStudentPerformanceAnalytics,
 };

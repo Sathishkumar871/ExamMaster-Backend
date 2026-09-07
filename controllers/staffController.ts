@@ -364,7 +364,7 @@ const existingStaff = await Staff.findOne({
 if (existingStaff) {
   return res.status(400).json({
     success: false,
-    message: "Registration Successful. Please wait for Manager approval because we verify details to keep student data secure from fake registrations."
+    message: "Registration Successful. Please wait for Director approval because we verify details to keep student data secure from fake registrations."
   });
 }
 

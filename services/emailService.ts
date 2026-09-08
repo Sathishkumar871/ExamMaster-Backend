@@ -1,36 +1,157 @@
+
 import nodemailer from "nodemailer";
 
-// ==========================================
+// ============================================================
+// GMAIL CONFIGURATION
+// ============================================================
+
+const gmailUser = process.env.GMAIL_USER;
+const gmailAppPassword =
+  process.env.GMAIL_APP_PASSWORD;
+
+// ============================================================
+// ENVIRONMENT CHECK
+// ============================================================
+
+if (!gmailUser) {
+  console.error(
+    "❌ GMAIL_USER is not configured."
+  );
+}
+
+if (!gmailAppPassword) {
+  console.error(
+    "❌ GMAIL_APP_PASSWORD is not configured."
+  );
+}
+
+// ============================================================
 // GMAIL TRANSPORTER
-// ==========================================
-const transporter = nodemailer.createTransport({
-  service: "gmail",
+// ============================================================
+// One transporter is created when the backend starts.
+// The same SMTP connection pool can be reused for
+// multiple OTP emails.
+// ============================================================
 
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
+const transporter =
+  nodemailer.createTransport({
+    host: "smtp.gmail.com",
 
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+    port: 465,
 
-// ==========================================
+    secure: true,
+
+    auth: {
+      user: gmailUser,
+      pass: gmailAppPassword,
+    },
+
+    pool: true,
+
+    maxConnections: 3,
+
+    maxMessages: 100,
+
+    connectionTimeout: 15000,
+
+    greetingTimeout: 10000,
+
+    socketTimeout: 30000,
+  });
+
+// ============================================================
+// CHECK GMAIL SMTP CONNECTION
+// ============================================================
+
+transporter
+  .verify()
+  .then(() => {
+    console.log(
+      "✅ Gmail SMTP connection ready"
+    );
+  })
+  .catch((error: any) => {
+    console.error(
+      "❌ Gmail SMTP connection failed:"
+    );
+
+    console.error(
+      error?.message || error
+    );
+
+    console.error(
+      "SMTP CODE:",
+      error?.code || "UNKNOWN"
+    );
+
+    console.error(
+      "SMTP RESPONSE:",
+      error?.response || "NO RESPONSE"
+    );
+  });
+
+// ============================================================
 // SEND OTP EMAIL
-// ==========================================
+// ============================================================
+
 export const sendOtpEmail = async (
   to: string,
   otp: string
 ) => {
-  await transporter.sendMail({
-    from: `"STG College" <${process.env.GMAIL_USER}>`,
+  // ==========================================================
+  // BASIC VALIDATION
+  // ==========================================================
 
-    to,
+  if (!gmailUser) {
+    throw new Error(
+      "GMAIL_USER is missing on the server."
+    );
+  }
 
-    subject: "STG College | Email Verification OTP",
+  if (!gmailAppPassword) {
+    throw new Error(
+      "GMAIL_APP_PASSWORD is missing on the server."
+    );
+  }
 
-    html: `
+  if (!to) {
+    throw new Error(
+      "Recipient email is required."
+    );
+  }
+
+  if (!otp) {
+    throw new Error(
+      "OTP is required."
+    );
+  }
+
+  // ==========================================================
+  // START TIMER
+  // ==========================================================
+
+  const startTime = Date.now();
+
+  console.log(
+    `📧 Sending OTP to ${to}...`
+  );
+
+  try {
+    // ========================================================
+    // SEND MAIL
+    // ========================================================
+
+    const info =
+      await transporter.sendMail({
+        from:
+          `"STG College" <${gmailUser}>`,
+
+        to,
+
+        subject:
+          "STG College | Email Verification OTP",
+
+        html: `
 <!DOCTYPE html>
 <html>
 <head>
@@ -71,7 +192,6 @@ export const sendOtpEmail = async (
         <!-- MAIN CARD -->
         <table
           width="100%"
-          max-width="600"
           cellpadding="0"
           cellspacing="0"
           border="0"
@@ -133,7 +253,6 @@ export const sendOtpEmail = async (
             </td>
           </tr>
 
-
           <!-- CONTENT -->
           <tr>
             <td
@@ -164,7 +283,6 @@ export const sendOtpEmail = async (
                   🔐
                 </div>
 
-
                 <!-- TITLE -->
                 <h1
                   style="
@@ -176,7 +294,6 @@ export const sendOtpEmail = async (
                 >
                   Verify Your Email
                 </h1>
-
 
                 <!-- DESCRIPTION -->
                 <p
@@ -196,7 +313,6 @@ export const sendOtpEmail = async (
                 </p>
 
               </div>
-
 
               <!-- OTP BOX -->
               <div
@@ -242,11 +358,13 @@ export const sendOtpEmail = async (
                     color:#92400e;
                   "
                 >
-                  Valid for <strong>5 minutes</strong>
+                  Valid for
+                  <strong>
+                    5 minutes
+                  </strong>
                 </div>
 
               </div>
-
 
               <!-- SECURITY NOTE -->
               <div
@@ -283,7 +401,6 @@ export const sendOtpEmail = async (
 
               </div>
 
-
               <!-- FOOTER MESSAGE -->
               <div
                 style="
@@ -308,7 +425,6 @@ export const sendOtpEmail = async (
 
             </td>
           </tr>
-
 
           <!-- FOOTER -->
           <tr>
@@ -364,6 +480,61 @@ export const sendOtpEmail = async (
 
 </body>
 </html>
-    `,
-  });
+        `,
+      });
+
+    // ========================================================
+    // END TIMER
+    // ========================================================
+
+    const elapsed =
+      Date.now() - startTime;
+
+    console.log(
+      `✅ OTP email sent successfully in ${elapsed} ms`
+    );
+
+    console.log(
+      "📨 Message ID:",
+      info.messageId
+    );
+
+    return info;
+
+  } catch (error: any) {
+
+    // ========================================================
+    // ERROR LOG
+    // ========================================================
+
+    const elapsed =
+      Date.now() - startTime;
+
+    console.error(
+      `❌ OTP email failed after ${elapsed} ms`
+    );
+
+    console.error(
+      "ERROR MESSAGE:",
+      error?.message || error
+    );
+
+    console.error(
+      "ERROR CODE:",
+      error?.code || "UNKNOWN"
+    );
+
+    console.error(
+      "SMTP RESPONSE:",
+      error?.response || "NO RESPONSE"
+    );
+
+    console.error(
+      "COMMAND:",
+      error?.command || "NO COMMAND"
+    );
+
+    throw error;
+  }
 };
+

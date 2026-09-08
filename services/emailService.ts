@@ -37,7 +37,7 @@ if (!gmailAppPassword) {
 }
 
 // ============================================================
-// GMAIL TRANSPORTER (FIXED FOR RENDER - PORT 465 SSL)
+// GMAIL TRANSPORTER (FIXED WITH 'as any' FOR TYPESCRIPT)
 // ============================================================
 
 const transporter = nodemailer.createTransport({
@@ -62,7 +62,7 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false,
   },
-});
+} as any);
 
 // ============================================================
 // SMTP CONNECTION CHECK

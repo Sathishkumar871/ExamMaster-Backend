@@ -1,12 +1,26 @@
 
-import nodemailer from "nodemailer";
+// ============================================================
+// STG COLLEGE - PREMIUM EMAIL SERVICE
+// RESEND EMAIL API
+// ============================================================
+
+import { Resend } from "resend";
 
 // ============================================================
-// GMAIL CONFIGURATION
+// RESEND CONFIGURATION
 // ============================================================
 
-const gmailUser = process.env.GMAIL_USER;
-const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+const resendApiKey = process.env.RESEND_API_KEY;
+
+// For production, use an email address from your verified domain.
+// Example:
+// RESEND_FROM_EMAIL=STG College <noreply@yourdomain.com>
+//
+// For initial testing, Resend provides onboarding@resend.dev.
+// Production sending should use a verified domain/sender.
+const resendFromEmail =
+  process.env.RESEND_FROM_EMAIL ||
+  "STG College <onboarding@resend.dev>";
 
 // ============================================================
 // STG COLLEGE CLOUDINARY BRAND IMAGE
@@ -22,83 +36,19 @@ const COLLEGE_LOGO =
 // ENVIRONMENT CHECK
 // ============================================================
 
-if (!gmailUser) {
-  console.error("❌ GMAIL_USER is not configured.");
+if (!resendApiKey) {
+  console.error(
+    "❌ RESEND_API_KEY is not configured."
+  );
 }
 
-if (!gmailAppPassword) {
-  console.error("❌ GMAIL_APP_PASSWORD is not configured.");
-}
-
 // ============================================================
-// GMAIL TRANSPORTER
+// RESEND CLIENT
 // ============================================================
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-
-  // Gmail SMTP submission
-  port: 587,
-
-  // STARTTLS
-  secure: false,
-
-  auth: {
-    user: gmailUser,
-    pass: gmailAppPassword,
-  },
-
-  // Reuse SMTP connections
-  pool: true,
-  maxConnections: 3,
-  maxMessages: 100,
-
-  // Timeouts
-  connectionTimeout: 20000,
-  greetingTimeout: 15000,
-  socketTimeout: 30000,
-
-  // Force STARTTLS
-  requireTLS: true,
-
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
-
-// ============================================================
-// SMTP CONNECTION CHECK
-// ============================================================
-
-transporter
-  .verify()
-  .then(() => {
-    console.log("✅ Gmail SMTP connection ready");
-    console.log("📡 SMTP: smtp.gmail.com:587 STARTTLS");
-  })
-  .catch((error: any) => {
-    console.error("❌ Gmail SMTP connection failed");
-
-    console.error(
-      "MESSAGE:",
-      error?.message || "Unknown SMTP error"
-    );
-
-    console.error(
-      "CODE:",
-      error?.code || "UNKNOWN"
-    );
-
-    console.error(
-      "RESPONSE:",
-      error?.response || "NO RESPONSE"
-    );
-
-    console.error(
-      "COMMAND:",
-      error?.command || "NO COMMAND"
-    );
-  });
+const resend = resendApiKey
+  ? new Resend(resendApiKey)
+  : null;
 
 // ============================================================
 // SEND OTP EMAIL
@@ -112,15 +62,15 @@ export const sendOtpEmail = async (
   // VALIDATION
   // ==========================================================
 
-  if (!gmailUser) {
+  if (!resendApiKey) {
     throw new Error(
-      "GMAIL_USER is missing on the server."
+      "RESEND_API_KEY is missing on the server."
     );
   }
 
-  if (!gmailAppPassword) {
+  if (!resend) {
     throw new Error(
-      "GMAIL_APP_PASSWORD is missing on the server."
+      "Resend email client is not initialized."
     );
   }
 
@@ -136,10 +86,31 @@ export const sendOtpEmail = async (
     );
   }
 
-  const startTime = Date.now();
+  const cleanEmail =
+    to.trim().toLowerCase();
+
+  const cleanOtp =
+    String(otp).trim();
+
+  const startTime =
+    Date.now();
 
   console.log(
-    `📧 Sending OTP to ${to}...`
+    "=========================================="
+  );
+
+  console.log(
+    "📧 RESEND OTP REQUEST"
+  );
+
+  console.log(
+    "To:",
+    cleanEmail
+  );
+
+  console.log(
+    "From:",
+    resendFromEmail
   );
 
   // ==========================================================
@@ -167,7 +138,6 @@ export const sendOtpEmail = async (
   <title>STG College | Email Verification</title>
 
 </head>
-
 
 <body
   style="
@@ -385,7 +355,6 @@ export const sendOtpEmail = async (
 
         </tr>
 
-
         <!-- ================================================== -->
         <!-- CONTENT -->
         <!-- ================================================== -->
@@ -443,7 +412,6 @@ export const sendOtpEmail = async (
 
             </div>
 
-
             <!-- ================================================= -->
             <!-- TITLE -->
             <!-- ================================================= -->
@@ -468,7 +436,6 @@ export const sendOtpEmail = async (
               Verify Your Email
             </h1>
 
-
             <p
               style="
                 margin:13px auto 0;
@@ -491,7 +458,6 @@ export const sendOtpEmail = async (
               Your account verification code is ready.
               Enter the code below to continue securely.
             </p>
-
 
             <!-- ================================================= -->
             <!-- PREMIUM OTP OUTER GLOW -->
@@ -532,9 +498,7 @@ export const sendOtpEmail = async (
                   "
                 >
 
-                  <!-- ========================================= -->
                   <!-- OTP INNER -->
-                  <!-- ========================================= -->
 
                   <table
                     width="100%"
@@ -591,10 +555,7 @@ export const sendOtpEmail = async (
                           ✦ VERIFICATION CODE ✦
                         </div>
 
-
-                        <!-- ===================================== -->
-                        <!-- OTP DISPLAY -->
-                        <!-- ===================================== -->
+                        <!-- OTP -->
 
                         <table
                           cellpadding="0"
@@ -654,8 +615,6 @@ export const sendOtpEmail = async (
                                     "
                                   >
 
-                                    <!-- OTP -->
-
                                     <div
                                       style="
                                         color:#111827;
@@ -680,7 +639,7 @@ export const sendOtpEmail = async (
                                           rgba(15,23,42,0.10);
                                       "
                                     >
-                                      ${otp}
+                                      ${cleanOtp}
                                     </div>
 
                                   </td>
@@ -695,10 +654,7 @@ export const sendOtpEmail = async (
 
                         </table>
 
-
-                        <!-- ================================================= -->
                         <!-- CODE STATUS -->
-                        <!-- ================================================= -->
 
                         <div
                           style="
@@ -716,10 +672,7 @@ export const sendOtpEmail = async (
                           Your secure verification code
                         </div>
 
-
-                        <!-- ================================================= -->
-                        <!-- EXPIRY PILL -->
-                        <!-- ================================================= -->
+                        <!-- EXPIRY -->
 
                         <table
                           cellpadding="0"
@@ -760,10 +713,7 @@ export const sendOtpEmail = async (
 
                         </table>
 
-
-                        <!-- ================================================= -->
-                        <!-- STEP INDICATOR -->
-                        <!-- ================================================= -->
+                        <!-- STEP -->
 
                         <div
                           style="
@@ -794,7 +744,6 @@ export const sendOtpEmail = async (
               </tr>
 
             </table>
-
 
             <!-- ================================================= -->
             <!-- SECURITY CARD -->
@@ -859,7 +808,6 @@ export const sendOtpEmail = async (
 
             </table>
 
-
             <!-- ================================================= -->
             <!-- TRUST MESSAGE -->
             <!-- ================================================= -->
@@ -882,7 +830,6 @@ export const sendOtpEmail = async (
               STG College account.
             </div>
 
-
             <div
               style="
                 margin-top:8px;
@@ -901,7 +848,6 @@ export const sendOtpEmail = async (
           </td>
 
         </tr>
-
 
         <!-- ================================================== -->
         <!-- PREMIUM FOOTER -->
@@ -923,8 +869,6 @@ export const sendOtpEmail = async (
             "
           >
 
-            <!-- BRAND -->
-
             <div
               style="
                 color:#ffffff;
@@ -938,7 +882,6 @@ export const sendOtpEmail = async (
             >
               STG COLLEGE
             </div>
-
 
             <div
               style="
@@ -956,9 +899,6 @@ export const sendOtpEmail = async (
               EDUCATION • EXAM • EXCELLENCE
             </div>
 
-
-            <!-- DIVIDER -->
-
             <div
               style="
                 width:55px;
@@ -972,9 +912,6 @@ export const sendOtpEmail = async (
               "
             ></div>
 
-
-            <!-- FOOTER TEXT -->
-
             <div
               style="
                 color:#94a3b8;
@@ -986,7 +923,6 @@ export const sendOtpEmail = async (
             >
               Secure • Trusted • Student Focused
             </div>
-
 
             <div
               style="
@@ -1020,58 +956,94 @@ export const sendOtpEmail = async (
 `;
 
   // ==========================================================
-  // SEND EMAIL
+  // SEND THROUGH RESEND API
   // ==========================================================
 
   try {
-    const smtpStart = Date.now();
-
     console.log(
-      "📤 SMTP sendMail START"
+      "📤 Resend API request started..."
     );
 
-    const info = await transporter.sendMail({
+    const { data, error } =
+      await resend.emails.send({
+        from: resendFromEmail,
+        to: [cleanEmail],
 
-      from:
-        `"STG College" <${gmailUser}>`,
+        subject:
+          "STG College | Your Verification Code",
 
-      to,
+        html,
 
-      subject:
-        "STG College | Your Verification Code",
+        text:
+          `STG COLLEGE\n\n` +
+          `EMAIL VERIFICATION\n\n` +
+          `Your verification code is: ${cleanOtp}\n\n` +
+          `This code is valid for 5 minutes.\n\n` +
+          `Never share this code with anyone.\n\n` +
+          `STG College | Education • Exam • Excellence`,
+      });
 
-      html,
+    if (error) {
+      console.error(
+        "=========================================="
+      );
 
-      text:
-        `STG COLLEGE\n\n` +
-        `EMAIL VERIFICATION\n\n` +
-        `Your verification code is: ${otp}\n\n` +
-        `This code is valid for 5 minutes.\n\n` +
-        `Never share this code with anyone.\n\n` +
-        `STG College | Education • Exam • Excellence`,
+      console.error(
+        "❌ RESEND EMAIL FAILED"
+      );
 
-    });
+      console.error(
+        "Error:",
+        error
+      );
 
-    const smtpTime =
-      Date.now() - smtpStart;
+      console.error(
+        "=========================================="
+      );
 
-    const totalTime =
+      throw new Error(
+        error.message ||
+          "Resend failed to send email."
+      );
+    }
+
+    const elapsed =
       Date.now() - startTime;
 
     console.log(
-      `📥 Gmail SMTP accepted email in ${smtpTime} ms`
+      "=========================================="
     );
 
     console.log(
-      `✅ OTP email sent successfully in ${totalTime} ms`
+      "✅ OTP EMAIL SENT SUCCESSFULLY"
     );
 
     console.log(
-      "📨 Message ID:",
-      info.messageId
+      "📨 Recipient:",
+      cleanEmail
     );
 
-    return info;
+    console.log(
+      "🆔 Resend Message ID:",
+      data?.id || "N/A"
+    );
+
+    console.log(
+      `⚡ Resend API completed in ${elapsed} ms`
+    );
+
+    console.log(
+      "=========================================="
+    );
+
+    // Keep compatibility with existing OTP route
+    return {
+      messageId:
+        data?.id || null,
+
+      id:
+        data?.id || null,
+    };
 
   } catch (error: any) {
 
@@ -1079,31 +1051,27 @@ export const sendOtpEmail = async (
       Date.now() - startTime;
 
     console.error(
-      `❌ OTP email failed after ${elapsed} ms`
+      "=========================================="
+    );
+
+    console.error(
+      `❌ OTP EMAIL FAILED AFTER ${elapsed} ms`
     );
 
     console.error(
       "ERROR MESSAGE:",
       error?.message ||
-        "Unknown error"
+        "Unknown email error"
     );
 
     console.error(
       "ERROR CODE:",
-      error?.code ||
+      error?.name ||
         "UNKNOWN"
     );
 
     console.error(
-      "SMTP RESPONSE:",
-      error?.response ||
-        "NO RESPONSE"
-    );
-
-    console.error(
-      "COMMAND:",
-      error?.command ||
-        "NO COMMAND"
+      "=========================================="
     );
 
     throw error;

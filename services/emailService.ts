@@ -1,5 +1,12 @@
 
+import dns from "dns";
 import nodemailer from "nodemailer";
+
+// ============================================================
+// FORCE IPV4 FIRST
+// ============================================================
+
+dns.setDefaultResultOrder("ipv4first");
 
 // ============================================================
 // GMAIL CONFIGURATION
@@ -74,10 +81,15 @@ transporter
   .verify()
   .then(() => {
     console.log("✅ Gmail SMTP connection ready");
-    console.log("📡 SMTP: smtp.gmail.com:587 STARTTLS");
+    console.log(
+      "📡 SMTP: smtp.gmail.com:587 STARTTLS"
+    );
+    console.log("🌐 DNS: IPv4 first");
   })
   .catch((error: any) => {
-    console.error("❌ Gmail SMTP connection failed");
+    console.error(
+      "❌ Gmail SMTP connection failed"
+    );
 
     console.error(
       "MESSAGE:",
@@ -97,6 +109,16 @@ transporter
     console.error(
       "COMMAND:",
       error?.command || "NO COMMAND"
+    );
+
+    console.error(
+      "ADDRESS:",
+      error?.address || "NO ADDRESS"
+    );
+
+    console.error(
+      "PORT:",
+      error?.port || "NO PORT"
     );
   });
 
@@ -136,10 +158,25 @@ export const sendOtpEmail = async (
     );
   }
 
-  const startTime = Date.now();
+  const cleanEmail =
+    to.trim().toLowerCase();
+
+  const cleanOtp =
+    String(otp).trim();
+
+  const startTime =
+    Date.now();
 
   console.log(
-    `📧 Sending OTP to ${to}...`
+    "=========================================="
+  );
+
+  console.log(
+    `📧 Sending OTP to ${cleanEmail}...`
+  );
+
+  console.log(
+    "=========================================="
   );
 
   // ==========================================================
@@ -167,7 +204,6 @@ export const sendOtpEmail = async (
   <title>STG College | Email Verification</title>
 
 </head>
-
 
 <body
   style="
@@ -532,9 +568,7 @@ export const sendOtpEmail = async (
                   "
                 >
 
-                  <!-- ========================================= -->
                   <!-- OTP INNER -->
-                  <!-- ========================================= -->
 
                   <table
                     width="100%"
@@ -654,8 +688,6 @@ export const sendOtpEmail = async (
                                     "
                                   >
 
-                                    <!-- OTP -->
-
                                     <div
                                       style="
                                         color:#111827;
@@ -680,7 +712,7 @@ export const sendOtpEmail = async (
                                           rgba(15,23,42,0.10);
                                       "
                                     >
-                                      ${otp}
+                                      ${cleanOtp}
                                     </div>
 
                                   </td>
@@ -696,9 +728,7 @@ export const sendOtpEmail = async (
                         </table>
 
 
-                        <!-- ================================================= -->
                         <!-- CODE STATUS -->
-                        <!-- ================================================= -->
 
                         <div
                           style="
@@ -717,9 +747,7 @@ export const sendOtpEmail = async (
                         </div>
 
 
-                        <!-- ================================================= -->
-                        <!-- EXPIRY PILL -->
-                        <!-- ================================================= -->
+                        <!-- EXPIRY -->
 
                         <table
                           cellpadding="0"
@@ -761,9 +789,7 @@ export const sendOtpEmail = async (
                         </table>
 
 
-                        <!-- ================================================= -->
-                        <!-- STEP INDICATOR -->
-                        <!-- ================================================= -->
+                        <!-- STEP -->
 
                         <div
                           style="
@@ -1024,33 +1050,33 @@ export const sendOtpEmail = async (
   // ==========================================================
 
   try {
-    const smtpStart = Date.now();
+    const smtpStart =
+      Date.now();
 
     console.log(
       "📤 SMTP sendMail START"
     );
 
-    const info = await transporter.sendMail({
+    const info =
+      await transporter.sendMail({
+        from:
+          `"STG College" <${gmailUser}>`,
 
-      from:
-        `"STG College" <${gmailUser}>`,
+        to: cleanEmail,
 
-      to,
+        subject:
+          "STG College | Your Verification Code",
 
-      subject:
-        "STG College | Your Verification Code",
+        html,
 
-      html,
-
-      text:
-        `STG COLLEGE\n\n` +
-        `EMAIL VERIFICATION\n\n` +
-        `Your verification code is: ${otp}\n\n` +
-        `This code is valid for 5 minutes.\n\n` +
-        `Never share this code with anyone.\n\n` +
-        `STG College | Education • Exam • Excellence`,
-
-    });
+        text:
+          `STG COLLEGE\n\n` +
+          `EMAIL VERIFICATION\n\n` +
+          `Your verification code is: ${cleanOtp}\n\n` +
+          `This code is valid for 5 minutes.\n\n` +
+          `Never share this code with anyone.\n\n` +
+          `STG College | Education • Exam • Excellence`,
+      });
 
     const smtpTime =
       Date.now() - smtpStart;
@@ -1071,12 +1097,20 @@ export const sendOtpEmail = async (
       info.messageId
     );
 
+    console.log(
+      "=========================================="
+    );
+
     return info;
 
   } catch (error: any) {
 
     const elapsed =
       Date.now() - startTime;
+
+    console.error(
+      "=========================================="
+    );
 
     console.error(
       `❌ OTP email failed after ${elapsed} ms`
@@ -1106,7 +1140,22 @@ export const sendOtpEmail = async (
         "NO COMMAND"
     );
 
+    console.error(
+      "ADDRESS:",
+      error?.address ||
+        "NO ADDRESS"
+    );
+
+    console.error(
+      "PORT:",
+      error?.port ||
+        "NO PORT"
+    );
+
+    console.error(
+      "=========================================="
+    );
+
     throw error;
   }
 };
-

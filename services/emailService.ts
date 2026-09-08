@@ -36,21 +36,30 @@ if (!gmailAppPassword) {
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+
+  // Gmail SMTP submission
+  port: 587,
+
+  // STARTTLS
+  secure: false,
 
   auth: {
     user: gmailUser,
     pass: gmailAppPassword,
   },
 
+  // Reuse SMTP connections
   pool: true,
   maxConnections: 3,
   maxMessages: 100,
 
-  connectionTimeout: 15000,
-  greetingTimeout: 10000,
+  // Timeouts
+  connectionTimeout: 20000,
+  greetingTimeout: 15000,
   socketTimeout: 30000,
+
+  // Force STARTTLS
+  requireTLS: true,
 
   tls: {
     rejectUnauthorized: false,
@@ -65,6 +74,7 @@ transporter
   .verify()
   .then(() => {
     console.log("✅ Gmail SMTP connection ready");
+    console.log("📡 SMTP: smtp.gmail.com:587 STARTTLS");
   })
   .catch((error: any) => {
     console.error("❌ Gmail SMTP connection failed");
@@ -82,6 +92,11 @@ transporter
     console.error(
       "RESPONSE:",
       error?.response || "NO RESPONSE"
+    );
+
+    console.error(
+      "COMMAND:",
+      error?.command || "NO COMMAND"
     );
   });
 
@@ -174,12 +189,14 @@ export const sendOtpEmail = async (
   border="0"
   style="
     width:100%;
+
     background:
       linear-gradient(
         rgba(6,10,20,0.93),
         rgba(10,15,28,0.96)
       ),
       url('${COLLEGE_IMAGE}');
+
     background-size:cover;
     background-position:center;
     background-repeat:no-repeat;
@@ -207,8 +224,11 @@ export const sendOtpEmail = async (
         style="
           width:100%;
           max-width:650px;
+
           background:#ffffff;
+
           border-radius:28px;
+
           overflow:hidden;
 
           box-shadow:
@@ -993,7 +1013,6 @@ export const sendOtpEmail = async (
   </tr>
 
 </table>
-
 
 </body>
 

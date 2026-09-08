@@ -6,21 +6,31 @@ import { sendOtpEmail } from "../services/emailService";
 
 const router = express.Router();
 
-// ==========================================
+// ============================================================
 // SEND OTP
 // POST /api/otp/send-otp
-// ==========================================
+// ============================================================
+
 router.post(
   "/send-otp",
   async (req, res) => {
     try {
-      const { email } = req.body;
+      // ========================================================
+      // GET EMAIL
+      // ========================================================
 
-      // ==========================================
+      const normalizedEmail =
+        typeof req.body?.email === "string"
+          ? req.body.email
+              .trim()
+              .toLowerCase()
+          : "";
+
+      // ========================================================
       // CHECK EMAIL
-      // ==========================================
+      // ========================================================
 
-      if (!email) {
+      if (!normalizedEmail) {
         return res.status(400).json({
           success: false,
           message: "Email is required",
@@ -28,18 +38,9 @@ router.post(
         });
       }
 
-      // ==========================================
-      // NORMALIZE EMAIL
-      // ==========================================
-
-      const normalizedEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
-
-      // ==========================================
+      // ========================================================
       // GMAIL VALIDATION
-      // ==========================================
+      // ========================================================
 
       if (
         !normalizedEmail.endsWith("@gmail.com")
@@ -52,42 +53,39 @@ router.post(
         });
       }
 
-      // ==========================================
-      // CHECK EXISTING STUDENT ACCOUNT
-      // IMPORTANT
-      // ==========================================
+      // ========================================================
+      // CHECK EXISTING STUDENT
+      // ========================================================
 
       const existingStudent =
         await Student.findOne({
           email: normalizedEmail,
         }).lean();
 
-      // ==========================================
-      // ACCOUNT ALREADY EXISTS
-      // ==========================================
-
       if (existingStudent) {
         return res.status(409).json({
           success: false,
           message:
             "An account already exists with this Gmail address. Please login with your Student ID.",
-          code: "EMAIL_ALREADY_EXISTS",
+          code:
+            "EMAIL_ALREADY_EXISTS",
         });
       }
 
-      // ==========================================
-      // GENERATE 6 DIGIT OTP
-      // ==========================================
+      // ========================================================
+      // GENERATE OTP
+      // ========================================================
 
       const otp =
         Math.floor(
           100000 +
-            Math.random() * 900000
+            Math.random() *
+              900000
         ).toString();
 
-      // ==========================================
-      // OTP VALID FOR 5 MINUTES
-      // ==========================================
+      // ========================================================
+      // OTP EXPIRY
+      // ========================================================
 
       const expiresAt =
         new Date(
@@ -95,42 +93,147 @@ router.post(
             5 * 60 * 1000
         );
 
-      // ==========================================
-      // DELETE PREVIOUS OTPS
-      // ==========================================
+      // ========================================================
+      // DELETE PREVIOUS OTP
+      // ========================================================
 
       await OTP.deleteMany({
-        email:
-          normalizedEmail,
+        email: normalizedEmail,
       });
 
-      // ==========================================
-      // SAVE NEW OTP
-      // ==========================================
+      // ========================================================
+      // CREATE NEW OTP
+      // ========================================================
 
-      await OTP.create({
-        email:
-          normalizedEmail,
+      const otpRecord =
+        await OTP.create({
+          email: normalizedEmail,
+          otp,
+          expiresAt,
+          verified: false,
+        });
 
-        otp,
+      // ========================================================
+      // LOG OTP REQUEST
+      // ========================================================
 
-        expiresAt,
-
-        verified: false,
-      });
-
-      // ==========================================
-      // SEND OTP
-      // ==========================================
-
-      await sendOtpEmail(
-        normalizedEmail,
-        otp
+      console.log(
+        "=========================================="
       );
 
-      // ==========================================
-      // SUCCESS
-      // ==========================================
+      console.log(
+        "📧 OTP REQUEST"
+      );
+
+      console.log(
+        "Email:",
+        normalizedEmail
+      );
+
+      console.log(
+        "OTP CREATED:",
+        otpRecord._id.toString()
+      );
+
+      console.log(
+        "=========================================="
+      );
+
+      // ========================================================
+      // SEND EMAIL IN BACKGROUND
+      // ========================================================
+      // IMPORTANT:
+      // Do NOT await this.
+      //
+      // The frontend will receive the HTTP response immediately.
+      // Gmail SMTP can continue in the background.
+      // ========================================================
+
+      void sendOtpEmail(
+        normalizedEmail,
+        otp
+      )
+        .then(() => {
+          console.log(
+            "✅ Background OTP email completed"
+          );
+
+          console.log(
+            "Email:",
+            normalizedEmail
+          );
+        })
+        .catch(
+          async (emailError: any) => {
+            // ==================================================
+            // EMAIL FAILED
+            // ==================================================
+
+            console.error(
+              "=========================================="
+            );
+
+            console.error(
+              "❌ BACKGROUND OTP EMAIL FAILED"
+            );
+
+            console.error(
+              "Email:",
+              normalizedEmail
+            );
+
+            console.error(
+              "Error Message:",
+              emailError?.message ||
+                "Unknown email error"
+            );
+
+            console.error(
+              "Error Code:",
+              emailError?.code ||
+                "UNKNOWN"
+            );
+
+            console.error(
+              "SMTP Response:",
+              emailError?.response ||
+                "NO RESPONSE"
+            );
+
+            console.error(
+              "SMTP Command:",
+              emailError?.command ||
+                "NO COMMAND"
+            );
+
+            console.error(
+              "=========================================="
+            );
+
+            // ==================================================
+            // DELETE OTP WHEN EMAIL FAILS
+            // ==================================================
+
+            try {
+              await OTP.deleteOne({
+                _id: otpRecord._id,
+              });
+
+              console.log(
+                "🗑️ Failed OTP deleted from database"
+              );
+            } catch (deleteError) {
+              console.error(
+                "❌ OTP DELETE ERROR:",
+                deleteError
+              );
+            }
+          }
+        );
+
+      // ========================================================
+      // IMMEDIATE RESPONSE
+      // ========================================================
 
       return res.status(200).json({
         success: true,
@@ -138,25 +241,54 @@ router.post(
         message:
           "OTP sent successfully",
       });
+
     } catch (error: any) {
+      // ========================================================
+      // GENERAL ERROR
+      // ========================================================
+
       console.error(
-        "SEND OTP ERROR:",
-        error
+        "=========================================="
+      );
+
+      console.error(
+        "❌ SEND OTP ROUTE ERROR"
+      );
+
+      console.error(
+        "MESSAGE:",
+        error?.message ||
+          "Unknown error"
+      );
+
+      console.error(
+        "CODE:",
+        error?.code ||
+          "UNKNOWN"
+      );
+
+      console.error(
+        "=========================================="
       );
 
       return res.status(500).json({
         success: false,
+
         message:
-          "Failed to send OTP",
+          "Failed to send OTP. Please try again.",
+
+        code:
+          "SEND_OTP_ERROR",
       });
     }
   }
 );
 
-// ==========================================
+// ============================================================
 // VERIFY OTP
 // POST /api/otp/verify
-// ==========================================
+// ============================================================
+
 router.post(
   "/verify",
   async (req, res) => {
@@ -166,69 +298,101 @@ router.post(
         otp,
       } = req.body;
 
-      // ==========================================
+      // ========================================================
       // CHECK INPUT
-      // ==========================================
+      // ========================================================
 
       if (!email || !otp) {
         return res.status(400).json({
           success: false,
           message:
             "Email and OTP are required",
-          code: "OTP_INPUT_REQUIRED",
+
+          code:
+            "OTP_INPUT_REQUIRED",
         });
       }
 
-      // ==========================================
-      // NORMALIZE VALUES
-      // ==========================================
+      // ========================================================
+      // NORMALIZE EMAIL
+      // ========================================================
 
       const normalizedEmail =
         String(email)
           .trim()
           .toLowerCase();
 
-      const normalizedOtp =
-        String(otp)
-          .trim();
+      // ========================================================
+      // NORMALIZE OTP
+      // ========================================================
 
-      // ==========================================
+      const normalizedOtp =
+        String(otp).trim();
+
+      // ========================================================
       // GMAIL VALIDATION
-      // ==========================================
+      // ========================================================
 
       if (
-        !normalizedEmail.endsWith("@gmail.com")
+        !normalizedEmail.endsWith(
+          "@gmail.com"
+        )
       ) {
         return res.status(400).json({
           success: false,
           message:
             "Please enter a valid Gmail address",
-          code: "INVALID_EMAIL",
+
+          code:
+            "INVALID_EMAIL",
         });
       }
 
-      // ==========================================
-      // CHECK IF ACCOUNT WAS CREATED
-      // AFTER OTP WAS SENT
-      // ==========================================
+      // ========================================================
+      // OTP LENGTH
+      // ========================================================
+
+      if (
+        normalizedOtp.length !== 6 ||
+        !/^\d{6}$/.test(
+          normalizedOtp
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "OTP must be 6 digits",
+
+          code:
+            "INVALID_OTP_LENGTH",
+        });
+      }
+
+      // ========================================================
+      // CHECK EXISTING STUDENT
+      // ========================================================
 
       const existingStudent =
         await Student.findOne({
-          email: normalizedEmail,
+          email:
+            normalizedEmail,
         }).lean();
 
       if (existingStudent) {
         return res.status(409).json({
           success: false,
+
           message:
             "An account already exists with this Gmail address. Please login with your Student ID.",
-          code: "EMAIL_ALREADY_EXISTS",
+
+          code:
+            "EMAIL_ALREADY_EXISTS",
         });
       }
 
-      // ==========================================
-      // FIND LATEST UNVERIFIED OTP
-      // ==========================================
+      // ========================================================
+      // FIND LATEST OTP
+      // ========================================================
 
       const otpRecord =
         await OTP.findOne({
@@ -242,22 +406,25 @@ router.post(
             -1,
         });
 
-      // ==========================================
+      // ========================================================
       // OTP NOT FOUND
-      // ==========================================
+      // ========================================================
 
       if (!otpRecord) {
         return res.status(400).json({
           success: false,
+
           message:
             "OTP not found. Please request a new OTP.",
-          code: "OTP_NOT_FOUND",
+
+          code:
+            "OTP_NOT_FOUND",
         });
       }
 
-      // ==========================================
-      // CHECK EXPIRY
-      // ==========================================
+      // ========================================================
+      // CHECK OTP EXPIRY
+      // ========================================================
 
       if (
         otpRecord.expiresAt.getTime() <
@@ -270,30 +437,18 @@ router.post(
 
         return res.status(400).json({
           success: false,
+
           message:
             "OTP expired. Please request a new OTP.",
-          code: "OTP_EXPIRED",
+
+          code:
+            "OTP_EXPIRED",
         });
       }
 
-      // ==========================================
-      // OTP LENGTH
-      // ==========================================
-
-      if (
-        normalizedOtp.length !== 6
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "OTP must be 6 digits",
-          code: "INVALID_OTP_LENGTH",
-        });
-      }
-
-      // ==========================================
-      // CHECK OTP
-      // ==========================================
+      // ========================================================
+      // CHECK OTP VALUE
+      // ========================================================
 
       if (
         otpRecord.otp !==
@@ -301,24 +456,27 @@ router.post(
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "Invalid OTP",
-          code: "INVALID_OTP",
+
+          code:
+            "INVALID_OTP",
         });
       }
 
-      // ==========================================
+      // ========================================================
       // MARK VERIFIED
-      // ==========================================
+      // ========================================================
 
       otpRecord.verified =
         true;
 
       await otpRecord.save();
 
-      // ==========================================
+      // ========================================================
       // SUCCESS
-      // ==========================================
+      // ========================================================
 
       return res.status(200).json({
         success: true,
@@ -329,7 +487,12 @@ router.post(
         emailVerified:
           true,
       });
+
     } catch (error: any) {
+      // ========================================================
+      // VERIFY ERROR
+      // ========================================================
+
       console.error(
         "VERIFY OTP ERROR:",
         error
@@ -337,8 +500,12 @@ router.post(
 
       return res.status(500).json({
         success: false,
+
         message:
           "OTP verification failed",
+
+        code:
+          "VERIFY_OTP_ERROR",
       });
     }
   }

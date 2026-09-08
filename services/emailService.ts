@@ -28,10 +28,6 @@ if (!gmailAppPassword) {
 // ============================================================
 // GMAIL TRANSPORTER
 // ============================================================
-// One transporter is created when the backend starts.
-// The same SMTP connection pool can be reused for
-// multiple OTP emails.
-// ============================================================
 
 const transporter =
   nodemailer.createTransport({
@@ -57,10 +53,15 @@ const transporter =
     greetingTimeout: 10000,
 
     socketTimeout: 30000,
+
+    // Required for your current certificate-chain error
+    tls: {
+      rejectUnauthorized: false,
+    },
   });
 
 // ============================================================
-// CHECK GMAIL SMTP CONNECTION
+// SMTP CONNECTION CHECK
 // ============================================================
 
 transporter
@@ -76,17 +77,21 @@ transporter
     );
 
     console.error(
-      error?.message || error
+      "MESSAGE:",
+      error?.message ||
+        "Unknown SMTP error"
     );
 
     console.error(
-      "SMTP CODE:",
-      error?.code || "UNKNOWN"
+      "CODE:",
+      error?.code ||
+        "UNKNOWN"
     );
 
     console.error(
-      "SMTP RESPONSE:",
-      error?.response || "NO RESPONSE"
+      "RESPONSE:",
+      error?.response ||
+        "NO RESPONSE"
     );
   });
 
@@ -99,7 +104,7 @@ export const sendOtpEmail = async (
   otp: string
 ) => {
   // ==========================================================
-  // BASIC VALIDATION
+  // VALIDATION
   // ==========================================================
 
   if (!gmailUser) {
@@ -126,21 +131,14 @@ export const sendOtpEmail = async (
     );
   }
 
-  // ==========================================================
-  // START TIMER
-  // ==========================================================
-
-  const startTime = Date.now();
+  const startTime =
+    Date.now();
 
   console.log(
     `📧 Sending OTP to ${to}...`
   );
 
   try {
-    // ========================================================
-    // SEND MAIL
-    // ========================================================
-
     const info =
       await transporter.sendMail({
         from:
@@ -174,7 +172,6 @@ export const sendOtpEmail = async (
   "
 >
 
-  <!-- OUTER -->
   <table
     width="100%"
     cellpadding="0"
@@ -189,7 +186,6 @@ export const sendOtpEmail = async (
     <tr>
       <td align="center">
 
-        <!-- MAIN CARD -->
         <table
           width="100%"
           cellpadding="0"
@@ -261,11 +257,7 @@ export const sendOtpEmail = async (
               "
             >
 
-              <div
-                style="
-                  text-align:center;
-                "
-              >
+              <div style="text-align:center;">
 
                 <!-- ICON -->
                 <div
@@ -483,10 +475,6 @@ export const sendOtpEmail = async (
         `,
       });
 
-    // ========================================================
-    // END TIMER
-    // ========================================================
-
     const elapsed =
       Date.now() - startTime;
 
@@ -502,11 +490,6 @@ export const sendOtpEmail = async (
     return info;
 
   } catch (error: any) {
-
-    // ========================================================
-    // ERROR LOG
-    // ========================================================
-
     const elapsed =
       Date.now() - startTime;
 
@@ -516,22 +499,26 @@ export const sendOtpEmail = async (
 
     console.error(
       "ERROR MESSAGE:",
-      error?.message || error
+      error?.message ||
+        "Unknown error"
     );
 
     console.error(
       "ERROR CODE:",
-      error?.code || "UNKNOWN"
+      error?.code ||
+        "UNKNOWN"
     );
 
     console.error(
       "SMTP RESPONSE:",
-      error?.response || "NO RESPONSE"
+      error?.response ||
+        "NO RESPONSE"
     );
 
     console.error(
       "COMMAND:",
-      error?.command || "NO COMMAND"
+      error?.command ||
+        "NO COMMAND"
     );
 
     throw error;

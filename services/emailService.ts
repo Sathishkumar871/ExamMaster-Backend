@@ -6,59 +6,56 @@ import nodemailer from "nodemailer";
 // ============================================================
 
 const gmailUser = process.env.GMAIL_USER;
-const gmailAppPassword =
-  process.env.GMAIL_APP_PASSWORD;
+const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+
+// ============================================================
+// STG COLLEGE CLOUDINARY BRAND IMAGE
+// ============================================================
+
+const COLLEGE_IMAGE =
+  "https://res.cloudinary.com/dlkborjdl/image/upload/f_auto,q_auto,w_1200/v1787452197/IMG_20260823_075544_rbgexi.jpg";
+
+const COLLEGE_LOGO =
+  "https://res.cloudinary.com/dlkborjdl/image/upload/f_auto,q_auto,w_250/v1787452197/IMG_20260823_075544_rbgexi.jpg";
 
 // ============================================================
 // ENVIRONMENT CHECK
 // ============================================================
 
 if (!gmailUser) {
-  console.error(
-    "❌ GMAIL_USER is not configured."
-  );
+  console.error("❌ GMAIL_USER is not configured.");
 }
 
 if (!gmailAppPassword) {
-  console.error(
-    "❌ GMAIL_APP_PASSWORD is not configured."
-  );
+  console.error("❌ GMAIL_APP_PASSWORD is not configured.");
 }
 
 // ============================================================
 // GMAIL TRANSPORTER
 // ============================================================
 
-const transporter =
-  nodemailer.createTransport({
-    host: "smtp.gmail.com",
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
 
-    port: 465,
+  auth: {
+    user: gmailUser,
+    pass: gmailAppPassword,
+  },
 
-    secure: true,
+  pool: true,
+  maxConnections: 3,
+  maxMessages: 100,
 
-    auth: {
-      user: gmailUser,
-      pass: gmailAppPassword,
-    },
+  connectionTimeout: 15000,
+  greetingTimeout: 10000,
+  socketTimeout: 30000,
 
-    pool: true,
-
-    maxConnections: 3,
-
-    maxMessages: 100,
-
-    connectionTimeout: 15000,
-
-    greetingTimeout: 10000,
-
-    socketTimeout: 30000,
-
-    // Required for your current certificate-chain error
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
 
 // ============================================================
 // SMTP CONNECTION CHECK
@@ -67,31 +64,24 @@ const transporter =
 transporter
   .verify()
   .then(() => {
-    console.log(
-      "✅ Gmail SMTP connection ready"
-    );
+    console.log("✅ Gmail SMTP connection ready");
   })
   .catch((error: any) => {
-    console.error(
-      "❌ Gmail SMTP connection failed:"
-    );
+    console.error("❌ Gmail SMTP connection failed");
 
     console.error(
       "MESSAGE:",
-      error?.message ||
-        "Unknown SMTP error"
+      error?.message || "Unknown SMTP error"
     );
 
     console.error(
       "CODE:",
-      error?.code ||
-        "UNKNOWN"
+      error?.code || "UNKNOWN"
     );
 
     console.error(
       "RESPONSE:",
-      error?.response ||
-        "NO RESPONSE"
+      error?.response || "NO RESPONSE"
     );
   });
 
@@ -131,355 +121,930 @@ export const sendOtpEmail = async (
     );
   }
 
-  const startTime =
-    Date.now();
+  const startTime = Date.now();
 
   console.log(
     `📧 Sending OTP to ${to}...`
   );
 
-  try {
-    const info =
-      await transporter.sendMail({
-        from:
-          `"STG College" <${gmailUser}>`,
+  // ==========================================================
+  // PREMIUM STG COLLEGE OTP EMAIL
+  // ==========================================================
 
-        to,
-
-        subject:
-          "STG College | Email Verification OTP",
-
-        html: `
+  const html = `
 <!DOCTYPE html>
-<html>
+
+<html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
+
+  <meta charset="UTF-8">
 
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
-  />
+  >
 
-  <title>STG College OTP</title>
+  <meta
+    name="x-apple-disable-message-reformatting"
+  >
+
+  <title>STG College | Email Verification</title>
+
 </head>
+
 
 <body
   style="
     margin:0;
     padding:0;
-    background:#f4f6f8;
-    font-family:Arial, Helvetica, sans-serif;
+    background:#edf1f7;
+    font-family:Arial,Helvetica,sans-serif;
   "
 >
 
-  <table
-    width="100%"
-    cellpadding="0"
-    cellspacing="0"
-    border="0"
-    style="
-      background:#f4f6f8;
-      padding:40px 15px;
-    "
-  >
+<!-- ======================================================== -->
+<!-- OUTER EMAIL BACKGROUND -->
+<!-- ======================================================== -->
 
-    <tr>
-      <td align="center">
+<table
+  width="100%"
+  cellpadding="0"
+  cellspacing="0"
+  border="0"
+  style="
+    width:100%;
+    background:
+      linear-gradient(
+        rgba(6,10,20,0.93),
+        rgba(10,15,28,0.96)
+      ),
+      url('${COLLEGE_IMAGE}');
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+  "
+>
 
-        <table
-          width="100%"
-          cellpadding="0"
-          cellspacing="0"
-          border="0"
-          style="
-            max-width:600px;
-            background:#ffffff;
-            border-radius:22px;
-            overflow:hidden;
-            box-shadow:0 10px 35px rgba(0,0,0,0.08);
-          "
-        >
+  <tr>
 
-          <!-- TOP BRAND -->
-          <tr>
-            <td
-              align="center"
+    <td
+      align="center"
+      style="
+        padding:55px 15px;
+      "
+    >
+
+      <!-- ==================================================== -->
+      <!-- MAIN CARD -->
+      <!-- ==================================================== -->
+
+      <table
+        width="100%"
+        cellpadding="0"
+        cellspacing="0"
+        border="0"
+        style="
+          width:100%;
+          max-width:650px;
+          background:#ffffff;
+          border-radius:28px;
+          overflow:hidden;
+
+          box-shadow:
+            0 30px 80px rgba(0,0,0,0.38);
+        "
+      >
+
+        <!-- ================================================== -->
+        <!-- PREMIUM IMAGE HERO -->
+        <!-- ================================================== -->
+
+        <tr>
+
+          <td
+            align="center"
+            style="
+              padding:0;
+
+              background:
+                linear-gradient(
+                  rgba(8,13,26,0.72),
+                  rgba(8,13,26,0.94)
+                ),
+                url('${COLLEGE_IMAGE}');
+
+              background-size:cover;
+              background-position:center;
+              background-repeat:no-repeat;
+            "
+          >
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+            >
+
+              <tr>
+
+                <td
+                  align="center"
+                  style="
+                    padding:48px 25px 44px;
+                  "
+                >
+
+                  <!-- LOGO -->
+
+                  <img
+                    src="${COLLEGE_LOGO}"
+                    alt="STG College"
+                    width="105"
+                    height="105"
+                    style="
+                      display:block;
+
+                      width:105px;
+                      height:105px;
+
+                      object-fit:cover;
+
+                      border-radius:50%;
+
+                      border:
+                        4px solid
+                        rgba(255,255,255,0.96);
+
+                      box-shadow:
+                        0 12px 40px
+                        rgba(0,0,0,0.42);
+                    "
+                  >
+
+                  <!-- COLLEGE NAME -->
+
+                  <div
+                    style="
+                      margin-top:22px;
+
+                      color:#ffffff;
+
+                      font-size:31px;
+                      line-height:1.1;
+
+                      font-weight:900;
+
+                      letter-spacing:3px;
+                    "
+                  >
+                    STG COLLEGE
+                  </div>
+
+                  <!-- PRODUCT -->
+
+                  <div
+                    style="
+                      margin-top:10px;
+
+                      color:#fbbf24;
+
+                      font-size:12px;
+
+                      font-weight:900;
+
+                      letter-spacing:4px;
+
+                      text-transform:uppercase;
+                    "
+                  >
+                    STG EXAM MASTER
+                  </div>
+
+                  <!-- GOLD DIVIDER -->
+
+                  <div
+                    style="
+                      width:78px;
+                      height:3px;
+
+                      margin:20px auto 0;
+
+                      background:#f59e0b;
+
+                      border-radius:50px;
+                    "
+                  ></div>
+
+                  <!-- TAG -->
+
+                  <div
+                    style="
+                      margin-top:17px;
+
+                      color:#cbd5e1;
+
+                      font-size:11px;
+
+                      letter-spacing:1.5px;
+
+                      text-transform:uppercase;
+                    "
+                  >
+                    Secure Student Communication
+                  </div>
+
+                </td>
+
+              </tr>
+
+            </table>
+
+          </td>
+
+        </tr>
+
+
+        <!-- ================================================== -->
+        <!-- CONTENT -->
+        <!-- ================================================== -->
+
+        <tr>
+
+          <td
+            style="
+              padding:46px 42px 42px;
+
+              background:#ffffff;
+            "
+          >
+
+            <!-- ================================================= -->
+            <!-- ICON -->
+            <!-- ================================================= -->
+
+            <div
               style="
-                padding:34px 25px 25px;
-                background:#111827;
+                text-align:center;
               "
             >
 
               <div
                 style="
-                  font-size:34px;
-                  font-weight:900;
-                  letter-spacing:4px;
-                  color:#f59e0b;
-                  line-height:1;
+                  display:inline-block;
+
+                  width:72px;
+                  height:72px;
+
+                  line-height:72px;
+
+                  border-radius:50%;
+
+                  background:
+                    linear-gradient(
+                      145deg,
+                      #fff7ed,
+                      #fffbeb
+                    );
+
+                  border:
+                    1px solid #fed7aa;
+
+                  box-shadow:
+                    0 10px 30px
+                    rgba(245,158,11,0.15);
+
+                  font-size:31px;
                 "
               >
-                STG
+                🔐
               </div>
 
-              <div
-                style="
-                  margin-top:8px;
-                  font-size:13px;
-                  font-weight:700;
-                  letter-spacing:3px;
-                  color:#e5e7eb;
-                  text-transform:uppercase;
-                "
-              >
-                College
-              </div>
+            </div>
 
-              <div
-                style="
-                  margin-top:18px;
-                  font-size:12px;
-                  color:#9ca3af;
-                  letter-spacing:1px;
-                "
-              >
-                STG EXAM MASTER
-              </div>
 
-            </td>
-          </tr>
+            <!-- ================================================= -->
+            <!-- TITLE -->
+            <!-- ================================================= -->
 
-          <!-- CONTENT -->
-          <tr>
-            <td
+            <h1
               style="
-                padding:40px 35px 35px;
+                margin:22px 0 0;
+
+                text-align:center;
+
+                color:#111827;
+
+                font-size:29px;
+
+                line-height:1.25;
+
+                font-weight:900;
+
+                letter-spacing:-0.6px;
+              "
+            >
+              Verify Your Email
+            </h1>
+
+
+            <p
+              style="
+                margin:13px auto 0;
+
+                max-width:500px;
+
+                text-align:center;
+
+                color:#64748b;
+
+                font-size:15px;
+
+                line-height:1.8;
+              "
+            >
+              Welcome to
+              <strong style="color:#111827;">
+                STG Exam Master
+              </strong>.
+              Your account verification code is ready.
+              Enter the code below to continue securely.
+            </p>
+
+
+            <!-- ================================================= -->
+            <!-- PREMIUM OTP OUTER GLOW -->
+            <!-- ================================================= -->
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+              style="
+                margin-top:36px;
               "
             >
 
-              <div style="text-align:center;">
+              <tr>
 
-                <!-- ICON -->
-                <div
+                <td
+                  align="center"
                   style="
-                    width:64px;
-                    height:64px;
-                    margin:0 auto 20px;
-                    border-radius:50%;
-                    background:#fff7ed;
-                    border:1px solid #fed7aa;
-                    line-height:64px;
-                    font-size:28px;
+                    padding:2px;
+
+                    border-radius:27px;
+
+                    background:
+                      linear-gradient(
+                        135deg,
+                        #f59e0b,
+                        #fbbf24,
+                        #f97316,
+                        #fbbf24,
+                        #f59e0b
+                      );
+
+                    box-shadow:
+                      0 14px 40px
+                      rgba(245,158,11,0.25);
                   "
                 >
-                  🔐
-                </div>
 
-                <!-- TITLE -->
-                <h1
-                  style="
-                    margin:0;
-                    color:#111827;
-                    font-size:26px;
-                    font-weight:800;
-                  "
-                >
-                  Verify Your Email
-                </h1>
+                  <!-- ========================================= -->
+                  <!-- OTP INNER -->
+                  <!-- ========================================= -->
 
-                <!-- DESCRIPTION -->
-                <p
-                  style="
-                    margin:12px 0 0;
-                    color:#6b7280;
-                    font-size:15px;
-                    line-height:1.7;
-                  "
-                >
-                  Welcome to
-                  <strong style="color:#111827;">
-                    STG Exam Master
-                  </strong>.
-                  Use the verification code below
-                  to verify your email address.
-                </p>
+                  <table
+                    width="100%"
+                    cellpadding="0"
+                    cellspacing="0"
+                    border="0"
+                    style="
+                      border-radius:25px;
 
-              </div>
+                      background:
+                        linear-gradient(
+                          145deg,
+                          #fffdf8,
+                          #fff7ed
+                        );
+                    "
+                  >
 
-              <!-- OTP BOX -->
-              <div
-                style="
-                  margin:32px 0;
-                  padding:25px 20px;
-                  text-align:center;
-                  border-radius:18px;
-                  background:#fffbeb;
-                  border:2px dashed #f59e0b;
-                "
-              >
+                    <tr>
 
-                <div
-                  style="
-                    font-size:12px;
-                    font-weight:700;
-                    color:#92400e;
-                    letter-spacing:2px;
-                    text-transform:uppercase;
-                  "
-                >
-                  Verification Code
-                </div>
+                      <td
+                        align="center"
+                        style="
+                          padding:35px 20px 34px;
+                        "
+                      >
 
-                <div
-                  style="
-                    margin-top:14px;
-                    font-size:42px;
-                    font-weight:900;
-                    letter-spacing:12px;
-                    color:#111827;
-                    line-height:1.2;
-                  "
-                >
-                  ${otp}
-                </div>
+                        <!-- LABEL -->
 
-                <div
-                  style="
-                    margin-top:14px;
-                    font-size:13px;
-                    color:#92400e;
-                  "
-                >
-                  Valid for
-                  <strong>
-                    5 minutes
-                  </strong>
-                </div>
+                        <div
+                          style="
+                            display:inline-block;
 
-              </div>
+                            padding:8px 16px;
 
-              <!-- SECURITY NOTE -->
-              <div
-                style="
-                  padding:18px;
-                  border-radius:14px;
-                  background:#f9fafb;
-                  border:1px solid #e5e7eb;
-                "
-              >
+                            border-radius:50px;
 
-                <div
-                  style="
-                    font-size:14px;
-                    font-weight:700;
-                    color:#111827;
-                    margin-bottom:7px;
-                  "
-                >
-                  🛡️ Security Notice
-                </div>
+                            background:#fff1d6;
 
-                <div
-                  style="
-                    font-size:13px;
-                    color:#6b7280;
-                    line-height:1.7;
-                  "
-                >
-                  Never share this OTP with anyone.
-                  STG College will never ask you to
-                  share your verification code.
-                </div>
+                            border:
+                              1px solid #fed7aa;
 
-              </div>
+                            color:#92400e;
 
-              <!-- FOOTER MESSAGE -->
-              <div
-                style="
-                  margin-top:28px;
-                  text-align:center;
-                "
-              >
+                            font-size:10px;
 
-                <p
-                  style="
-                    margin:0;
-                    font-size:13px;
-                    color:#9ca3af;
-                    line-height:1.7;
-                  "
-                >
-                  If you did not request this verification,
-                  you can safely ignore this email.
-                </p>
+                            font-weight:900;
 
-              </div>
+                            letter-spacing:2.5px;
 
-            </td>
-          </tr>
+                            text-transform:uppercase;
+                          "
+                        >
+                          ✦ VERIFICATION CODE ✦
+                        </div>
 
-          <!-- FOOTER -->
-          <tr>
-            <td
-              align="center"
+
+                        <!-- ===================================== -->
+                        <!-- OTP DISPLAY -->
+                        <!-- ===================================== -->
+
+                        <table
+                          cellpadding="0"
+                          cellspacing="0"
+                          border="0"
+                          style="
+                            margin-top:24px;
+                          "
+                        >
+
+                          <tr>
+
+                            <td
+                              align="center"
+                              style="
+                                padding:3px;
+
+                                border-radius:22px;
+
+                                background:
+                                  linear-gradient(
+                                    135deg,
+                                    #fde68a,
+                                    #f59e0b,
+                                    #fb923c
+                                  );
+
+                                box-shadow:
+                                  0 10px 30px
+                                  rgba(245,158,11,0.18);
+                              "
+                            >
+
+                              <table
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                              >
+
+                                <tr>
+
+                                  <td
+                                    align="center"
+                                    style="
+                                      min-width:220px;
+
+                                      padding:
+                                        22px 24px;
+
+                                      border-radius:19px;
+
+                                      background:#ffffff;
+
+                                      box-shadow:
+                                        inset 0 1px 0
+                                        rgba(255,255,255,0.9);
+                                    "
+                                  >
+
+                                    <!-- OTP -->
+
+                                    <div
+                                      style="
+                                        color:#111827;
+
+                                        font-family:
+                                          Arial,
+                                          Helvetica,
+                                          sans-serif;
+
+                                        font-size:43px;
+
+                                        line-height:1.15;
+
+                                        font-weight:900;
+
+                                        letter-spacing:11px;
+
+                                        white-space:nowrap;
+
+                                        text-shadow:
+                                          0 3px 12px
+                                          rgba(15,23,42,0.10);
+                                      "
+                                    >
+                                      ${otp}
+                                    </div>
+
+                                  </td>
+
+                                </tr>
+
+                              </table>
+
+                            </td>
+
+                          </tr>
+
+                        </table>
+
+
+                        <!-- ================================================= -->
+                        <!-- CODE STATUS -->
+                        <!-- ================================================= -->
+
+                        <div
+                          style="
+                            margin-top:19px;
+
+                            color:#92400e;
+
+                            font-size:13px;
+
+                            font-weight:600;
+
+                            line-height:1.7;
+                          "
+                        >
+                          Your secure verification code
+                        </div>
+
+
+                        <!-- ================================================= -->
+                        <!-- EXPIRY PILL -->
+                        <!-- ================================================= -->
+
+                        <table
+                          cellpadding="0"
+                          cellspacing="0"
+                          border="0"
+                          style="
+                            margin:13px auto 0;
+                          "
+                        >
+
+                          <tr>
+
+                            <td
+                              align="center"
+                              style="
+                                padding:8px 15px;
+
+                                border-radius:50px;
+
+                                background:#fff7ed;
+
+                                border:
+                                  1px solid #fed7aa;
+
+                                color:#b45309;
+
+                                font-size:11px;
+
+                                font-weight:800;
+
+                                letter-spacing:0.5px;
+                              "
+                            >
+                              ⏱ Valid for 5 minutes
+                            </td>
+
+                          </tr>
+
+                        </table>
+
+
+                        <!-- ================================================= -->
+                        <!-- STEP INDICATOR -->
+                        <!-- ================================================= -->
+
+                        <div
+                          style="
+                            margin-top:20px;
+
+                            color:#a16207;
+
+                            font-size:10px;
+
+                            font-weight:800;
+
+                            letter-spacing:1.5px;
+
+                            text-transform:uppercase;
+                          "
+                        >
+                          Enter this code in STG Exam Master
+                        </div>
+
+                      </td>
+
+                    </tr>
+
+                  </table>
+
+                </td>
+
+              </tr>
+
+            </table>
+
+
+            <!-- ================================================= -->
+            <!-- SECURITY CARD -->
+            <!-- ================================================= -->
+
+            <table
+              width="100%"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
               style="
-                padding:24px 25px;
-                background:#111827;
+                margin-top:27px;
               "
             >
 
-              <div
-                style="
-                  font-size:13px;
-                  font-weight:700;
-                  color:#f9fafb;
-                "
-              >
-                STG College
-              </div>
+              <tr>
 
-              <div
-                style="
-                  margin-top:6px;
-                  font-size:11px;
-                  color:#9ca3af;
-                  letter-spacing:1px;
-                "
-              >
-                EDUCATION • EXAM • EXCELLENCE
-              </div>
+                <td
+                  style="
+                    padding:21px 22px;
 
-              <div
-                style="
-                  margin-top:14px;
-                  font-size:11px;
-                  color:#6b7280;
-                "
-              >
-                © ${new Date().getFullYear()}
-                STG College. All rights reserved.
-              </div>
+                    border-radius:18px;
 
-            </td>
-          </tr>
+                    background:#f8fafc;
 
-        </table>
+                    border:
+                      1px solid #e2e8f0;
+                  "
+                >
 
-      </td>
-    </tr>
+                  <div
+                    style="
+                      color:#111827;
 
-  </table>
+                      font-size:14px;
+
+                      font-weight:900;
+
+                      margin-bottom:7px;
+                    "
+                  >
+                    🛡️ Security Notice
+                  </div>
+
+                  <div
+                    style="
+                      color:#64748b;
+
+                      font-size:13px;
+
+                      line-height:1.8;
+                    "
+                  >
+                    Never share this verification code
+                    with anyone. STG College will never ask
+                    you to disclose your OTP or password.
+                  </div>
+
+                </td>
+
+              </tr>
+
+            </table>
+
+
+            <!-- ================================================= -->
+            <!-- TRUST MESSAGE -->
+            <!-- ================================================= -->
+
+            <div
+              style="
+                margin-top:27px;
+
+                text-align:center;
+
+                color:#94a3b8;
+
+                font-size:12px;
+
+                line-height:1.8;
+              "
+            >
+              You are receiving this email because an
+              email verification was requested for your
+              STG College account.
+            </div>
+
+
+            <div
+              style="
+                margin-top:8px;
+
+                text-align:center;
+
+                color:#cbd5e1;
+
+                font-size:11px;
+              "
+            >
+              If you did not request this,
+              you may safely ignore this email.
+            </div>
+
+          </td>
+
+        </tr>
+
+
+        <!-- ================================================== -->
+        <!-- PREMIUM FOOTER -->
+        <!-- ================================================== -->
+
+        <tr>
+
+          <td
+            align="center"
+            style="
+              padding:34px 25px;
+
+              background:
+                linear-gradient(
+                  145deg,
+                  #0f172a,
+                  #111827
+                );
+            "
+          >
+
+            <!-- BRAND -->
+
+            <div
+              style="
+                color:#ffffff;
+
+                font-size:16px;
+
+                font-weight:900;
+
+                letter-spacing:1.5px;
+              "
+            >
+              STG COLLEGE
+            </div>
+
+
+            <div
+              style="
+                margin-top:8px;
+
+                color:#fbbf24;
+
+                font-size:10px;
+
+                font-weight:900;
+
+                letter-spacing:3px;
+              "
+            >
+              EDUCATION • EXAM • EXCELLENCE
+            </div>
+
+
+            <!-- DIVIDER -->
+
+            <div
+              style="
+                width:55px;
+                height:2px;
+
+                margin:17px auto;
+
+                background:#f59e0b;
+
+                border-radius:10px;
+              "
+            ></div>
+
+
+            <!-- FOOTER TEXT -->
+
+            <div
+              style="
+                color:#94a3b8;
+
+                font-size:11px;
+
+                line-height:1.7;
+              "
+            >
+              Secure • Trusted • Student Focused
+            </div>
+
+
+            <div
+              style="
+                margin-top:11px;
+
+                color:#64748b;
+
+                font-size:10px;
+              "
+            >
+              © ${new Date().getFullYear()}
+              STG College.
+              All rights reserved.
+            </div>
+
+          </td>
+
+        </tr>
+
+      </table>
+
+    </td>
+
+  </tr>
+
+</table>
+
 
 </body>
-</html>
-        `,
-      });
 
-    const elapsed =
+</html>
+`;
+
+  // ==========================================================
+  // SEND EMAIL
+  // ==========================================================
+
+  try {
+    const smtpStart = Date.now();
+
+    console.log(
+      "📤 SMTP sendMail START"
+    );
+
+    const info = await transporter.sendMail({
+
+      from:
+        `"STG College" <${gmailUser}>`,
+
+      to,
+
+      subject:
+        "STG College | Your Verification Code",
+
+      html,
+
+      text:
+        `STG COLLEGE\n\n` +
+        `EMAIL VERIFICATION\n\n` +
+        `Your verification code is: ${otp}\n\n` +
+        `This code is valid for 5 minutes.\n\n` +
+        `Never share this code with anyone.\n\n` +
+        `STG College | Education • Exam • Excellence`,
+
+    });
+
+    const smtpTime =
+      Date.now() - smtpStart;
+
+    const totalTime =
       Date.now() - startTime;
 
     console.log(
-      `✅ OTP email sent successfully in ${elapsed} ms`
+      `📥 Gmail SMTP accepted email in ${smtpTime} ms`
+    );
+
+    console.log(
+      `✅ OTP email sent successfully in ${totalTime} ms`
     );
 
     console.log(
@@ -490,6 +1055,7 @@ export const sendOtpEmail = async (
     return info;
 
   } catch (error: any) {
+
     const elapsed =
       Date.now() - startTime;
 

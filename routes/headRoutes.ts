@@ -1,4 +1,3 @@
-
 import express from "express";
 
 import {
@@ -17,6 +16,7 @@ import {
   reactivateMentor,
   deleteMentor,
   transferMentorStudents,
+  changeMentorSection,
 
   // Student Section Management
   changeStudentSection,
@@ -129,10 +129,8 @@ router.patch(
 // REMOVE / DELETE MENTOR
 // DELETE /api/head/mentors/:id
 // ============================================================
-//
 // Soft delete:
 // Staff record is retained so history is not lost.
-// ============================================================
 
 router.delete(
   "/mentors/:id",
@@ -144,14 +142,23 @@ router.delete(
 // TRANSFER MENTOR STUDENTS
 // PATCH /api/head/mentors/:id/transfer
 // ============================================================
-//
-// Old mentor → Replacement mentor
-// ============================================================
+// Old mentor -> Replacement mentor
 
 router.patch(
   "/mentors/:id/transfer",
   headAuth,
   transferMentorStudents
+);
+
+// ============================================================
+// CHANGE MENTOR SECTION
+// PATCH /api/head/mentors/:id/change-section
+// ============================================================
+
+router.patch(
+  "/mentors/:id/change-section",
+  headAuth,
+  changeMentorSection
 );
 
 // ============================================================
@@ -166,4 +173,3 @@ router.patch(
 );
 
 export default router;
-

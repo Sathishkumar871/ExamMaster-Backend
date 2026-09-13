@@ -72,12 +72,17 @@ export const registerStudent = async (
       .trim()
       .toLowerCase();
 
-    const normalizedMobile = String(mobileNumber).trim();
+    const normalizedMobile =
+      String(mobileNumber).trim();
 
-    // Check Student ID
-    const existingStudentId = await Student.findOne({
-      studentId: normalizedStudentId,
-    });
+    // ========================================================
+    // CHECK STUDENT ID
+    // ========================================================
+
+    const existingStudentId =
+      await Student.findOne({
+        studentId: normalizedStudentId,
+      });
 
     if (existingStudentId) {
       return res.status(400).json({
@@ -87,10 +92,14 @@ export const registerStudent = async (
       });
     }
 
-    // Check Email
-    const existingEmail = await Student.findOne({
-      email: normalizedEmail,
-    });
+    // ========================================================
+    // CHECK EMAIL
+    // ========================================================
+
+    const existingEmail =
+      await Student.findOne({
+        email: normalizedEmail,
+      });
 
     if (existingEmail) {
       return res.status(400).json({
@@ -99,10 +108,14 @@ export const registerStudent = async (
       });
     }
 
-    // Check Mobile
-    const existingMobile = await Student.findOne({
-      mobileNumber: normalizedMobile,
-    });
+    // ========================================================
+    // CHECK MOBILE
+    // ========================================================
+
+    const existingMobile =
+      await Student.findOne({
+        mobileNumber: normalizedMobile,
+      });
 
     if (existingMobile) {
       return res.status(400).json({
@@ -111,41 +124,53 @@ export const registerStudent = async (
       });
     }
 
-    const hashedPassword = await bcrypt.hash(
-      String(password),
-      10
-    );
+    // ========================================================
+    // HASH PASSWORD
+    // ========================================================
 
-    const student = await Student.create({
-      name: String(name).trim(),
-      studentId: normalizedStudentId,
-      email: normalizedEmail,
-      mobileNumber: normalizedMobile,
-      password: hashedPassword,
-      classId: String(classId).trim(),
-      className: String(className).trim(),
-      academicYear: String(academicYear).trim(),
-      section: String(section).trim(),
+    const hashedPassword =
+      await bcrypt.hash(
+        String(password),
+        10
+      );
 
-      // First login can happen from any device
-      activeDeviceId: null,
+    // ========================================================
+    // CREATE STUDENT
+    // ========================================================
 
-      examsAttempted: 0,
-      totalMarks: 0,
-      rating: 0,
+    const student =
+      await Student.create({
+        name: String(name).trim(),
+        studentId: normalizedStudentId,
+        email: normalizedEmail,
+        mobileNumber: normalizedMobile,
+        password: hashedPassword,
+        classId: String(classId).trim(),
+        className: String(className).trim(),
+        academicYear:
+          String(academicYear).trim(),
+        section: String(section).trim(),
 
-      weeklyUpdates: {
-        healthAndWellbeing: "",
-        foodAndMaturation: "",
-        hostel: "",
-        academics: "",
-        mentorActionPlan: "",
-      },
-    });
+        // First login can happen from any device
+        activeDeviceId: null,
+
+        examsAttempted: 0,
+        totalMarks: 0,
+        rating: 0,
+
+        weeklyUpdates: {
+          healthAndWellbeing: "",
+          foodAndMaturation: "",
+          hostel: "",
+          academics: "",
+          mentorActionPlan: "",
+        },
+      });
 
     return res.status(201).json({
       success: true,
       message: "Student registered successfully",
+
       student: {
         id: student._id,
         studentId: student.studentId,
@@ -193,7 +218,10 @@ export const loginStudent = async (
     // BASIC VALIDATION
     // ========================================================
 
-    if ((!studentId && !email) || !password) {
+    if (
+      (!studentId && !email) ||
+      !password
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -208,21 +236,26 @@ export const loginStudent = async (
     let student = null;
 
     if (studentId) {
-      const normalizedStudentId = String(studentId)
-        .trim()
-        .toUpperCase();
+      const normalizedStudentId =
+        String(studentId)
+          .trim()
+          .toUpperCase();
 
-      student = await Student.findOne({
-        studentId: normalizedStudentId,
-      });
+      student =
+        await Student.findOne({
+          studentId:
+            normalizedStudentId,
+        });
     } else if (email) {
-      const normalizedEmail = String(email)
-        .trim()
-        .toLowerCase();
+      const normalizedEmail =
+        String(email)
+          .trim()
+          .toLowerCase();
 
-      student = await Student.findOne({
-        email: normalizedEmail,
-      });
+      student =
+        await Student.findOne({
+          email: normalizedEmail,
+        });
     }
 
     if (!student) {
@@ -245,10 +278,11 @@ export const loginStudent = async (
       student.password.startsWith("$2b$") ||
       student.password.startsWith("$2y$")
     ) {
-      passwordMatch = await bcrypt.compare(
-        String(password),
-        student.password
-      );
+      passwordMatch =
+        await bcrypt.compare(
+          String(password),
+          student.password
+        );
     } else {
       passwordMatch =
         String(password).trim() ===
@@ -275,7 +309,8 @@ export const loginStudent = async (
       });
     }
 
-    const currentDeviceId = String(deviceId).trim();
+    const currentDeviceId =
+      String(deviceId).trim();
 
     if (!currentDeviceId) {
       return res.status(400).json({
@@ -285,14 +320,14 @@ export const loginStudent = async (
       });
     }
 
-    // --------------------------------------------------------
-    // If account is already active on another device,
-    // reject this login.
-    // --------------------------------------------------------
+    // ========================================================
+    // BLOCK OTHER DEVICE
+    // ========================================================
 
     if (
       student.activeDeviceId &&
-      String(student.activeDeviceId) !== currentDeviceId
+      String(student.activeDeviceId) !==
+        currentDeviceId
     ) {
       return res.status(403).json({
         success: false,
@@ -301,18 +336,21 @@ export const loginStudent = async (
       });
     }
 
-    // --------------------------------------------------------
-    // First login -> save device
-    // Same device login -> continue
-    // --------------------------------------------------------
+    // ========================================================
+    // FIRST LOGIN -> SAVE DEVICE
+    // SAME DEVICE -> CONTINUE
+    // ========================================================
 
     if (!student.activeDeviceId) {
-      student.activeDeviceId = currentDeviceId;
+      student.activeDeviceId =
+        currentDeviceId;
+
       await student.save();
     }
 
     // ========================================================
     // CREATE JWT TOKEN
+    // IMPORTANT: deviceId is included in JWT
     // ========================================================
 
     const token = jwt.sign(
@@ -320,6 +358,9 @@ export const loginStudent = async (
         id: student._id,
         studentId: student.studentId,
         role: "student",
+
+        // IMPORTANT FIX
+        deviceId: currentDeviceId,
       },
       process.env.JWT_SECRET ||
         "your_jwt_secret_key",
@@ -342,11 +383,16 @@ export const loginStudent = async (
         studentId: student.studentId,
         name: student.name,
         email: student.email,
-        mobileNumber: student.mobileNumber,
+        mobileNumber:
+          student.mobileNumber,
+
         classId: student.classId,
-        className: student.className,
-        academicYear: student.academicYear,
-        section: student.section,
+        className:
+          student.className,
+        academicYear:
+          student.academicYear,
+        section:
+          student.section,
 
         activeDeviceId:
           student.activeDeviceId,
@@ -392,15 +438,18 @@ export const getStudentProfile = async (
     if (!studentId) {
       return res.status(400).json({
         success: false,
-        message: "Student ID is required",
+        message:
+          "Student ID is required",
       });
     }
 
-    const student = await Student.findOne({
-      studentId: String(studentId)
-        .trim()
-        .toUpperCase(),
-    }).select("-password");
+    const student =
+      await Student.findOne({
+        studentId:
+          String(studentId)
+            .trim()
+            .toUpperCase(),
+      }).select("-password");
 
     if (!student) {
       return res.status(404).json({
@@ -421,7 +470,8 @@ export const getStudentProfile = async (
 
     return res.status(500).json({
       success: false,
-      message: "Failed to get student profile",
+      message:
+        "Failed to get student profile",
       error: error.message,
     });
   }
@@ -431,246 +481,273 @@ export const getStudentProfile = async (
 // FORGOT STUDENT PASSWORD
 // ============================================================
 
-export const forgotStudentPassword = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const { email } = req.body;
+export const forgotStudentPassword =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+    try {
+      const { email } = req.body;
 
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is required",
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: "Email is required",
+        });
+      }
+
+      const normalizedEmail =
+        String(email)
+          .trim()
+          .toLowerCase();
+
+      const student =
+        await Student.findOne({
+          email: normalizedEmail,
+        });
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "No student found with this email",
+        });
+      }
+
+      const otp =
+        generateOtp();
+
+      resetOtpStore.set(
+        normalizedEmail,
+        {
+          otp,
+          expiresAt:
+            Date.now() +
+            10 * 60 * 1000,
+          verified: false,
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Password reset OTP generated successfully",
+        otp,
       });
-    }
+    } catch (error: any) {
+      console.error(
+        "FORGOT PASSWORD ERROR:",
+        error
+      );
 
-    const normalizedEmail =
-      String(email).trim().toLowerCase();
-
-    const student = await Student.findOne({
-      email: normalizedEmail,
-    });
-
-    if (!student) {
-      return res.status(404).json({
+      return res.status(500).json({
         success: false,
         message:
-          "No student found with this email",
+          "Failed to process forgot password",
+        error: error.message,
       });
     }
-
-    const otp = generateOtp();
-
-    resetOtpStore.set(normalizedEmail, {
-      otp,
-      expiresAt:
-        Date.now() + 10 * 60 * 1000,
-      verified: false,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Password reset OTP generated successfully",
-      otp,
-    });
-  } catch (error: any) {
-    console.error(
-      "FORGOT PASSWORD ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to process forgot password",
-      error: error.message,
-    });
-  }
-};
+  };
 
 // ============================================================
 // VERIFY RESET PASSWORD OTP
 // ============================================================
 
-export const verifyResetPasswordOtp = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const { email, otp } = req.body;
+export const verifyResetPasswordOtp =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+    try {
+      const { email, otp } =
+        req.body;
 
-    if (!email || !otp) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and OTP are required",
-      });
-    }
+      if (!email || !otp) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Email and OTP are required",
+        });
+      }
 
-    const normalizedEmail =
-      String(email).trim().toLowerCase();
+      const normalizedEmail =
+        String(email)
+          .trim()
+          .toLowerCase();
 
-    const resetData =
-      resetOtpStore.get(normalizedEmail);
+      const resetData =
+        resetOtpStore.get(
+          normalizedEmail
+        );
 
-    if (!resetData) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "OTP not found. Please request a new OTP",
-      });
-    }
+      if (!resetData) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "OTP not found. Please request a new OTP",
+        });
+      }
 
-    if (
-      Date.now() >
-      resetData.expiresAt
-    ) {
-      resetOtpStore.delete(
-        normalizedEmail
+      if (
+        Date.now() >
+        resetData.expiresAt
+      ) {
+        resetOtpStore.delete(
+          normalizedEmail
+        );
+
+        return res.status(400).json({
+          success: false,
+          message: "OTP has expired",
+        });
+      }
+
+      if (
+        String(otp).trim() !==
+        resetData.otp
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid OTP",
+        });
+      }
+
+      resetData.verified =
+        true;
+
+      resetOtpStore.set(
+        normalizedEmail,
+        resetData
       );
 
-      return res.status(400).json({
+      return res.status(200).json({
+        success: true,
+        message:
+          "OTP verified successfully",
+      });
+    } catch (error: any) {
+      console.error(
+        "VERIFY RESET OTP ERROR:",
+        error
+      );
+
+      return res.status(500).json({
         success: false,
-        message: "OTP has expired",
+        message:
+          "Failed to verify reset OTP",
+        error: error.message,
       });
     }
-
-    if (
-      String(otp).trim() !==
-      resetData.otp
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid OTP",
-      });
-    }
-
-    resetData.verified = true;
-
-    resetOtpStore.set(
-      normalizedEmail,
-      resetData
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: "OTP verified successfully",
-    });
-  } catch (error: any) {
-    console.error(
-      "VERIFY RESET OTP ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to verify reset OTP",
-      error: error.message,
-    });
-  }
-};
+  };
 
 // ============================================================
 // RESET STUDENT PASSWORD
 // ============================================================
 
-export const resetStudentPassword = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const {
-      email,
-      newPassword,
-    } = req.body;
+export const resetStudentPassword =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+    try {
+      const {
+        email,
+        newPassword,
+      } = req.body;
 
-    if (!email || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Email and new password are required",
-      });
-    }
+      if (
+        !email ||
+        !newPassword
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Email and new password are required",
+        });
+      }
 
-    if (
-      String(newPassword).length < 6
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Password must be at least 6 characters",
-      });
-    }
+      if (
+        String(newPassword).length <
+        6
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Password must be at least 6 characters",
+        });
+      }
 
-    const normalizedEmail =
-      String(email).trim().toLowerCase();
+      const normalizedEmail =
+        String(email)
+          .trim()
+          .toLowerCase();
 
-    const resetData =
-      resetOtpStore.get(
+      const resetData =
+        resetOtpStore.get(
+          normalizedEmail
+        );
+
+      if (
+        !resetData ||
+        !resetData.verified
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please request and verify OTP first",
+        });
+      }
+
+      const student =
+        await Student.findOne({
+          email: normalizedEmail,
+        });
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: "Student not found",
+        });
+      }
+
+      const hashedPassword =
+        await bcrypt.hash(
+          String(newPassword),
+          10
+        );
+
+      student.password =
+        hashedPassword;
+
+      // Release old device lock
+      student.activeDeviceId =
+        null;
+
+      await student.save();
+
+      resetOtpStore.delete(
         normalizedEmail
       );
 
-    if (
-      !resetData ||
-      !resetData.verified
-    ) {
-      return res.status(400).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
         message:
-          "Please request and verify OTP first",
+          "Password reset successfully",
       });
-    }
-
-    const student =
-      await Student.findOne({
-        email: normalizedEmail,
-      });
-
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found",
-      });
-    }
-
-    const hashedPassword =
-      await bcrypt.hash(
-        String(newPassword),
-        10
+    } catch (error: any) {
+      console.error(
+        "RESET PASSWORD ERROR:",
+        error
       );
 
-    student.password = hashedPassword;
-
-    // Password reset releases old device lock
-    student.activeDeviceId = null;
-
-    await student.save();
-
-    resetOtpStore.delete(
-      normalizedEmail
-    );
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Password reset successfully",
-    });
-  } catch (error: any) {
-    console.error(
-      "RESET PASSWORD ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to reset password",
-      error: error.message,
-    });
-  }
-};
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to reset password",
+        error: error.message,
+      });
+    }
+  };
 
 // ============================================================
 // GET STUDENT BY ID
@@ -681,7 +758,8 @@ export const getStudentById = async (
   res: Response
 ) => {
   try {
-    const { studentId } = req.params;
+    const { studentId } =
+      req.params;
 
     const normalizedStudentId =
       String(studentId)
@@ -690,13 +768,15 @@ export const getStudentById = async (
 
     const student =
       await Student.findOne({
-        studentId: normalizedStudentId,
+        studentId:
+          normalizedStudentId,
       }).select("-password");
 
     if (!student) {
       return res.status(404).json({
         success: false,
-        message: "Student not found",
+        message:
+          "Student not found",
       });
     }
 
@@ -723,37 +803,38 @@ export const getStudentById = async (
 // GET ALL STUDENTS
 // ============================================================
 
-export const getAllStudents = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const students =
-      await Student.find()
-        .select("-password")
-        .sort({
-          createdAt: -1,
-        });
+export const getAllStudents =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+    try {
+      const students =
+        await Student.find()
+          .select("-password")
+          .sort({
+            createdAt: -1,
+          });
 
-    return res.status(200).json({
-      success: true,
-      count: students.length,
-      students,
-    });
-  } catch (error: any) {
-    console.error(
-      "GET ALL STUDENTS ERROR:",
-      error
-    );
+      return res.status(200).json({
+        success: true,
+        count: students.length,
+        students,
+      });
+    } catch (error: any) {
+      console.error(
+        "GET ALL STUDENTS ERROR:",
+        error
+      );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to get students",
-      error: error.message,
-    });
-  }
-};
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to get students",
+        error: error.message,
+      });
+    }
+  };
 
 // ============================================================
 // UPDATE STUDENT
@@ -764,7 +845,8 @@ export const updateStudent = async (
   res: Response
 ) => {
   try {
-    const { studentId } = req.params;
+    const { studentId } =
+      req.params;
 
     const {
       name,
@@ -783,13 +865,15 @@ export const updateStudent = async (
 
     const student =
       await Student.findOne({
-        studentId: normalizedStudentId,
+        studentId:
+          normalizedStudentId,
       });
 
     if (!student) {
       return res.status(404).json({
         success: false,
-        message: "Student not found",
+        message:
+          "Student not found",
       });
     }
 
@@ -805,9 +889,13 @@ export const updateStudent = async (
           .toLowerCase();
     }
 
-    if (mobileNumber !== undefined) {
+    if (
+      mobileNumber !== undefined
+    ) {
       student.mobileNumber =
-        String(mobileNumber).trim();
+        String(
+          mobileNumber
+        ).trim();
     }
 
     if (classId !== undefined) {
@@ -820,9 +908,14 @@ export const updateStudent = async (
         String(className).trim();
     }
 
-    if (academicYear !== undefined) {
+    if (
+      academicYear !==
+      undefined
+    ) {
       student.academicYear =
-        String(academicYear).trim();
+        String(
+          academicYear
+        ).trim();
     }
 
     if (section !== undefined) {
@@ -836,6 +929,7 @@ export const updateStudent = async (
       success: true,
       message:
         "Student updated successfully",
+
       student: {
         id: student._id,
         studentId:
@@ -879,7 +973,8 @@ export const changeStudentPassword =
     res: Response
   ) => {
     try {
-      const { studentId } = req.params;
+      const { studentId } =
+        req.params;
 
       const {
         currentPassword,
@@ -927,7 +1022,8 @@ export const changeStudentPassword =
         });
       }
 
-      let passwordMatch = false;
+      let passwordMatch =
+        false;
 
       if (
         student.password.startsWith(
@@ -993,105 +1089,111 @@ export const changeStudentPassword =
 // UPDATE WEEKLY UPDATES
 // ============================================================
 
-export const updateWeeklyUpdates = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const { studentId } = req.params;
+export const updateWeeklyUpdates =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+    try {
+      const { studentId } =
+        req.params;
 
-    const {
-      healthAndWellbeing,
-      foodAndMaturation,
-      hostel,
-      academics,
-      mentorActionPlan,
-    } = req.body;
+      const {
+        healthAndWellbeing,
+        foodAndMaturation,
+        hostel,
+        academics,
+        mentorActionPlan,
+      } = req.body;
 
-    const normalizedStudentId =
-      String(studentId)
-        .trim()
-        .toUpperCase();
+      const normalizedStudentId =
+        String(studentId)
+          .trim()
+          .toUpperCase();
 
-    const student =
-      await Student.findOne({
-        studentId:
-          normalizedStudentId,
+      const student =
+        await Student.findOne({
+          studentId:
+            normalizedStudentId,
+        });
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Student not found",
+        });
+      }
+
+      if (
+        healthAndWellbeing !==
+        undefined
+      ) {
+        student.weeklyUpdates.healthAndWellbeing =
+          String(
+            healthAndWellbeing
+          );
+      }
+
+      if (
+        foodAndMaturation !==
+        undefined
+      ) {
+        student.weeklyUpdates.foodAndMaturation =
+          String(
+            foodAndMaturation
+          );
+      }
+
+      if (hostel !== undefined) {
+        student.weeklyUpdates.hostel =
+          String(hostel);
+      }
+
+      if (
+        academics !==
+        undefined
+      ) {
+        student.weeklyUpdates.academics =
+          String(academics);
+      }
+
+      if (
+        mentorActionPlan !==
+        undefined
+      ) {
+        student.weeklyUpdates.mentorActionPlan =
+          String(
+            mentorActionPlan
+          );
+      }
+
+      student.weeklyUpdates.updatedAt =
+        new Date();
+
+      await student.save();
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Weekly updates saved successfully",
+        weeklyUpdates:
+          student.weeklyUpdates,
       });
+    } catch (error: any) {
+      console.error(
+        "WEEKLY UPDATE ERROR:",
+        error
+      );
 
-    if (!student) {
-      return res.status(404).json({
+      return res.status(500).json({
         success: false,
-        message: "Student not found",
+        message:
+          "Failed to update weekly updates",
+        error: error.message,
       });
     }
-
-    if (
-      healthAndWellbeing !==
-      undefined
-    ) {
-      student.weeklyUpdates.healthAndWellbeing =
-        String(
-          healthAndWellbeing
-        );
-    }
-
-    if (
-      foodAndMaturation !==
-      undefined
-    ) {
-      student.weeklyUpdates.foodAndMaturation =
-        String(
-          foodAndMaturation
-        );
-    }
-
-    if (hostel !== undefined) {
-      student.weeklyUpdates.hostel =
-        String(hostel);
-    }
-
-    if (academics !== undefined) {
-      student.weeklyUpdates.academics =
-        String(academics);
-    }
-
-    if (
-      mentorActionPlan !==
-      undefined
-    ) {
-      student.weeklyUpdates.mentorActionPlan =
-        String(
-          mentorActionPlan
-        );
-    }
-
-    student.weeklyUpdates.updatedAt =
-      new Date();
-
-    await student.save();
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Weekly updates saved successfully",
-      weeklyUpdates:
-        student.weeklyUpdates,
-    });
-  } catch (error: any) {
-    console.error(
-      "WEEKLY UPDATE ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to update weekly updates",
-      error: error.message,
-    });
-  }
-};
+  };
 
 // ============================================================
 // UPDATE EXAM PERFORMANCE
@@ -1132,17 +1234,23 @@ export const updateExamPerformance =
       }
 
       if (
-        examsAttempted !== undefined
+        examsAttempted !==
+        undefined
       ) {
         student.examsAttempted =
-          Number(examsAttempted);
+          Number(
+            examsAttempted
+          );
       }
 
       if (
-        totalMarks !== undefined
+        totalMarks !==
+        undefined
       ) {
         student.totalMarks =
-          Number(totalMarks);
+          Number(
+            totalMarks
+          );
       }
 
       if (rating !== undefined) {
@@ -1156,11 +1264,14 @@ export const updateExamPerformance =
         success: true,
         message:
           "Exam performance updated successfully",
+
         performance: {
           examsAttempted:
             student.examsAttempted,
+
           totalMarks:
             student.totalMarks,
+
           rating:
             student.rating,
         },
@@ -1189,7 +1300,8 @@ export const logoutStudent = async (
   res: Response
 ) => {
   try {
-    const { studentId } = req.params;
+    const { studentId } =
+      req.params;
 
     const normalizedStudentId =
       String(studentId)
@@ -1210,8 +1322,12 @@ export const logoutStudent = async (
       });
     }
 
-    // Release device lock
-    student.activeDeviceId = null;
+    // ========================================================
+    // RELEASE DEVICE LOCK
+    // ========================================================
+
+    student.activeDeviceId =
+      null;
 
     await student.save();
 
@@ -1228,7 +1344,8 @@ export const logoutStudent = async (
 
     return res.status(500).json({
       success: false,
-      message: "Logout failed",
+      message:
+        "Logout failed",
       error: error.message,
     });
   }
@@ -1243,7 +1360,8 @@ export const deleteStudent = async (
   res: Response
 ) => {
   try {
-    const { studentId } = req.params;
+    const { studentId } =
+      req.params;
 
     const normalizedStudentId =
       String(studentId)

@@ -1,4 +1,3 @@
-
 import { Response } from "express";
 
 import Student from "../models/Student";
@@ -44,14 +43,6 @@ const getActionReason = (
 // ============================================================
 // MENTOR STUDENT QUERY
 // ============================================================
-//
-// Supports the student mentor assignment fields we added:
-//
-// mentorId
-// mentorCode
-// mentorName
-//
-// ============================================================
 
 const buildMentorStudentQuery = (
   mentor: any
@@ -89,16 +80,8 @@ export const getHeadDashboard = async (
   res: Response
 ) => {
   try {
-    // ========================================================
-    // TOTAL STUDENTS
-    // ========================================================
-
     const totalStudents =
       await Student.countDocuments();
-
-    // ========================================================
-    // ALL RESULTS
-    // ========================================================
 
     const results =
       await Result.find()
@@ -107,20 +90,12 @@ export const getHeadDashboard = async (
         })
         .lean();
 
-    // ========================================================
-    // ALL FEEDBACK
-    // ========================================================
-
     const feedback =
       await DepartmentFeedback.find()
         .sort({
           createdAt: -1,
         })
         .lean();
-
-    // ========================================================
-    // HEAD COMPLAINTS
-    // ========================================================
 
     const headComplaints =
       feedback.filter(
@@ -132,20 +107,12 @@ export const getHeadDashboard = async (
             .trim() === "head"
       );
 
-    // ========================================================
-    // STUDENTS
-    // ========================================================
-
     const students =
       await Student.find()
         .select(
           "name studentId email className classId academicYear teacherId mentorId mentorCode mentorName mentorAssignedAt previousMentorId previousMentorName previousSection section createdAt updatedAt"
         )
         .lean();
-
-    // ========================================================
-    // STAFF FILTER
-    // ========================================================
 
     const staffFilter = {
       role: {
@@ -155,10 +122,6 @@ export const getHeadDashboard = async (
         ],
       },
     };
-
-    // ========================================================
-    // STAFF COUNTS
-    // ========================================================
 
     const totalStaff =
       await Staff.countDocuments(
@@ -206,10 +169,6 @@ export const getHeadDashboard = async (
         ...staffFilter,
         status: "DELETED",
       });
-
-    // ========================================================
-    // HISTORY AGGREGATION
-    // ========================================================
 
     const historyAggregation =
       await Staff.aggregate([
@@ -288,10 +247,6 @@ export const getHeadDashboard = async (
           total + value,
         0
       );
-
-    // ========================================================
-    // RESPONSE
-    // ========================================================
 
     return res.json({
       success: true,
@@ -472,19 +427,11 @@ export const approveStaff = async (
       });
     }
 
-    // ========================================================
-    // APPROVE
-    // ========================================================
-
     staff.isApproved =
       true;
 
     staff.status =
       "ACTIVE";
-
-    // ========================================================
-    // ACCESS CODE
-    // ========================================================
 
     if (!staff.accessCode) {
       staff.accessCode =
@@ -495,10 +442,6 @@ export const approveStaff = async (
               900000
         );
     }
-
-    // ========================================================
-    // HISTORY
-    // ========================================================
 
     staff.history.push({
       action:
@@ -549,9 +492,6 @@ export const approveStaff = async (
 // REJECT STAFF
 // DELETE /api/head/reject/:id
 // ============================================================
-//
-// We keep the document so rejection history remains available.
-// ============================================================
 
 export const rejectStaff = async (
   req: any,
@@ -593,10 +533,6 @@ export const rejectStaff = async (
           "This staff account has already been deleted.",
       });
     }
-
-    // ========================================================
-    // HISTORY
-    // ========================================================
 
     staff.history.push({
       action:
@@ -731,396 +667,401 @@ export const getMentors = async (
 // GET /api/head/mentor-history
 // ============================================================
 
-export const getMentorHistory = async (
-  req: any,
-  res: Response
-) => {
-  try {
-    const staffMembers =
-      await Staff.find({
-        role: {
-          $in: [
-            "mentor",
-            "manager",
-          ],
-        },
-      })
-        .select(
-          "_id mentorId teacherId name role history"
-        )
-        .lean();
+export const getMentorHistory =
+  async (
+    req: any,
+    res: Response
+  ) => {
+    try {
+      const staffMembers =
+        await Staff.find({
+          role: {
+            $in: [
+              "mentor",
+              "manager",
+            ],
+          },
+        })
+          .select(
+            "_id mentorId teacherId name role history"
+          )
+          .lean();
 
-    const history: any[] =
-      [];
-
-    for (
-      const staff of staffMembers
-    ) {
-      const staffHistory =
-        Array.isArray(
-          staff.history
-        )
-          ? staff.history
-          : [];
+      const history: any[] =
+        [];
 
       for (
-        const entry of staffHistory
+        const staff of staffMembers
       ) {
-        history.push({
-          _id:
-            `${staff._id}_${entry._id}`,
+        const staffHistory =
+          Array.isArray(
+            staff.history
+          )
+            ? staff.history
+            : [];
 
-          mentorId:
-            staff.mentorId ||
-            staff._id.toString(),
+        for (
+          const entry of staffHistory
+        ) {
+          history.push({
+            _id:
+              `${staff._id}_${entry._id}`,
 
-          mentorName:
-            staff.name,
+            mentorId:
+              staff.mentorId ||
+              staff._id.toString(),
 
-          role:
-            staff.role,
+            mentorName:
+              staff.name,
 
-          action:
-            entry.action,
+            role:
+              staff.role,
 
-          reason:
-            entry.reason,
+            action:
+              entry.action,
 
-          performedBy:
-            entry.performedBy,
+            reason:
+              entry.reason,
 
-          performedByRole:
-            entry.performedByRole,
+            performedBy:
+              entry.performedBy,
 
-          replacementMentorId:
-            entry.replacementMentorId,
+            performedByRole:
+              entry.performedByRole,
 
-          replacementMentorName:
-            entry.replacementMentorName,
+            replacementMentorId:
+              entry.replacementMentorId,
 
-          oldSection:
-            entry.oldSection,
+            replacementMentorName:
+              entry.replacementMentorName,
 
-          newSection:
-            entry.newSection,
+            oldSection:
+              entry.oldSection,
 
-          transferredStudentCount:
-            entry.transferredStudentCount,
+            newSection:
+              entry.newSection,
 
-          transferredStudentIds:
-            entry.transferredStudentIds,
+            transferredStudentCount:
+              entry.transferredStudentCount,
 
-          createdAt:
-            entry.createdAt,
-        });
+            transferredStudentIds:
+              entry.transferredStudentIds,
+
+            createdAt:
+              entry.createdAt,
+          });
+        }
       }
+
+      history.sort(
+        (
+          a,
+          b
+        ) => {
+          const first =
+            a.createdAt
+              ? new Date(
+                  a.createdAt
+                ).getTime()
+              : 0;
+
+          const second =
+            b.createdAt
+              ? new Date(
+                  b.createdAt
+                ).getTime()
+              : 0;
+
+          return (
+            second -
+            first
+          );
+        }
+      );
+
+      const stats = {
+        accepted:
+          history.filter(
+            (item) =>
+              item.action ===
+              "ACCEPTED"
+          ).length,
+
+        rejected:
+          history.filter(
+            (item) =>
+              item.action ===
+              "REJECTED"
+          ).length,
+
+        deactivated:
+          history.filter(
+            (item) =>
+              item.action ===
+              "DEACTIVATED"
+          ).length,
+
+        reactivated:
+          history.filter(
+            (item) =>
+              item.action ===
+              "REACTIVATED"
+          ).length,
+
+        deleted:
+          history.filter(
+            (item) =>
+              item.action ===
+              "DELETED"
+          ).length,
+
+        transferred:
+          history.filter(
+            (item) =>
+              item.action ===
+              "TRANSFERRED"
+          ).length,
+      };
+
+      return res.json({
+        success: true,
+
+        history,
+
+        stats,
+      });
+    } catch (error: any) {
+      console.error(
+        "GET MENTOR HISTORY ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to fetch mentor history",
+      });
     }
-
-    history.sort(
-      (
-        a,
-        b
-      ) => {
-        const first =
-          a.createdAt
-            ? new Date(
-                a.createdAt
-              ).getTime()
-            : 0;
-
-        const second =
-          b.createdAt
-            ? new Date(
-                b.createdAt
-              ).getTime()
-            : 0;
-
-        return (
-          second -
-          first
-        );
-      }
-    );
-
-    const stats = {
-      accepted:
-        history.filter(
-          (item) =>
-            item.action ===
-            "ACCEPTED"
-        ).length,
-
-      rejected:
-        history.filter(
-          (item) =>
-            item.action ===
-            "REJECTED"
-        ).length,
-
-      deactivated:
-        history.filter(
-          (item) =>
-            item.action ===
-            "DEACTIVATED"
-        ).length,
-
-      reactivated:
-        history.filter(
-          (item) =>
-            item.action ===
-            "REACTIVATED"
-        ).length,
-
-      deleted:
-        history.filter(
-          (item) =>
-            item.action ===
-            "DELETED"
-        ).length,
-
-      transferred:
-        history.filter(
-          (item) =>
-            item.action ===
-            "TRANSFERRED"
-        ).length,
-    };
-
-    return res.json({
-      success: true,
-
-      history,
-
-      stats,
-    });
-  } catch (error: any) {
-    console.error(
-      "GET MENTOR HISTORY ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to fetch mentor history",
-    });
-  }
-};
+  };
 
 // ============================================================
 // DEACTIVATE MENTOR
 // PATCH /api/head/mentors/:id/deactivate
 // ============================================================
 
-export const deactivateMentor = async (
-  req: any,
-  res: Response
-) => {
-  try {
-    const { id } =
-      req.params;
+export const deactivateMentor =
+  async (
+    req: any,
+    res: Response
+  ) => {
+    try {
+      const { id } =
+        req.params;
 
-    const reason =
-      getActionReason(
-        req,
-        "Mentor deactivated by Head."
-      );
+      const reason =
+        getActionReason(
+          req,
+          "Mentor deactivated by Head."
+        );
 
-    const mentor =
-      await Staff.findById(id);
+      const mentor =
+        await Staff.findById(id);
 
-    if (!mentor) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Mentor not found.",
+      if (!mentor) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Mentor not found.",
+        });
+      }
+
+      if (
+        mentor.role !==
+        "mentor"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Only mentor accounts can be deactivated.",
+        });
+      }
+
+      if (
+        mentor.status ===
+        "DELETED"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Deleted mentor cannot be deactivated.",
+        });
+      }
+
+      if (
+        mentor.status ===
+        "INACTIVE"
+      ) {
+        return res.json({
+          success: true,
+          message:
+            "Mentor is already inactive.",
+          mentor,
+        });
+      }
+
+      mentor.status =
+        "INACTIVE";
+
+      mentor.isApproved =
+        false;
+
+      mentor.sessionsRevokedAt =
+        new Date();
+
+      mentor.history.push({
+        action:
+          "DEACTIVATED",
+
+        reason,
+
+        performedBy:
+          getPerformedBy(req),
+
+        performedByRole:
+          getPerformedByRole(req),
+
+        createdAt:
+          new Date(),
       });
-    }
 
-    if (
-      mentor.role !== "mentor"
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Only mentor accounts can be deactivated.",
-      });
-    }
+      await mentor.save();
 
-    if (
-      mentor.status ===
-      "DELETED"
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Deleted mentor cannot be deactivated.",
-      });
-    }
-
-    if (
-      mentor.status ===
-      "INACTIVE"
-    ) {
       return res.json({
         success: true,
+
         message:
-          "Mentor is already inactive.",
+          "Mentor deactivated successfully.",
+
         mentor,
       });
+    } catch (error: any) {
+      console.error(
+        "DEACTIVATE MENTOR ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to deactivate mentor.",
+      });
     }
-
-    mentor.status =
-      "INACTIVE";
-
-    mentor.isApproved =
-      false;
-
-    mentor.sessionsRevokedAt =
-      new Date();
-
-    mentor.history.push({
-      action:
-        "DEACTIVATED",
-
-      reason,
-
-      performedBy:
-        getPerformedBy(req),
-
-      performedByRole:
-        getPerformedByRole(req),
-
-      createdAt:
-        new Date(),
-    });
-
-    await mentor.save();
-
-    return res.json({
-      success: true,
-
-      message:
-        "Mentor deactivated successfully.",
-
-      mentor,
-    });
-  } catch (error: any) {
-    console.error(
-      "DEACTIVATE MENTOR ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to deactivate mentor.",
-    });
-  }
-};
+  };
 
 // ============================================================
 // REACTIVATE MENTOR
 // PATCH /api/head/mentors/:id/reactivate
 // ============================================================
 
-export const reactivateMentor = async (
-  req: any,
-  res: Response
-) => {
-  try {
-    const { id } =
-      req.params;
+export const reactivateMentor =
+  async (
+    req: any,
+    res: Response
+  ) => {
+    try {
+      const { id } =
+        req.params;
 
-    const reason =
-      getActionReason(
-        req,
-        "Mentor reactivated by Head."
+      const reason =
+        getActionReason(
+          req,
+          "Mentor reactivated by Head."
+        );
+
+      const mentor =
+        await Staff.findById(id);
+
+      if (!mentor) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Mentor not found.",
+        });
+      }
+
+      if (
+        mentor.role !==
+        "mentor"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Only mentor accounts can be reactivated.",
+        });
+      }
+
+      if (
+        mentor.status ===
+        "DELETED"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Deleted mentor cannot be reactivated.",
+        });
+      }
+
+      mentor.status =
+        "ACTIVE";
+
+      mentor.isApproved =
+        true;
+
+      mentor.history.push({
+        action:
+          "REACTIVATED",
+
+        reason,
+
+        performedBy:
+          getPerformedBy(req),
+
+        performedByRole:
+          getPerformedByRole(req),
+
+        createdAt:
+          new Date(),
+      });
+
+      await mentor.save();
+
+      return res.json({
+        success: true,
+
+        message:
+          "Mentor reactivated successfully.",
+
+        mentor,
+      });
+    } catch (error: any) {
+      console.error(
+        "REACTIVATE MENTOR ERROR:",
+        error
       );
 
-    const mentor =
-      await Staff.findById(id);
-
-    if (!mentor) {
-      return res.status(404).json({
+      return res.status(500).json({
         success: false,
         message:
-          "Mentor not found.",
+          error.message ||
+          "Failed to reactivate mentor.",
       });
     }
-
-    if (
-      mentor.role !== "mentor"
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Only mentor accounts can be reactivated.",
-      });
-    }
-
-    if (
-      mentor.status ===
-      "DELETED"
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Deleted mentor cannot be reactivated.",
-      });
-    }
-
-    mentor.status =
-      "ACTIVE";
-
-    mentor.isApproved =
-      true;
-
-    mentor.history.push({
-      action:
-        "REACTIVATED",
-
-      reason,
-
-      performedBy:
-        getPerformedBy(req),
-
-      performedByRole:
-        getPerformedByRole(req),
-
-      createdAt:
-        new Date(),
-    });
-
-    await mentor.save();
-
-    return res.json({
-      success: true,
-
-      message:
-        "Mentor reactivated successfully.",
-
-      mentor,
-    });
-  } catch (error: any) {
-    console.error(
-      "REACTIVATE MENTOR ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Failed to reactivate mentor.",
-    });
-  }
-};
+  };
 
 // ============================================================
-// TRANSFER STUDENTS
+// TRANSFER MENTOR STUDENTS
 // PATCH /api/head/mentors/:id/transfer
 // ============================================================
 
@@ -1207,17 +1148,13 @@ export const transferMentorStudents =
           oldMentor
         );
 
-      // ======================================================
-      // OPTIONAL SECTION FILTER
-      // ======================================================
-
       const finalQuery: any = {
         ...studentQuery,
       };
 
       if (
         typeof section ===
-        "string" &&
+          "string" &&
         section.trim()
       ) {
         finalQuery.section =
@@ -1252,10 +1189,6 @@ export const transferMentorStudents =
             student.studentId
         );
 
-      // ======================================================
-      // TRANSFER
-      // ======================================================
-
       await Student.updateMany(
         finalQuery,
         {
@@ -1285,10 +1218,6 @@ export const transferMentorStudents =
           },
         }
       );
-
-      // ======================================================
-      // OLD MENTOR HISTORY
-      // ======================================================
 
       oldMentor.history.push({
         action:
@@ -1341,8 +1270,10 @@ export const transferMentorStudents =
         oldMentor: {
           id:
             oldMentor._id,
+
           mentorId:
             oldMentor.mentorId,
+
           name:
             oldMentor.name,
         },
@@ -1350,8 +1281,10 @@ export const transferMentorStudents =
         newMentor: {
           id:
             newMentor._id,
+
           mentorId:
             newMentor.mentorId,
+
           name:
             newMentor.name,
         },
@@ -1374,11 +1307,6 @@ export const transferMentorStudents =
 // ============================================================
 // DELETE / REMOVE MENTOR
 // DELETE /api/head/mentors/:id
-// ============================================================
-//
-// IMPORTANT:
-// This is a soft delete.
-// The Staff document is retained for history/audit.
 // ============================================================
 
 export const deleteMentor = async (
@@ -1419,7 +1347,8 @@ export const deleteMentor = async (
     }
 
     if (
-      mentor.role !== "mentor"
+      mentor.role !==
+      "mentor"
     ) {
       return res.status(400).json({
         success: false,
@@ -1452,10 +1381,6 @@ export const deleteMentor = async (
     let replacementMentor:
       | any
       | null = null;
-
-    // ========================================================
-    // IF STUDENTS EXIST, REPLACEMENT IS REQUIRED
-    // ========================================================
 
     if (
       students.length > 0
@@ -1501,10 +1426,6 @@ export const deleteMentor = async (
         });
       }
 
-      // ======================================================
-      // TRANSFER STUDENTS
-      // ======================================================
-
       await Student.updateMany(
         studentQuery,
         {
@@ -1534,10 +1455,6 @@ export const deleteMentor = async (
           },
         }
       );
-
-      // ======================================================
-      // TRANSFER HISTORY
-      // ======================================================
 
       mentor.history.push({
         action:
@@ -1581,10 +1498,6 @@ export const deleteMentor = async (
       });
     }
 
-    // ========================================================
-    // SOFT DELETE
-    // ========================================================
-
     mentor.status =
       "DELETED";
 
@@ -1609,10 +1522,6 @@ export const deleteMentor = async (
       replacementMentor
         ? new Date()
         : undefined;
-
-    // ========================================================
-    // DELETE HISTORY
-    // ========================================================
 
     mentor.history.push({
       action:
@@ -1677,8 +1586,10 @@ export const deleteMentor = async (
           ? {
               id:
                 replacementMentor._id,
+
               mentorId:
                 replacementMentor.mentorId,
+
               name:
                 replacementMentor.name,
             }
@@ -1702,6 +1613,192 @@ export const deleteMentor = async (
 };
 
 // ============================================================
+// CHANGE MENTOR SECTION
+// PATCH /api/head/mentors/:id/change-section
+// ============================================================
+
+export const changeMentorSection =
+  async (
+    req: any,
+    res: Response
+  ) => {
+    try {
+      const { id } =
+        req.params;
+
+      const {
+        newSection,
+        reason,
+      } = req.body || {};
+
+      const section =
+        typeof newSection === "string"
+          ? newSection
+              .trim()
+              .toUpperCase()
+          : "";
+
+      const trimmedReason =
+        typeof reason === "string"
+          ? reason.trim()
+          : "";
+
+      // ========================================================
+      // VALIDATION
+      // ========================================================
+
+      if (!section) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "New section is required.",
+        });
+      }
+
+      if (!trimmedReason) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Reason is required.",
+        });
+      }
+
+      // ========================================================
+      // FIND MENTOR
+      // ========================================================
+
+      const mentor =
+        await Staff.findOne({
+          _id: id,
+          role: "mentor",
+        });
+
+      if (!mentor) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Mentor not found.",
+        });
+      }
+
+      // ========================================================
+      // BLOCK DELETED MENTOR
+      // ========================================================
+
+      if (
+        mentor.status ===
+        "DELETED"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Deleted mentor section cannot be changed.",
+        });
+      }
+
+      // ========================================================
+      // CHECK SAME SECTION
+      // ========================================================
+
+      const oldSection =
+        mentor.section || "";
+
+      if (
+        oldSection
+          .trim()
+          .toUpperCase() ===
+        section
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Mentor is already assigned to this section.",
+        });
+      }
+
+      // ========================================================
+      // UPDATE MENTOR SECTION
+      // ========================================================
+
+      mentor.section =
+        section;
+
+      // ========================================================
+      // SAVE HISTORY
+      // ========================================================
+
+      mentor.history.push({
+        action:
+          "TRANSFERRED",
+
+        reason:
+          trimmedReason,
+
+        performedBy:
+          getPerformedBy(req),
+
+        performedByRole:
+          getPerformedByRole(req),
+
+        oldSection,
+
+        newSection:
+          section,
+
+        transferredStudentCount:
+          0,
+
+        transferredStudentIds:
+          [],
+
+        createdAt:
+          new Date(),
+      });
+
+      await mentor.save();
+
+      // ========================================================
+      // RESPONSE
+      // ========================================================
+
+      return res.json({
+        success: true,
+
+        message:
+          "Mentor section changed successfully.",
+
+        mentor: {
+          id:
+            mentor._id,
+
+          mentorId:
+            mentor.mentorId,
+
+          name:
+            mentor.name,
+
+          oldSection,
+
+          newSection:
+            mentor.section,
+        },
+      });
+    } catch (error: any) {
+      console.error(
+        "CHANGE MENTOR SECTION ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to change mentor section.",
+      });
+    }
+  };
+
+// ============================================================
 // CHANGE STUDENT SECTION
 // PATCH /api/head/students/:studentId/change-section
 // ============================================================
@@ -1712,8 +1809,9 @@ export const changeStudentSection =
     res: Response
   ) => {
     try {
-      const { studentId } =
-        req.params;
+      const {
+        studentId,
+      } = req.params;
 
       const {
         newSection,
@@ -1766,12 +1864,12 @@ export const changeStudentSection =
         student.section;
 
       const oldMentorId =
-        (student as any).mentorId ||
-        "";
+        (student as any)
+          .mentorId || "";
 
       const oldMentorName =
-        (student as any).mentorName ||
-        "";
+        (student as any)
+          .mentorName || "";
 
       let newMentor:
         | any
@@ -1799,50 +1897,41 @@ export const changeStudentSection =
         }
       }
 
-      // ======================================================
-      // SAVE PREVIOUS INFORMATION
-      // ======================================================
-
-      (student as any).previousSection =
+      (student as any)
+        .previousSection =
         oldSection;
 
-      (student as any).previousMentorId =
+      (student as any)
+        .previousMentorId =
         oldMentorId;
 
-      (student as any).previousMentorName =
+      (student as any)
+        .previousMentorName =
         oldMentorName;
-
-      // ======================================================
-      // NEW SECTION
-      // ======================================================
 
       student.section =
         section;
 
-      // ======================================================
-      // OPTIONAL NEW MENTOR
-      // ======================================================
-
       if (newMentor) {
-        (student as any).mentorId =
+        (student as any)
+          .mentorId =
           newMentor._id.toString();
 
-        (student as any).mentorCode =
+        (student as any)
+          .mentorCode =
           newMentor.mentorId ||
           "";
 
-        (student as any).mentorName =
+        (student as any)
+          .mentorName =
           newMentor.name;
 
-        (student as any).mentorAssignedAt =
+        (student as any)
+          .mentorAssignedAt =
           new Date();
       }
 
       await student.save();
-
-      // ======================================================
-      // SAVE HISTORY ON OLD MENTOR
-      // ======================================================
 
       if (oldMentorId) {
         const oldMentor =
@@ -1958,10 +2047,6 @@ export const getMentorDetails =
         });
       }
 
-      // ======================================================
-      // STUDENTS
-      // ======================================================
-
       const studentQuery =
         buildMentorStudentQuery(
           mentor
@@ -1979,10 +2064,6 @@ export const getMentorDetails =
           })
           .lean();
 
-      // ======================================================
-      // RESULT IDS
-      // ======================================================
-
       const studentIds =
         mentorStudents.map(
           (student: any) =>
@@ -1990,10 +2071,6 @@ export const getMentorDetails =
               student.studentId
             )
         );
-
-      // ======================================================
-      // MENTOR RESULTS
-      // ======================================================
 
       const mentorResults =
         studentIds.length > 0
@@ -2008,10 +2085,6 @@ export const getMentorDetails =
               })
               .lean()
           : [];
-
-      // ======================================================
-      // RESULT PERCENTAGES
-      // ======================================================
 
       const percentages =
         mentorResults
@@ -2080,10 +2153,6 @@ export const getMentorDetails =
               resultCount) *
             100
           : 0;
-
-      // ======================================================
-      // STUDENT-WISE RESULTS
-      // ======================================================
 
       const studentsWithResults =
         mentorStudents.map(
@@ -2163,10 +2232,6 @@ export const getMentorDetails =
           }
         );
 
-      // ======================================================
-      // SECTION SUMMARY
-      // ======================================================
-
       const sectionMap =
         new Map<
           string,
@@ -2178,7 +2243,8 @@ export const getMentorDetails =
         >();
 
       for (
-        const student of mentorStudents
+        const student of
+          mentorStudents
       ) {
         const section =
           student.section?.trim() ||
@@ -2239,10 +2305,6 @@ export const getMentorDetails =
               }
             )
         );
-
-      // ======================================================
-      // RESPONSE
-      // ======================================================
 
       return res.json({
         success: true,
@@ -2314,4 +2376,3 @@ export const getMentorDetails =
       });
     }
   };
-

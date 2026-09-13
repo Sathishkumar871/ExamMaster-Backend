@@ -7,6 +7,7 @@ import {
   forgotStudentPassword,
   verifyResetPasswordOtp,
   resetStudentPassword,
+  logoutStudent,
 } from "../controllers/studentController";
 
 import { getDailyTestQuestions } from "../controllers/dailyTestController";
@@ -63,6 +64,17 @@ router.post(
 router.post(
   "/reset-password",
   resetStudentPassword
+);
+
+// =====================================
+// STUDENT LOGOUT
+// POST /api/student/logout/:studentId
+// =====================================
+// PROTECTED
+router.post(
+  "/logout/:studentId",
+  studentAuth,
+  logoutStudent
 );
 
 // =====================================

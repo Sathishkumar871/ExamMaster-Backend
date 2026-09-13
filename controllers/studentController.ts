@@ -26,7 +26,7 @@ const generateOtp = (): string => {
 };
 
 // ============================================================
-// STUDENT REGISTER (Manual Student ID from ID Card)
+// STUDENT REGISTER
 // ============================================================
 
 export const registerStudent = async (
@@ -36,7 +36,7 @@ export const registerStudent = async (
   try {
     const {
       name,
-      studentId, // Manual student ID entered from ID card
+      studentId,
       email,
       mobileNumber,
       password,
@@ -59,15 +59,22 @@ export const registerStudent = async (
     ) {
       return res.status(400).json({
         success: false,
-        message: "All required fields including Student ID must be provided",
+        message:
+          "All required fields including Student ID must be provided",
       });
     }
 
-    const normalizedStudentId = String(studentId).trim().toUpperCase();
-    const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedStudentId = String(studentId)
+      .trim()
+      .toUpperCase();
+
+    const normalizedEmail = String(email)
+      .trim()
+      .toLowerCase();
+
     const normalizedMobile = String(mobileNumber).trim();
 
-    // Check if Student ID already exists
+    // Check Student ID
     const existingStudentId = await Student.findOne({
       studentId: normalizedStudentId,
     });
@@ -75,11 +82,12 @@ export const registerStudent = async (
     if (existingStudentId) {
       return res.status(400).json({
         success: false,
-        message: "Student ID already registered. Please check your ID card.",
+        message:
+          "Student ID already registered. Please check your ID card.",
       });
     }
 
-    // Check if Email already exists
+    // Check Email
     const existingEmail = await Student.findOne({
       email: normalizedEmail,
     });
@@ -91,7 +99,7 @@ export const registerStudent = async (
       });
     }
 
-    // Check if Mobile already exists
+    // Check Mobile
     const existingMobile = await Student.findOne({
       mobileNumber: normalizedMobile,
     });
@@ -110,7 +118,7 @@ export const registerStudent = async (
 
     const student = await Student.create({
       name: String(name).trim(),
-      studentId: normalizedStudentId, // Saving manual student ID here
+      studentId: normalizedStudentId,
       email: normalizedEmail,
       mobileNumber: normalizedMobile,
       password: hashedPassword,
@@ -118,10 +126,14 @@ export const registerStudent = async (
       className: String(className).trim(),
       academicYear: String(academicYear).trim(),
       section: String(section).trim(),
+
+      // First login can happen from any device
       activeDeviceId: null,
+
       examsAttempted: 0,
       totalMarks: 0,
       rating: 0,
+
       weeklyUpdates: {
         healthAndWellbeing: "",
         foodAndMaturation: "",
@@ -161,7 +173,8 @@ export const registerStudent = async (
 };
 
 // ============================================================
-// STUDENT LOGIN (Supports StudentID or Email + Device Security)
+// STUDENT LOGIN
+// Supports Student ID or Email + Single Device Security
 // ============================================================
 
 export const loginStudent = async (
@@ -176,68 +189,154 @@ export const loginStudent = async (
       deviceId,
     } = req.body;
 
+    // ========================================================
+    // BASIC VALIDATION
+    // ========================================================
+
     if ((!studentId && !email) || !password) {
       return res.status(400).json({
         success: false,
-        message: "Student ID or Email and password are required",
+        message:
+          "Student ID or Email and password are required",
       });
     }
+
+    // ========================================================
+    // FIND STUDENT
+    // ========================================================
 
     let student = null;
 
     if (studentId) {
-      const normalizedStudentId = String(studentId).trim().toUpperCase();
-      student = await Student.findOne({ studentId: normalizedStudentId });
+      const normalizedStudentId = String(studentId)
+        .trim()
+        .toUpperCase();
+
+      student = await Student.findOne({
+        studentId: normalizedStudentId,
+      });
     } else if (email) {
-      const normalizedEmail = String(email).trim().toLowerCase();
-      student = await Student.findOne({ email: normalizedEmail });
+      const normalizedEmail = String(email)
+        .trim()
+        .toLowerCase();
+
+      student = await Student.findOne({
+        email: normalizedEmail,
+      });
     }
 
     if (!student) {
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials or student not found",
+        message:
+          "Invalid credentials or student not found",
       });
     }
 
-    // Support both hashed passwords and plain text (for old mock/manual records)
+    // ========================================================
+    // PASSWORD CHECK
+    // Supports hashed + old plain-text passwords
+    // ========================================================
+
     let passwordMatch = false;
-    if (student.password.startsWith("$2a$") || student.password.startsWith("$2b$")) {
+
+    if (
+      student.password.startsWith("$2a$") ||
+      student.password.startsWith("$2b$") ||
+      student.password.startsWith("$2y$")
+    ) {
       passwordMatch = await bcrypt.compare(
         String(password),
         student.password
       );
     } else {
-      passwordMatch = (String(password).trim() === student.password);
+      passwordMatch =
+        String(password).trim() ===
+        student.password;
     }
 
     if (!passwordMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials or password",
+        message:
+          "Invalid credentials or password",
       });
     }
 
-    // Single Device Security: Save active device ID
-    if (deviceId) {
-      student.activeDeviceId = String(deviceId);
+    // ========================================================
+    // SINGLE DEVICE SECURITY
+    // ========================================================
+
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Device ID is required for student login",
+      });
+    }
+
+    const currentDeviceId = String(deviceId).trim();
+
+    if (!currentDeviceId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid device ID",
+      });
+    }
+
+    // --------------------------------------------------------
+    // If account is already active on another device,
+    // reject this login.
+    // --------------------------------------------------------
+
+    if (
+      student.activeDeviceId &&
+      String(student.activeDeviceId) !== currentDeviceId
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This account is already active on another device. Please logout from the other device first.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // First login -> save device
+    // Same device login -> continue
+    // --------------------------------------------------------
+
+    if (!student.activeDeviceId) {
+      student.activeDeviceId = currentDeviceId;
       await student.save();
     }
 
+    // ========================================================
+    // CREATE JWT TOKEN
+    // ========================================================
+
     const token = jwt.sign(
-      { 
-        id: student._id, 
-        studentId: student.studentId, 
-        role: 'student' 
+      {
+        id: student._id,
+        studentId: student.studentId,
+        role: "student",
       },
-      process.env.JWT_SECRET || 'your_jwt_secret_key',
-      { expiresIn: '7d' }
+      process.env.JWT_SECRET ||
+        "your_jwt_secret_key",
+      {
+        expiresIn: "7d",
+      }
     );
+
+    // ========================================================
+    // LOGIN RESPONSE
+    // ========================================================
 
     return res.status(200).json({
       success: true,
       message: "Login successful",
       token,
+
       student: {
         id: student._id,
         studentId: student.studentId,
@@ -248,11 +347,21 @@ export const loginStudent = async (
         className: student.className,
         academicYear: student.academicYear,
         section: student.section,
-        activeDeviceId: student.activeDeviceId,
-        examsAttempted: student.examsAttempted,
-        totalMarks: student.totalMarks,
-        rating: student.rating,
-        weeklyUpdates: student.weeklyUpdates,
+
+        activeDeviceId:
+          student.activeDeviceId,
+
+        examsAttempted:
+          student.examsAttempted,
+
+        totalMarks:
+          student.totalMarks,
+
+        rating:
+          student.rating,
+
+        weeklyUpdates:
+          student.weeklyUpdates,
       },
     });
   } catch (error: any) {
@@ -288,7 +397,9 @@ export const getStudentProfile = async (
     }
 
     const student = await Student.findOne({
-      studentId,
+      studentId: String(studentId)
+        .trim()
+        .toUpperCase(),
     }).select("-password");
 
     if (!student) {
@@ -344,7 +455,8 @@ export const forgotStudentPassword = async (
     if (!student) {
       return res.status(404).json({
         success: false,
-        message: "No student found with this email",
+        message:
+          "No student found with this email",
       });
     }
 
@@ -352,13 +464,15 @@ export const forgotStudentPassword = async (
 
     resetOtpStore.set(normalizedEmail, {
       otp,
-      expiresAt: Date.now() + 10 * 60 * 1000,
+      expiresAt:
+        Date.now() + 10 * 60 * 1000,
       verified: false,
     });
 
     return res.status(200).json({
       success: true,
-      message: "Password reset OTP generated successfully",
+      message:
+        "Password reset OTP generated successfully",
       otp,
     });
   } catch (error: any) {
@@ -369,7 +483,8 @@ export const forgotStudentPassword = async (
 
     return res.status(500).json({
       success: false,
-      message: "Failed to process forgot password",
+      message:
+        "Failed to process forgot password",
       error: error.message,
     });
   }
@@ -402,12 +517,18 @@ export const verifyResetPasswordOtp = async (
     if (!resetData) {
       return res.status(400).json({
         success: false,
-        message: "OTP not found. Please request a new OTP",
+        message:
+          "OTP not found. Please request a new OTP",
       });
     }
 
-    if (Date.now() > resetData.expiresAt) {
-      resetOtpStore.delete(normalizedEmail);
+    if (
+      Date.now() >
+      resetData.expiresAt
+    ) {
+      resetOtpStore.delete(
+        normalizedEmail
+      );
 
       return res.status(400).json({
         success: false,
@@ -415,7 +536,10 @@ export const verifyResetPasswordOtp = async (
       });
     }
 
-    if (String(otp).trim() !== resetData.otp) {
+    if (
+      String(otp).trim() !==
+      resetData.otp
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid OTP",
@@ -423,7 +547,11 @@ export const verifyResetPasswordOtp = async (
     }
 
     resetData.verified = true;
-    resetOtpStore.set(normalizedEmail, resetData);
+
+    resetOtpStore.set(
+      normalizedEmail,
+      resetData
+    );
 
     return res.status(200).json({
       success: true,
@@ -437,7 +565,8 @@ export const verifyResetPasswordOtp = async (
 
     return res.status(500).json({
       success: false,
-      message: "Failed to verify reset OTP",
+      message:
+        "Failed to verify reset OTP",
       error: error.message,
     });
   }
@@ -452,19 +581,26 @@ export const resetStudentPassword = async (
   res: Response
 ) => {
   try {
-    const { email, newPassword } = req.body;
+    const {
+      email,
+      newPassword,
+    } = req.body;
 
     if (!email || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: "Email and new password are required",
+        message:
+          "Email and new password are required",
       });
     }
 
-    if (String(newPassword).length < 6) {
+    if (
+      String(newPassword).length < 6
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 6 characters",
+        message:
+          "Password must be at least 6 characters",
       });
     }
 
@@ -472,18 +608,25 @@ export const resetStudentPassword = async (
       String(email).trim().toLowerCase();
 
     const resetData =
-      resetOtpStore.get(normalizedEmail);
+      resetOtpStore.get(
+        normalizedEmail
+      );
 
-    if (!resetData || !resetData.verified) {
+    if (
+      !resetData ||
+      !resetData.verified
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Please request and verify OTP first",
+        message:
+          "Please request and verify OTP first",
       });
     }
 
-    const student = await Student.findOne({
-      email: normalizedEmail,
-    });
+    const student =
+      await Student.findOne({
+        email: normalizedEmail,
+      });
 
     if (!student) {
       return res.status(404).json({
@@ -492,20 +635,27 @@ export const resetStudentPassword = async (
       });
     }
 
-    const hashedPassword = await bcrypt.hash(
-      String(newPassword),
-      10
-    );
+    const hashedPassword =
+      await bcrypt.hash(
+        String(newPassword),
+        10
+      );
 
     student.password = hashedPassword;
+
+    // Password reset releases old device lock
     student.activeDeviceId = null;
+
     await student.save();
 
-    resetOtpStore.delete(normalizedEmail);
+    resetOtpStore.delete(
+      normalizedEmail
+    );
 
     return res.status(200).json({
       success: true,
-      message: "Password reset successfully",
+      message:
+        "Password reset successfully",
     });
   } catch (error: any) {
     console.error(
@@ -515,7 +665,8 @@ export const resetStudentPassword = async (
 
     return res.status(500).json({
       success: false,
-      message: "Failed to reset password",
+      message:
+        "Failed to reset password",
       error: error.message,
     });
   }
@@ -532,9 +683,15 @@ export const getStudentById = async (
   try {
     const { studentId } = req.params;
 
-    const student = await Student.findOne({
-      studentId,
-    }).select("-password");
+    const normalizedStudentId =
+      String(studentId)
+        .trim()
+        .toUpperCase();
+
+    const student =
+      await Student.findOne({
+        studentId: normalizedStudentId,
+      }).select("-password");
 
     if (!student) {
       return res.status(404).json({
@@ -555,7 +712,8 @@ export const getStudentById = async (
 
     return res.status(500).json({
       success: false,
-      message: "Failed to get student",
+      message:
+        "Failed to get student",
       error: error.message,
     });
   }
@@ -570,9 +728,12 @@ export const getAllStudents = async (
   res: Response
 ) => {
   try {
-    const students = await Student.find()
-      .select("-password")
-      .sort({ createdAt: -1 });
+    const students =
+      await Student.find()
+        .select("-password")
+        .sort({
+          createdAt: -1,
+        });
 
     return res.status(200).json({
       success: true,
@@ -587,7 +748,8 @@ export const getAllStudents = async (
 
     return res.status(500).json({
       success: false,
-      message: "Failed to get students",
+      message:
+        "Failed to get students",
       error: error.message,
     });
   }
@@ -614,9 +776,15 @@ export const updateStudent = async (
       section,
     } = req.body;
 
-    const student = await Student.findOne({
-      studentId,
-    });
+    const normalizedStudentId =
+      String(studentId)
+        .trim()
+        .toUpperCase();
+
+    const student =
+      await Student.findOne({
+        studentId: normalizedStudentId,
+      });
 
     if (!student) {
       return res.status(404).json({
@@ -626,48 +794,64 @@ export const updateStudent = async (
     }
 
     if (name !== undefined) {
-      student.name = String(name).trim();
+      student.name =
+        String(name).trim();
     }
 
     if (email !== undefined) {
-      student.email = String(email).trim().toLowerCase();
+      student.email =
+        String(email)
+          .trim()
+          .toLowerCase();
     }
 
     if (mobileNumber !== undefined) {
-      student.mobileNumber = String(mobileNumber).trim();
+      student.mobileNumber =
+        String(mobileNumber).trim();
     }
 
     if (classId !== undefined) {
-      student.classId = String(classId).trim();
+      student.classId =
+        String(classId).trim();
     }
 
     if (className !== undefined) {
-      student.className = String(className).trim();
+      student.className =
+        String(className).trim();
     }
 
     if (academicYear !== undefined) {
-      student.academicYear = String(academicYear).trim();
+      student.academicYear =
+        String(academicYear).trim();
     }
 
     if (section !== undefined) {
-      student.section = String(section).trim();
+      student.section =
+        String(section).trim();
     }
 
     await student.save();
 
     return res.status(200).json({
       success: true,
-      message: "Student updated successfully",
+      message:
+        "Student updated successfully",
       student: {
         id: student._id,
-        studentId: student.studentId,
+        studentId:
+          student.studentId,
         name: student.name,
         email: student.email,
-        mobileNumber: student.mobileNumber,
-        classId: student.classId,
-        className: student.className,
-        academicYear: student.academicYear,
-        section: student.section,
+        mobileNumber:
+          student.mobileNumber,
+        classId:
+          student.classId,
+        className:
+          student.className,
+        academicYear:
+          student.academicYear,
+        section:
+          student.section,
       },
     });
   } catch (error: any) {
@@ -678,7 +862,8 @@ export const updateStudent = async (
 
     return res.status(500).json({
       success: false,
-      message: "Failed to update student",
+      message:
+        "Failed to update student",
       error: error.message,
     });
   }
@@ -688,78 +873,121 @@ export const updateStudent = async (
 // CHANGE PASSWORD
 // ============================================================
 
-export const changeStudentPassword = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const { studentId } = req.params;
-    const { currentPassword, newPassword } = req.body;
+export const changeStudentPassword =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+    try {
+      const { studentId } = req.params;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Current password and new password are required",
+      const {
+        currentPassword,
+        newPassword,
+      } = req.body;
+
+      if (
+        !currentPassword ||
+        !newPassword
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Current password and new password are required",
+        });
+      }
+
+      if (
+        String(newPassword).length <
+        6
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "New password must be at least 6 characters",
+        });
+      }
+
+      const normalizedStudentId =
+        String(studentId)
+          .trim()
+          .toUpperCase();
+
+      const student =
+        await Student.findOne({
+          studentId:
+            normalizedStudentId,
+        });
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Student not found",
+        });
+      }
+
+      let passwordMatch = false;
+
+      if (
+        student.password.startsWith(
+          "$2a$"
+        ) ||
+        student.password.startsWith(
+          "$2b$"
+        ) ||
+        student.password.startsWith(
+          "$2y$"
+        )
+      ) {
+        passwordMatch =
+          await bcrypt.compare(
+            String(currentPassword),
+            student.password
+          );
+      } else {
+        passwordMatch =
+          String(
+            currentPassword
+          ).trim() ===
+          student.password;
+      }
+
+      if (!passwordMatch) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Current password is incorrect",
+        });
+      }
+
+      student.password =
+        await bcrypt.hash(
+          String(newPassword),
+          10
+        );
+
+      await student.save();
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Password changed successfully",
       });
-    }
-
-    if (String(newPassword).length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: "New password must be at least 6 characters",
-      });
-    }
-
-    const student = await Student.findOne({ studentId });
-
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found",
-      });
-    }
-
-    let passwordMatch = false;
-    if (student.password.startsWith("$2a$") || student.password.startsWith("$2b$")) {
-      passwordMatch = await bcrypt.compare(
-        String(currentPassword),
-        student.password
+    } catch (error: any) {
+      console.error(
+        "CHANGE PASSWORD ERROR:",
+        error
       );
-    } else {
-      passwordMatch = (String(currentPassword).trim() === student.password);
-    }
 
-    if (!passwordMatch) {
-      return res.status(400).json({
+      return res.status(500).json({
         success: false,
-        message: "Current password is incorrect",
+        message:
+          "Failed to change password",
+        error: error.message,
       });
     }
-
-    student.password = await bcrypt.hash(
-      String(newPassword),
-      10
-    );
-
-    await student.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Password changed successfully",
-    });
-  } catch (error: any) {
-    console.error(
-      "CHANGE PASSWORD ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to change password",
-      error: error.message,
-    });
-  }
-};
+  };
 
 // ============================================================
 // UPDATE WEEKLY UPDATES
@@ -780,7 +1008,16 @@ export const updateWeeklyUpdates = async (
       mentorActionPlan,
     } = req.body;
 
-    const student = await Student.findOne({ studentId });
+    const normalizedStudentId =
+      String(studentId)
+        .trim()
+        .toUpperCase();
+
+    const student =
+      await Student.findOne({
+        studentId:
+          normalizedStudentId,
+      });
 
     if (!student) {
       return res.status(404).json({
@@ -789,34 +1026,57 @@ export const updateWeeklyUpdates = async (
       });
     }
 
-    if (healthAndWellbeing !== undefined) {
-      student.weeklyUpdates.healthAndWellbeing = String(healthAndWellbeing);
+    if (
+      healthAndWellbeing !==
+      undefined
+    ) {
+      student.weeklyUpdates.healthAndWellbeing =
+        String(
+          healthAndWellbeing
+        );
     }
 
-    if (foodAndMaturation !== undefined) {
-      student.weeklyUpdates.foodAndMaturation = String(foodAndMaturation);
+    if (
+      foodAndMaturation !==
+      undefined
+    ) {
+      student.weeklyUpdates.foodAndMaturation =
+        String(
+          foodAndMaturation
+        );
     }
 
     if (hostel !== undefined) {
-      student.weeklyUpdates.hostel = String(hostel);
+      student.weeklyUpdates.hostel =
+        String(hostel);
     }
 
     if (academics !== undefined) {
-      student.weeklyUpdates.academics = String(academics);
+      student.weeklyUpdates.academics =
+        String(academics);
     }
 
-    if (mentorActionPlan !== undefined) {
-      student.weeklyUpdates.mentorActionPlan = String(mentorActionPlan);
+    if (
+      mentorActionPlan !==
+      undefined
+    ) {
+      student.weeklyUpdates.mentorActionPlan =
+        String(
+          mentorActionPlan
+        );
     }
 
-    student.weeklyUpdates.updatedAt = new Date();
+    student.weeklyUpdates.updatedAt =
+      new Date();
 
     await student.save();
 
     return res.status(200).json({
       success: true,
-      message: "Weekly updates saved successfully",
-      weeklyUpdates: student.weeklyUpdates,
+      message:
+        "Weekly updates saved successfully",
+      weeklyUpdates:
+        student.weeklyUpdates,
     });
   } catch (error: any) {
     console.error(
@@ -826,7 +1086,8 @@ export const updateWeeklyUpdates = async (
 
     return res.status(500).json({
       success: false,
-      message: "Failed to update weekly updates",
+      message:
+        "Failed to update weekly updates",
       error: error.message,
     });
   }
@@ -836,64 +1097,88 @@ export const updateWeeklyUpdates = async (
 // UPDATE EXAM PERFORMANCE
 // ============================================================
 
-export const updateExamPerformance = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const { studentId } = req.params;
+export const updateExamPerformance =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+    try {
+      const { studentId } =
+        req.params;
 
-    const {
-      examsAttempted,
-      totalMarks,
-      rating,
-    } = req.body;
+      const {
+        examsAttempted,
+        totalMarks,
+        rating,
+      } = req.body;
 
-    const student = await Student.findOne({ studentId });
+      const normalizedStudentId =
+        String(studentId)
+          .trim()
+          .toUpperCase();
 
-    if (!student) {
-      return res.status(404).json({
+      const student =
+        await Student.findOne({
+          studentId:
+            normalizedStudentId,
+        });
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Student not found",
+        });
+      }
+
+      if (
+        examsAttempted !== undefined
+      ) {
+        student.examsAttempted =
+          Number(examsAttempted);
+      }
+
+      if (
+        totalMarks !== undefined
+      ) {
+        student.totalMarks =
+          Number(totalMarks);
+      }
+
+      if (rating !== undefined) {
+        student.rating =
+          Number(rating);
+      }
+
+      await student.save();
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Exam performance updated successfully",
+        performance: {
+          examsAttempted:
+            student.examsAttempted,
+          totalMarks:
+            student.totalMarks,
+          rating:
+            student.rating,
+        },
+      });
+    } catch (error: any) {
+      console.error(
+        "UPDATE PERFORMANCE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
         success: false,
-        message: "Student not found",
+        message:
+          "Failed to update exam performance",
+        error: error.message,
       });
     }
-
-    if (examsAttempted !== undefined) {
-      student.examsAttempted = Number(examsAttempted);
-    }
-
-    if (totalMarks !== undefined) {
-      student.totalMarks = Number(totalMarks);
-    }
-
-    if (rating !== undefined) {
-      student.rating = Number(rating);
-    }
-
-    await student.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Exam performance updated successfully",
-      performance: {
-        examsAttempted: student.examsAttempted,
-        totalMarks: student.totalMarks,
-        rating: student.rating,
-      },
-    });
-  } catch (error: any) {
-    console.error(
-      "UPDATE PERFORMANCE ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to update exam performance",
-      error: error.message,
-    });
-  }
-};
+  };
 
 // ============================================================
 // LOGOUT
@@ -906,21 +1191,34 @@ export const logoutStudent = async (
   try {
     const { studentId } = req.params;
 
-    const student = await Student.findOne({ studentId });
+    const normalizedStudentId =
+      String(studentId)
+        .trim()
+        .toUpperCase();
+
+    const student =
+      await Student.findOne({
+        studentId:
+          normalizedStudentId,
+      });
 
     if (!student) {
       return res.status(404).json({
         success: false,
-        message: "Student not found",
+        message:
+          "Student not found",
       });
     }
 
+    // Release device lock
     student.activeDeviceId = null;
+
     await student.save();
 
     return res.status(200).json({
       success: true,
-      message: "Student logged out successfully",
+      message:
+        "Student logged out successfully",
     });
   } catch (error: any) {
     console.error(
@@ -947,20 +1245,29 @@ export const deleteStudent = async (
   try {
     const { studentId } = req.params;
 
-    const student = await Student.findOneAndDelete({
-      studentId,
-    });
+    const normalizedStudentId =
+      String(studentId)
+        .trim()
+        .toUpperCase();
+
+    const student =
+      await Student.findOneAndDelete({
+        studentId:
+          normalizedStudentId,
+      });
 
     if (!student) {
       return res.status(404).json({
         success: false,
-        message: "Student not found",
+        message:
+          "Student not found",
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: "Student deleted successfully",
+      message:
+        "Student deleted successfully",
     });
   } catch (error: any) {
     console.error(
@@ -970,7 +1277,8 @@ export const deleteStudent = async (
 
     return res.status(500).json({
       success: false,
-      message: "Failed to delete student",
+      message:
+        "Failed to delete student",
       error: error.message,
     });
   }

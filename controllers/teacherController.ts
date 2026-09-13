@@ -144,7 +144,7 @@ export const teacherLogin = async (
       success: true,
 
       message:
-        "Teacher Login Success",
+        "Management Login Success",
 
       token,
 
@@ -187,7 +187,7 @@ export const teacherLogin = async (
   catch (error: any) {
 
     console.error(
-      "TEACHER LOGIN ERROR:",
+      "Management LOGIN ERROR:",
       error
     );
 

@@ -2422,6 +2422,145 @@ export const getMockSession =
   };
 
 // ============================================================
+// GET MISSED MOCK TESTS
+// ============================================================
+//
+// GET
+// /api/mock-test/missed-tests?studentId=STUDENT_ID
+//
+// Returns mock exams whose 24-hour access window has ended
+// and which this student has not completed.
+// ============================================================
+
+export const getMissedMockExams =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<any> => {
+    try {
+      const studentId =
+        getStudentId(req);
+
+      if (!studentId) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "StudentId required",
+        });
+      }
+
+      const {
+        examType,
+        subject,
+      } = req.query;
+
+      const now = new Date();
+
+      // ======================================================
+      // MISSED EXAMS
+      // ======================================================
+      // Published mock exams whose endDate has passed.
+      // ======================================================
+
+      const filter: any = {
+        testCategory: "mock",
+        status: "published",
+        isPublished: true,
+        startDate: {
+          $lte: now,
+        },
+        endDate: {
+          $lte: now,
+        },
+      };
+
+      if (
+        examType &&
+        String(examType)
+          .trim()
+          .toLowerCase() !== "all"
+      ) {
+        filter.examType = String(
+          examType
+        ).trim();
+      }
+
+      if (
+        subject &&
+        String(subject)
+          .trim()
+          .toLowerCase() !== "all"
+      ) {
+        filter.subject = String(
+          subject
+        ).trim();
+      }
+
+      const exams =
+        await Exam.find(filter).sort({
+          endDate: -1,
+        });
+
+      // ======================================================
+      // COMPLETED SESSIONS
+      // ======================================================
+
+      const completedSessions =
+        await ExamSession.find({
+          studentId: String(
+            studentId
+          ),
+          status: "completed",
+        }).select("examId");
+
+      const completedExamIds =
+        new Set(
+          completedSessions.map(
+            (session: any) =>
+              String(
+                session.examId
+              )
+          )
+        );
+
+      // ======================================================
+      // REMOVE COMPLETED EXAMS
+      // ======================================================
+
+      const missedExams =
+        exams.filter(
+          (exam: any) =>
+            !completedExamIds.has(
+              String(exam._id)
+            )
+        );
+
+      // ======================================================
+      // RESPONSE
+      // ======================================================
+
+      return res.status(200).json({
+        success: true,
+        total:
+          missedExams.length,
+        exams: missedExams,
+      });
+    } catch (error: any) {
+      console.error(
+        "GET MISSED MOCK EXAMS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          error?.message ||
+          "Failed to get missed mock exams",
+      });
+    }
+  };
+
+// ============================================================
 // SUBMIT MOCK TEST
 // ============================================================
 
@@ -3567,6 +3706,7 @@ export const submitMockTest =
 
 export default {
   getMockTestQuestions,
+  getMissedMockExams,
   startMockTest,
   saveMockTestProgress,
   mockTestHeartbeat,

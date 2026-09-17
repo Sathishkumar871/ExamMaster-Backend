@@ -300,6 +300,8 @@ export const getPublishedMockExams = async (
       subject,
     } = req.query;
 
+    const now = new Date();
+
     const filter: any = {
       testCategory:
         "mock",
@@ -309,6 +311,15 @@ export const getPublishedMockExams = async (
 
       isPublished:
         true,
+
+      // Only exams currently inside their 24-hour access window
+      startDate: {
+        $lte: now,
+      },
+
+      endDate: {
+        $gt: now,
+      },
     };
 
     // ========================================================
@@ -373,27 +384,14 @@ export const publishExam = async (
 ): Promise<any> => {
   try {
     const exam =
-      await Exam.findOneAndUpdate(
-        {
-          _id:
-            req.params.id,
+      await Exam.findOne({
+        _id:
+          req.params.id,
 
-          // ONLY MOCK
-          testCategory:
-            "mock",
-        },
-        {
-          status:
-            "published",
-
-          isPublished:
-            true,
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      );
+        // ONLY MOCK
+        testCategory:
+          "mock",
+      });
 
     if (!exam) {
       return res.status(404).json({
@@ -402,6 +400,35 @@ export const publishExam = async (
           "Mock exam not found",
       });
     }
+
+    // ========================================================
+    // ADMIN PUBLISH TIME
+    // ========================================================
+
+    const startDate = new Date();
+
+    // ========================================================
+    // 24 HOURS ACCESS FROM PUBLISH TIME
+    // ========================================================
+
+    const endDate = new Date(
+      startDate.getTime() +
+        24 * 60 * 60 * 1000
+    );
+
+    exam.status =
+      "published";
+
+    exam.isPublished =
+      true;
+
+    exam.startDate =
+      startDate;
+
+    exam.endDate =
+      endDate;
+
+    await exam.save();
 
     return res.status(200).json({
       success: true,
@@ -420,6 +447,129 @@ export const publishExam = async (
       message:
         error.message ||
         "Failed to publish mock exam",
+    });
+  }
+};
+
+// ============================================================
+// GET MISSED MOCK TESTS
+// 24 HOURS COMPLETE AYINA,
+// STUDENT ATTEMPT/SUBMIT CHEYYANI EXAMS MATRAM
+// ============================================================
+
+export const getMissedMockExams = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  try {
+    const {
+      studentId,
+      examType,
+      subject,
+    } = req.query;
+
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "StudentId required",
+      });
+    }
+
+    const now = new Date();
+
+    // ========================================================
+    // 1. FIND MOCK EXAMS WHOSE 24-HOUR WINDOW IS OVER
+    // ========================================================
+
+    const filter: any = {
+      testCategory: "mock",
+
+      status: "published",
+
+      isPublished: true,
+
+      startDate: {
+        $lte: now,
+      },
+
+      endDate: {
+        $lte: now,
+      },
+    };
+
+    if (
+      examType &&
+      String(examType) !== "All"
+    ) {
+      filter.examType =
+        normalizeExamType(
+          examType
+        );
+    }
+
+    if (
+      subject &&
+      String(subject) !== "All"
+    ) {
+      filter.subject =
+        String(subject);
+    }
+
+    const exams =
+      await Exam.find(filter)
+        .sort({
+          endDate: -1,
+        });
+
+    // ========================================================
+    // 2. FIND COMPLETED EXAMS FOR THIS STUDENT
+    // ========================================================
+
+    const completedSessions =
+      await ExamSession.find({
+        studentId: String(studentId),
+        status: "completed",
+      }).select("examId");
+
+    const completedExamIds =
+      new Set(
+        completedSessions.map(
+          (session: any) =>
+            String(session.examId)
+        )
+      );
+
+    // ========================================================
+    // 3. ONLY UNATTEMPTED MISSED EXAMS
+    // ========================================================
+
+    const missedExams =
+      exams.filter(
+        (exam: any) =>
+          !completedExamIds.has(
+            String(exam._id)
+          )
+      );
+
+    return res.status(200).json({
+      success: true,
+
+      total: missedExams.length,
+
+      exams: missedExams,
+    });
+  } catch (error: any) {
+    console.error(
+      "GET MISSED MOCK EXAMS ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Failed to get missed mock exams",
     });
   }
 };
@@ -477,6 +627,27 @@ export const startExam = async (
         success: false,
         message:
           "Published mock exam not found",
+      });
+    }
+
+    // ========================================================
+    // CHECK 24-HOUR ACCESS WINDOW
+    // ========================================================
+
+    const now = new Date();
+
+    if (
+      !exam.startDate ||
+      !exam.endDate ||
+      now < exam.startDate ||
+      now >= exam.endDate
+    ) {
+      return res.status(410).json({
+        success: false,
+        code:
+          "EXAM_ACCESS_EXPIRED",
+        message:
+          "This mock test is no longer available.",
       });
     }
 
@@ -1346,6 +1517,7 @@ export default {
   createExam,
   getTeacherExams,
   getPublishedMockExams,
+  getMissedMockExams,
   getExamById,
   publishExam,
   startExam,

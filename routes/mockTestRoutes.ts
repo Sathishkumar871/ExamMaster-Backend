@@ -3,6 +3,7 @@ import { Router } from "express";
 
 import {
   getMockTestQuestions,
+  getMissedMockExams, // ✅ ADD THIS
   startMockTest,
   saveMockTestProgress,
   mockTestHeartbeat,
@@ -19,18 +20,9 @@ const router = Router();
 // ============================================================
 // 1. GET MOCK TEST QUESTIONS
 // ============================================================
-//
+
 // GET
 // /api/mock-test/questions
-//
-// Optional query:
-//
-// ?className=2nd%20PUC
-// ?academicYear=2nd%20PUC
-// ?examType=NEET
-// ?subject=Physics
-//
-// ============================================================
 
 router.get(
   "/questions",
@@ -38,31 +30,30 @@ router.get(
 );
 
 // ============================================================
-// 2. START / RESUME MOCK TEST
+// 2. MISSED MOCK TESTS
 // ============================================================
 //
+// GET
+// /api/mock-test/missed-tests
+//
+// Query:
+// ?studentId=STUDENT_ID
+//
+// Returns exams whose 24-hour access window has ended
+// and which the student has not completed.
+// ============================================================
+
+router.get(
+  "/missed-tests",
+  getMissedMockExams
+);
+
+// ============================================================
+// 3. START / RESUME MOCK TEST
+// ============================================================
+
 // POST
 // /api/mock-test/start
-//
-// Body:
-//
-// {
-//   "studentId": "STU123456",
-//   "examId": "EXAM_ID",
-//   "deviceId": "DEVICE_ID"
-// }
-//
-// FIRST TIME:
-// Creates ExamSession.
-//
-// REFRESH:
-// Returns same ExamSession.
-//
-// SECOND DEVICE:
-// Takes over active session.
-// Previous device becomes invalid.
-//
-// ============================================================
 
 router.post(
   "/start",
@@ -70,36 +61,11 @@ router.post(
 );
 
 // ============================================================
-// 3. SAVE EXAM PROGRESS
+// 4. SAVE EXAM PROGRESS
 // ============================================================
-//
+
 // POST
 // /api/mock-test/progress
-//
-// Body:
-//
-// {
-//   "studentId": "STU123456",
-//   "sessionId": "SESSION_ID",
-//   "currentQuestion": 4,
-//   "answers": [
-//     {
-//       "questionId": "QUESTION_ID",
-//       "answer": "Option A"
-//     }
-//   ],
-//   "markedForReview": {
-//     "QUESTION_ID": true
-//   }
-// }
-//
-// Saves:
-//
-// - Current question
-// - Answers
-// - Review marks
-//
-// ============================================================
 
 router.post(
   "/progress",
@@ -107,27 +73,11 @@ router.post(
 );
 
 // ============================================================
-// 4. HEARTBEAT
+// 5. HEARTBEAT
 // ============================================================
-//
+
 // POST
 // /api/mock-test/heartbeat
-//
-// Body:
-//
-// {
-//   "studentId": "STU123456",
-//   "sessionId": "SESSION_ID"
-// }
-//
-// Used for:
-//
-// - Device takeover detection
-// - Session replacement detection
-// - Timer validation
-// - Completed exam detection
-//
-// ============================================================
 
 router.post(
   "/heartbeat",
@@ -135,27 +85,11 @@ router.post(
 );
 
 // ============================================================
-// 5. GET EXISTING SESSION
+// 6. GET EXISTING SESSION
 // ============================================================
-//
+
 // GET
 // /api/mock-test/session/:examId
-//
-// Used after:
-//
-// - Browser refresh
-// - Mobile refresh
-// - App reopen
-//
-// Returns:
-//
-// - Same questions
-// - Same answers
-// - Same current question
-// - Same review marks
-// - Remaining server time
-//
-// ============================================================
 
 router.get(
   "/session/:examId",
@@ -163,26 +97,11 @@ router.get(
 );
 
 // ============================================================
-// 6. SUBMIT MOCK TEST
+// 7. SUBMIT MOCK TEST
 // ============================================================
-//
+
 // POST
 // /api/mock-test/submit
-//
-// Backend calculates:
-//
-// - Correct
-// - Wrong
-// - Unanswered
-// - Marks
-// - Negative marking
-// - Percentage
-// - Grade
-// - PASS / FAIL
-//
-// Frontend score is NOT trusted.
-//
-// ============================================================
 
 router.post(
   "/submit",

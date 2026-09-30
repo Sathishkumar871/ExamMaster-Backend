@@ -1,25 +1,45 @@
+
 import mongoose, {
   Document,
   Model,
   Schema,
 } from "mongoose";
 
+// ============================================================================
+// JANASEVA USER INTERFACE
+// ============================================================================
+
 export interface IJanasevaUser extends Document {
   name: string;
   mobile: string;
+
   state: string;
   district: string;
   mandal: string;
   village: string;
+
   role: string;
   isActive: boolean;
+
+  // Account preferences
+  notificationEnabled: boolean;
+  language: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
 
+// ============================================================================
+// SCHEMA
+// ============================================================================
+
 const JanasevaUserSchema =
   new Schema<IJanasevaUser>(
     {
+      // ======================================================================
+      // NAME
+      // ======================================================================
+
       name: {
         type: String,
         required: true,
@@ -27,6 +47,10 @@ const JanasevaUserSchema =
         minlength: 2,
         maxlength: 100,
       },
+
+      // ======================================================================
+      // MOBILE
+      // ======================================================================
 
       mobile: {
         type: String,
@@ -36,6 +60,10 @@ const JanasevaUserSchema =
         index: true,
       },
 
+      // ======================================================================
+      // STATE
+      // ======================================================================
+
       state: {
         type: String,
         required: true,
@@ -43,11 +71,19 @@ const JanasevaUserSchema =
         trim: true,
       },
 
+      // ======================================================================
+      // DISTRICT
+      // ======================================================================
+
       district: {
         type: String,
         required: true,
         trim: true,
       },
+
+      // ======================================================================
+      // MANDAL
+      // ======================================================================
 
       mandal: {
         type: String,
@@ -55,11 +91,19 @@ const JanasevaUserSchema =
         trim: true,
       },
 
+      // ======================================================================
+      // VILLAGE
+      // ======================================================================
+
       village: {
         type: String,
         required: true,
         trim: true,
       },
+
+      // ======================================================================
+      // ROLE
+      // ======================================================================
 
       role: {
         type: String,
@@ -67,9 +111,37 @@ const JanasevaUserSchema =
         trim: true,
       },
 
+      // ======================================================================
+      // ACCOUNT STATUS
+      // ======================================================================
+
       isActive: {
         type: Boolean,
         default: true,
+      },
+
+      // ======================================================================
+      // NOTIFICATIONS
+      // ======================================================================
+
+      notificationEnabled: {
+        type: Boolean,
+        default: true,
+      },
+
+      // ======================================================================
+      // LANGUAGE
+      // ======================================================================
+
+      language: {
+        type: String,
+        enum: [
+          "English",
+          "తెలుగు",
+          "हिन्दी",
+        ],
+        default: "English",
+        trim: true,
       },
     },
     {
@@ -77,6 +149,10 @@ const JanasevaUserSchema =
       collection: "janaseva_users",
     },
   );
+
+// ============================================================================
+// MODEL
+// ============================================================================
 
 const JanasevaUser: Model<IJanasevaUser> =
   mongoose.models.JanasevaUser ||
@@ -86,3 +162,4 @@ const JanasevaUser: Model<IJanasevaUser> =
   );
 
 export default JanasevaUser;
+

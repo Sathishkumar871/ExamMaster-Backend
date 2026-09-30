@@ -29,6 +29,7 @@ import otpRoutes from "./routes/otpRoutes";
 import locationsRouter from "./routes/locations";
 import janasevaRegisterRouter from "./routes/janasevaRegister";
 import janasevaAuthRouter from "./routes/janasevaAuth";
+import janasevaProfileRouter from "./routes/janasevaProfile";
 // ============================================================
 // APP
 // ============================================================
@@ -217,6 +218,10 @@ app.use(
   janasevaAuthRouter,
 );
 
+app.use(
+  "/api/janaseva",
+  janasevaProfileRouter,
+);
 
 app.get(
   "/",

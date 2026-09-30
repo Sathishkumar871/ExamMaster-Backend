@@ -1,10 +1,10 @@
-
 import "dotenv/config";
 import cors from "cors";
 
 import app from "./app";
 import connectDB from "./config/db";
 import { connectCloudinary } from "./config/cloudinary";
+import { testPostgresConnection } from "./config/postgres";
 import Question from "./models/questionModel";
 
 console.log("🔥🔥🔥 THIS SERVER.TS IS RUNNING");
@@ -60,8 +60,23 @@ const autoPublishScheduledMockTests = async () => {
 
 const startServer = async () => {
   try {
+    // ========================================================
+    // CONNECT MONGODB
+    // ========================================================
+
     await connectDB();
+
+    // ========================================================
+    // CONNECT CLOUDINARY
+    // ========================================================
+
     await connectCloudinary();
+
+    // ========================================================
+    // TEST NEON POSTGRESQL
+    // ========================================================
+
+    await testPostgresConnection();
 
     const PORT = process.env.PORT || 5000;
 
@@ -76,6 +91,10 @@ const startServer = async () => {
       autoPublishScheduledMockTests,
       30 * 1000
     );
+
+    // ========================================================
+    // START EXPRESS SERVER
+    // ========================================================
 
     app.listen(PORT, () => {
       console.log(
@@ -97,4 +116,3 @@ const startServer = async () => {
 };
 
 startServer();
-

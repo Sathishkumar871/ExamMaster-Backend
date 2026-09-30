@@ -26,6 +26,8 @@ import { publishScheduledMockTests } from "./services/mockTestPublisher";
 import aiStrategyRoutes from "./routes/aiStrategyRoutes";
 import academicRoutes from "./routes/academicRoutes";
 import otpRoutes from "./routes/otpRoutes";
+import locationsRouter from "./routes/locations";
+import janasevaRegisterRouter from "./routes/janasevaRegister";
 // ============================================================
 // APP
 // ============================================================
@@ -195,6 +197,21 @@ app.use(
 // ============================================================
 // HEALTH CHECK
 // ============================================================
+
+ // ============================================================
+// LOCATION API
+// ============================================================
+
+app.use(
+  "/api/locations",
+  locationsRouter
+);
+
+app.use(
+  "/api/janaseva",
+  janasevaRegisterRouter
+);
+
 
 app.get(
   "/",

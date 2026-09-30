@@ -28,6 +28,7 @@ import academicRoutes from "./routes/academicRoutes";
 import otpRoutes from "./routes/otpRoutes";
 import locationsRouter from "./routes/locations";
 import janasevaRegisterRouter from "./routes/janasevaRegister";
+import janasevaAuthRouter from "./routes/janasevaAuth";
 // ============================================================
 // APP
 // ============================================================
@@ -210,6 +211,10 @@ app.use(
 app.use(
   "/api/janaseva",
   janasevaRegisterRouter
+);
+app.use(
+  "/api/janaseva",
+  janasevaAuthRouter,
 );
 
 

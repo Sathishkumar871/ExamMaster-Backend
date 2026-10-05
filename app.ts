@@ -10,34 +10,47 @@ import "dotenv/config";
 import studentRoutes from "./routes/studentRoutes";
 import resultRoutes from "./routes/resultRoutes";
 import teacherRoutes from "./routes/teacherRoutes";
+
 import staffRoutes from "./routes/staffRoutes";
+import staffAuthRouter from "./routes/staffAuth";
+import staffVolunteerRoutes from "./routes/staffVolunteerRoutes";
+import staffavailabilityRoutes from "./routes/staffAvailabilityRoutes";
+
 import mentorRoutes from "./routes/mentorRoutes";
 import managerRoutes from "./routes/managerRoutes";
-import mockTestRoutes from "./routes/mockTestRoutes";
 import headRoutes from "./routes/headRoutes";
+
+import mockTestRoutes from "./routes/mockTestRoutes";
 import dailyTestRoutes from "./routes/dailyTestRoutes";
 import subjectRoutes from "./routes/subjectRoutes";
 import questionRoutes from "./routes/question.routes";
+
 import departmentFeedbackRoutes from "./routes/departmentFeedbackRoutes";
 import studentProgressRoutes from "./routes/studentProgressRoutes";
+
 import complaintRoutes from "./routes/complaintRoutes";
 import testRoutes from "./routes/testRoutes";
+
 import facultyRoutes from "./routes/facultyRoutes";
 import leaderboardRoutes from "./routes/leaderboardroutes";
+
 import aiStrategyRoutes from "./routes/aiStrategyRoutes";
 import academicRoutes from "./routes/academicRoutes";
+
 import otpRoutes from "./routes/otpRoutes";
 import locationsRouter from "./routes/locations";
+
 import janasevaRegisterRouter from "./routes/janasevaRegister";
 import janasevaAuthRouter from "./routes/janasevaAuth";
 import janasevaProfileRouter from "./routes/janasevaProfile";
+
 import adminAuthRouter from "./routes/adminAuth";
+
 import volunteerRegistrationRouter from "./routes/volunteerRegistration";
-import staffAuthRouter from "./routes/staffAuth";
-import homeHeroRouter from "./routes/homeHero";
 import volunteerRoutes from "./routes/volunteerRoutes";
-import staffVolunteerRoutes from "./routes/staffVolunteerRoutes";
-import staffavailabilityRoutes from "./routes/staffAvailabilityRoutes";
+
+import homeHeroRouter from "./routes/homeHero";
+
 import appointmentRoutes from "./routes/appointment.routes";
 
 // ============================================================
@@ -51,7 +64,9 @@ import publicCommunityUpdateRoutes from "./routes/publicCommunityUpdateRoutes";
 // SERVICES
 // ============================================================
 
-import { publishScheduledMockTests } from "./services/mockTestPublisher";
+import {
+  publishScheduledMockTests,
+} from "./services/mockTestPublisher";
 
 // ============================================================
 // APP
@@ -60,15 +75,58 @@ import { publishScheduledMockTests } from "./services/mockTestPublisher";
 const app = express();
 
 // ============================================================
-// MIDDLEWARE
+// BASIC CONFIG
+// ============================================================
+
+app.set("trust proxy", 1);
+
+// ============================================================
+// CORS
 // ============================================================
 
 app.use(
   cors({
-    origin: "*",
+    // Reflect request origin.
+    // This works for browser/frontend requests
+    // while still allowing credentials.
+    origin: true,
+
+    credentials: true,
+
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
+
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
+  }),
+);
+
+// ============================================================
+// EXPRESS 5 PREFLIGHT
+// ============================================================
+
+app.options(
+  /.*/,
+  cors({
+    origin: true,
     credentials: true,
   }),
 );
+
+// ============================================================
+// BODY PARSERS
+// ============================================================
 
 app.use(
   express.json({
@@ -81,6 +139,20 @@ app.use(
     extended: true,
     limit: "10mb",
   }),
+);
+
+// ============================================================
+// REQUEST LOGGER
+// ============================================================
+
+app.use(
+  (req, _res, next) => {
+    console.log(
+      `[REQUEST] ${req.method} ${req.originalUrl}`,
+    );
+
+    next();
+  },
 );
 
 // ============================================================
@@ -130,7 +202,68 @@ app.use(
 );
 
 // ============================================================
+// ============================================================
+// STAFF AUTH
+//
+// IMPORTANT:
+//
+// This must come BEFORE:
+//
+// /api/staff
+//
+// Otherwise the broad staff router may capture:
+//
+// /api/staff/auth/...
+// ============================================================
+// ============================================================
+
+app.use(
+  "/api/staff/auth",
+  staffAuthRouter,
+);
+
+// ============================================================
+// STAFF AVAILABILITY / SLOTS
+//
+// IMPORTANT:
+//
+// This MUST come BEFORE:
+//
+// /api/staff
+//
+// Otherwise:
+//
+// /api/staff/availability/public/:date
+//
+// can be captured by staffRoutes and return
+// "Staff login required".
+// ============================================================
+
+app.use(
+  "/api/staff/availability",
+  staffavailabilityRoutes,
+);
+
+// ============================================================
+// STAFF VOLUNTEER MANAGEMENT
+//
+// Keep before broad /api/staff route.
+// ============================================================
+
+app.use(
+  "/api/staff",
+  staffVolunteerRoutes,
+);
+
+// ============================================================
 // STAFF API
+//
+// BROAD /api/staff ROUTE
+//
+// Must come AFTER:
+// 1. /api/staff/auth
+// 2. /api/staff/availability
+// 3. other specific /api/staff routes
 // ============================================================
 
 app.use(
@@ -174,10 +307,18 @@ app.use(
   dailyTestRoutes,
 );
 
+// ============================================================
+// QUESTIONS API
+// ============================================================
+
 app.use(
   "/api/questions",
   questionRoutes,
 );
+
+// ============================================================
+// SUBJECT API
+// ============================================================
 
 app.use(
   "/api/subjects",
@@ -295,12 +436,12 @@ app.use(
 );
 
 // ============================================================
-// STAFF AUTH
+// VOLUNTEER API
 // ============================================================
 
 app.use(
-  "/api/staff/auth",
-  staffAuthRouter,
+  "/api/volunteers",
+  volunteerRoutes,
 );
 
 // ============================================================
@@ -313,31 +454,9 @@ app.use(
 );
 
 // ============================================================
-// VOLUNTEER API
+// APPOINTMENTS
 // ============================================================
 
-app.use(
-  "/api/volunteers",
-  volunteerRoutes,
-);
-
-// ============================================================
-// STAFF VOLUNTEER MANAGEMENT
-// ============================================================
-
-app.use(
-  "/api/staff",
-  staffVolunteerRoutes,
-);
-
-// ============================================================
-// STAFF AVAILABILITY / SLOTS
-// ============================================================
-
-app.use(
-  "/api/staff/availability",
-  staffavailabilityRoutes,
-);
 app.use(
   "/api/appointments",
   appointmentRoutes,
@@ -347,14 +466,6 @@ app.use(
 // COMMUNITY UPDATES
 //
 // VOLUNTEER SIDE
-//
-// Create
-// List own updates
-// Get single update
-// Edit
-// Delete
-// Publish
-// Unpublish
 // ============================================================
 
 app.use(
@@ -366,12 +477,6 @@ app.use(
 // COMMUNITY UPDATES
 //
 // PUBLIC USER SIDE
-//
-// Published
-// Active
-// Non-expired
-// Location-matching
-// Category-wise
 // ============================================================
 
 app.use(
@@ -385,10 +490,28 @@ app.use(
 
 app.get(
   "/",
-  (req, res) => {
+  (_req, res) => {
     return res.status(200).json({
       success: true,
       message: "ExamMaster API Running 🚀",
+      timestamp:
+        new Date().toISOString(),
+    });
+  },
+);
+
+// ============================================================
+// API HEALTH
+// ============================================================
+
+app.get(
+  "/api/health",
+  (_req, res) => {
+    return res.status(200).json({
+      success: true,
+      message: "API is healthy",
+      timestamp:
+        new Date().toISOString(),
     });
   },
 );
@@ -410,9 +533,14 @@ setInterval(
 
 app.use(
   (req, res) => {
+    console.warn(
+      `[404] ${req.method} ${req.originalUrl}`,
+    );
+
     return res.status(404).json({
       success: false,
-      message: "API route not found",
+      message:
+        "API route not found",
       path: req.originalUrl,
     });
   },
@@ -427,18 +555,23 @@ app.use(
     err: any,
     req: any,
     res: any,
-    next: any,
+    _next: any,
   ) => {
     console.error(
       "SERVER ERROR:",
       err,
     );
 
-    return res.status(500).json({
+    return res.status(
+      err?.statusCode ||
+        err?.status ||
+        500,
+    ).json({
       success: false,
       message:
         err?.message ||
         "Internal Server Error",
+      path: req?.originalUrl,
     });
   },
 );

@@ -1,149 +1,214 @@
-import { Request, Response, NextFunction } from "express";
+
+import {
+  Request,
+  Response,
+  NextFunction,
+} from "express";
+
 import jwt from "jsonwebtoken";
 
-
-interface StaffRequest extends Request {
-
-  staff?: any;
-
+interface StaffRequest
+  extends Request {
+  staff?: {
+    id?: string;
+    teacherId?: string;
+    name?: string;
+    email?: string;
+    mobile?: string;
+    role?: string;
+    department?: string;
+    classId?: string;
+    className?: string;
+    section?: string;
+  };
 }
-
-
 
 const staffAuth = (
-
   req: StaffRequest,
-
   res: Response,
-
-  next: NextFunction
-
+  next: NextFunction,
 ) => {
+  try {
+    /* =====================================================
+       TOKEN
+    ===================================================== */
 
+    const authorization =
+      req.headers.authorization;
 
-try{
+    const token =
+      authorization?.startsWith(
+        "Bearer ",
+      )
+        ? authorization.substring(7).trim()
+        : authorization
+            ?.split(" ")[1];
 
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Staff login required",
+      });
+    }
 
-const token =
-req.headers.authorization?.split(" ")[1];
+    /* =====================================================
+       VERIFY TOKEN
+    ===================================================== */
 
+    const decoded: any =
+      jwt.verify(
+        token,
+        process.env.JWT_SECRET as string,
+      );
 
+    /* =====================================================
+       ROLE
+    ===================================================== */
 
-if(!token){
+    const role = String(
+      decoded?.role ?? "",
+    )
+      .trim()
+      .toLowerCase();
 
-return res.status(401).json({
+    console.log(
+      "[STAFF AUTH] decoded role:",
+      role,
+    );
 
-success:false,
+    /* =====================================================
+       ALLOWED STAFF ROLES
+       
+       Your existing roles:
+       mentor
+       manager
+       head
 
-message:"Staff login required"
+       Added:
+       staff
+       director
+       ===================================================== */
 
-});
+    const allowedRoles = [
+      "staff",
+      "mentor",
+      "manager",
+      "head",
+      "director",
+    ];
 
-}
+    if (
+      !allowedRoles.includes(
+        role,
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Staff access denied",
+        role,
+      });
+    }
 
+    /* =====================================================
+       STAFF ID
+    ===================================================== */
 
+    const staffId =
+      decoded?.id ||
+      decoded?.userId ||
+      decoded?.staffId ||
+      decoded?.teacherId;
 
+    if (!staffId) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Staff ID not found in token",
+      });
+    }
 
+    /* =====================================================
+       ATTACH STAFF
+    ===================================================== */
 
-const decoded:any = jwt.verify(
+    req.staff = {
+      id: String(staffId),
 
-token,
+      teacherId:
+        decoded?.teacherId
+          ? String(
+              decoded.teacherId,
+            )
+          : undefined,
 
-process.env.JWT_SECRET as string
+      name:
+        decoded?.name
+          ? String(
+              decoded.name,
+            )
+          : undefined,
 
-);
+      email:
+        decoded?.email
+          ? String(
+              decoded.email,
+            )
+          : undefined,
 
+      mobile:
+        decoded?.mobile
+          ? String(
+              decoded.mobile,
+            )
+          : undefined,
 
+      role,
 
+      department:
+        decoded?.department
+          ? String(
+              decoded.department,
+            )
+          : undefined,
 
+      classId:
+        decoded?.classId
+          ? String(
+              decoded.classId,
+            )
+          : undefined,
 
-const allowedRoles = [
+      className:
+        decoded?.className
+          ? String(
+              decoded.className,
+            )
+          : undefined,
 
-"mentor",
+      section:
+        decoded?.section
+          ? String(
+              decoded.section,
+            )
+          : undefined,
+    };
 
-"manager",
+    next();
+  } catch (error) {
+    console.error(
+      "[STAFF AUTH ERROR]",
+      error,
+    );
 
-"head"
-
-];
-
-
-
-
-
-if(!allowedRoles.includes(decoded.role)){
-
-
-return res.status(403).json({
-
-success:false,
-
-message:"Staff access denied"
-
-});
-
-
-
-}
-
-
-
-
-
-// JWT data attach
-
-req.staff = {
-
-id:decoded.id,
-
-teacherId:decoded.teacherId,
-
-name:decoded.name,
-
-email:decoded.email,
-
-mobile:decoded.mobile,
-
-role:decoded.role,
-
-department:decoded.department,
-
-classId:decoded.classId,
-
-className:decoded.className,
-
-section:decoded.section
-
+    return res.status(401).json({
+      success: false,
+      message:
+        "Invalid staff token",
+    });
+  }
 };
-
-
-
-
-
-next();
-
-
-
-}
-
-catch(error:any){
-
-
-return res.status(401).json({
-
-success:false,
-
-message:"Invalid staff token"
-
-});
-
-
-}
-
-
-
-};
-
-
 
 export default staffAuth;
+

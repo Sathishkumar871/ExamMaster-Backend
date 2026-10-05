@@ -2,9 +2,11 @@ import express from "express";
 import cors from "cors";
 
 import "dotenv/config";
+
 // ============================================================
 // ROUTES
 // ============================================================
+
 import studentRoutes from "./routes/studentRoutes";
 import resultRoutes from "./routes/resultRoutes";
 import teacherRoutes from "./routes/teacherRoutes";
@@ -22,7 +24,6 @@ import complaintRoutes from "./routes/complaintRoutes";
 import testRoutes from "./routes/testRoutes";
 import facultyRoutes from "./routes/facultyRoutes";
 import leaderboardRoutes from "./routes/leaderboardroutes";
-import { publishScheduledMockTests } from "./services/mockTestPublisher";
 import aiStrategyRoutes from "./routes/aiStrategyRoutes";
 import academicRoutes from "./routes/academicRoutes";
 import otpRoutes from "./routes/otpRoutes";
@@ -30,52 +31,84 @@ import locationsRouter from "./routes/locations";
 import janasevaRegisterRouter from "./routes/janasevaRegister";
 import janasevaAuthRouter from "./routes/janasevaAuth";
 import janasevaProfileRouter from "./routes/janasevaProfile";
+import adminAuthRouter from "./routes/adminAuth";
+import volunteerRegistrationRouter from "./routes/volunteerRegistration";
+import staffAuthRouter from "./routes/staffAuth";
+import homeHeroRouter from "./routes/homeHero";
+import volunteerRoutes from "./routes/volunteerRoutes";
+import staffVolunteerRoutes from "./routes/staffVolunteerRoutes";
+import staffavailabilityRoutes from "./routes/staffAvailabilityRoutes";
+import appointmentRoutes from "./routes/appointment.routes";
+
+// ============================================================
+// COMMUNITY UPDATE ROUTES
+// ============================================================
+
+import communityUpdateRoutes from "./routes/communityUpdateRoutes";
+import publicCommunityUpdateRoutes from "./routes/publicCommunityUpdateRoutes";
+
+// ============================================================
+// SERVICES
+// ============================================================
+
+import { publishScheduledMockTests } from "./services/mockTestPublisher";
+
 // ============================================================
 // APP
 // ============================================================
+
 const app = express();
+
 // ============================================================
 // MIDDLEWARE
 // ============================================================
+
 app.use(
   cors({
     origin: "*",
     credentials: true,
-  })
+  }),
 );
+
 app.use(
   express.json({
     limit: "10mb",
-  })
+  }),
 );
 
 app.use(
   express.urlencoded({
     extended: true,
     limit: "10mb",
-  })
+  }),
 );
+
 // ============================================================
 // STUDENT API
 // ============================================================
 
 app.use(
   "/api/student",
-  studentRoutes
+  studentRoutes,
 );
-app.use("/api/otp", otpRoutes);
+
+app.use(
+  "/api/otp",
+  otpRoutes,
+);
+
 // ============================================================
 // RESULT API
 // ============================================================
 
 app.use(
   "/api/results",
-  resultRoutes
+  resultRoutes,
 );
 
 app.use(
   "/api/result",
-  resultRoutes
+  resultRoutes,
 );
 
 // ============================================================
@@ -84,7 +117,7 @@ app.use(
 
 app.use(
   "/api/teacher",
-  teacherRoutes
+  teacherRoutes,
 );
 
 // ============================================================
@@ -93,7 +126,7 @@ app.use(
 
 app.use(
   "/api/faculty",
-  facultyRoutes
+  facultyRoutes,
 );
 
 // ============================================================
@@ -102,7 +135,7 @@ app.use(
 
 app.use(
   "/api/staff",
-  staffRoutes
+  staffRoutes,
 );
 
 // ============================================================
@@ -111,7 +144,7 @@ app.use(
 
 app.use(
   "/api/mentor",
-  mentorRoutes
+  mentorRoutes,
 );
 
 // ============================================================
@@ -120,7 +153,7 @@ app.use(
 
 app.use(
   "/api/manager",
-  managerRoutes
+  managerRoutes,
 );
 
 // ============================================================
@@ -129,7 +162,7 @@ app.use(
 
 app.use(
   "/api/head",
-  headRoutes
+  headRoutes,
 );
 
 // ============================================================
@@ -138,90 +171,217 @@ app.use(
 
 app.use(
   "/api/daily-tests",
-  dailyTestRoutes
+  dailyTestRoutes,
 );
+
 app.use(
   "/api/questions",
-  questionRoutes
+  questionRoutes,
 );
+
 app.use(
   "/api/subjects",
-   subjectRoutes);
+  subjectRoutes,
+);
+
 // ============================================================
-// QUESTION BANK API
+// QUESTION BANK / AI STRATEGY
 // ============================================================
+
 app.use(
   "/api/ai-strategy",
-  aiStrategyRoutes
+  aiStrategyRoutes,
 );
+
 app.use(
-  "/api/academic", 
-  academicRoutes);
+  "/api/academic",
+  academicRoutes,
+);
+
 // ============================================================
 // TESTS / PUBLISH API
 // ============================================================
 
 app.use(
   "/api/tests",
-  testRoutes
+  testRoutes,
 );
 
 app.use(
   "/api/mock-test",
-  mockTestRoutes
+  mockTestRoutes,
 );
+
 // ============================================================
 // STUDENT PROGRESS
 // ============================================================
 
 app.use(
   "/api/student-progress",
-  studentProgressRoutes
+  studentProgressRoutes,
 );
 
 // ============================================================
-// COMPLAINT API
+// COMPLAINT / LEADERBOARD API
 // ============================================================
 
 app.use(
-  "/api", 
-  leaderboardRoutes);
+  "/api",
+  leaderboardRoutes,
+);
 
 app.use(
   "/api/complaints",
-  complaintRoutes
+  complaintRoutes,
 );
+
 app.use(
   "/api/department-feedback",
-  departmentFeedbackRoutes
+  departmentFeedbackRoutes,
 );
 
 // ============================================================
-// HEALTH CHECK
-// ============================================================
-
- // ============================================================
 // LOCATION API
 // ============================================================
 
 app.use(
   "/api/locations",
-  locationsRouter
+  locationsRouter,
 );
+
+// ============================================================
+// JANASEVA REGISTER
+// ============================================================
 
 app.use(
   "/api/janaseva",
-  janasevaRegisterRouter
+  janasevaRegisterRouter,
 );
+
+// ============================================================
+// JANASEVA AUTH
+// ============================================================
+
 app.use(
   "/api/janaseva",
   janasevaAuthRouter,
 );
 
+// ============================================================
+// JANASEVA PROFILE
+// ============================================================
+
 app.use(
   "/api/janaseva",
   janasevaProfileRouter,
 );
+
+// ============================================================
+// ADMIN AUTH
+// ============================================================
+
+app.use(
+  "/api/admin/auth",
+  adminAuthRouter,
+);
+
+// ============================================================
+// VOLUNTEER REGISTRATION
+// ============================================================
+
+app.use(
+  "/api/volunteers",
+  volunteerRegistrationRouter,
+);
+
+// ============================================================
+// STAFF AUTH
+// ============================================================
+
+app.use(
+  "/api/staff/auth",
+  staffAuthRouter,
+);
+
+// ============================================================
+// HOME HERO
+// ============================================================
+
+app.use(
+  "/api/home/hero",
+  homeHeroRouter,
+);
+
+// ============================================================
+// VOLUNTEER API
+// ============================================================
+
+app.use(
+  "/api/volunteers",
+  volunteerRoutes,
+);
+
+// ============================================================
+// STAFF VOLUNTEER MANAGEMENT
+// ============================================================
+
+app.use(
+  "/api/staff",
+  staffVolunteerRoutes,
+);
+
+// ============================================================
+// STAFF AVAILABILITY / SLOTS
+// ============================================================
+
+app.use(
+  "/api/staff/availability",
+  staffavailabilityRoutes,
+);
+app.use(
+  "/api/appointments",
+  appointmentRoutes,
+);
+
+// ============================================================
+// COMMUNITY UPDATES
+//
+// VOLUNTEER SIDE
+//
+// Create
+// List own updates
+// Get single update
+// Edit
+// Delete
+// Publish
+// Unpublish
+// ============================================================
+
+app.use(
+  "/api/volunteer/community-updates",
+  communityUpdateRoutes,
+);
+
+// ============================================================
+// COMMUNITY UPDATES
+//
+// PUBLIC USER SIDE
+//
+// Published
+// Active
+// Non-expired
+// Location-matching
+// Category-wise
+// ============================================================
+
+app.use(
+  "/api/community-updates",
+  publicCommunityUpdateRoutes,
+);
+
+// ============================================================
+// HEALTH CHECK
+// ============================================================
 
 app.get(
   "/",
@@ -230,16 +390,19 @@ app.get(
       success: true,
       message: "ExamMaster API Running 🚀",
     });
-  }
+  },
 );
+
+// ============================================================
+// MOCK TEST AUTO PUBLISHER
+// ============================================================
 
 publishScheduledMockTests();
 
-    setInterval(
-      publishScheduledMockTests,
-      30 * 1000
-    );
-
+setInterval(
+  publishScheduledMockTests,
+  30 * 1000,
+);
 
 // ============================================================
 // 404 API HANDLER
@@ -252,7 +415,7 @@ app.use(
       message: "API route not found",
       path: req.originalUrl,
     });
-  }
+  },
 );
 
 // ============================================================
@@ -264,11 +427,11 @@ app.use(
     err: any,
     req: any,
     res: any,
-    next: any
+    next: any,
   ) => {
     console.error(
       "SERVER ERROR:",
-      err
+      err,
     );
 
     return res.status(500).json({
@@ -277,7 +440,7 @@ app.use(
         err?.message ||
         "Internal Server Error",
     });
-  }
+  },
 );
 
 // ============================================================

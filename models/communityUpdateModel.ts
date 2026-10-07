@@ -60,6 +60,26 @@ export interface ICommunityUpdate {
 
   imageUrl: string;
 
+  // ==========================================================
+  // GOVERNMENT SCHEME FIELDS
+  // ==========================================================
+
+  eligibility: string;
+
+  benefits: string;
+
+  requiredDocuments: string[];
+
+  applicationSteps: string[];
+
+  applicationUrl: string;
+
+  officialWebsiteUrl: string;
+
+  videoUrl: string;
+
+  // ==========================================================
+
   postedBy: string;
 
   postedByName: string;
@@ -112,6 +132,26 @@ export interface CreateCommunityUpdateInput {
 
   imageUrl?: string;
 
+  // ==========================================================
+  // GOVERNMENT SCHEME FIELDS
+  // ==========================================================
+
+  eligibility?: string;
+
+  benefits?: string;
+
+  requiredDocuments?: string[];
+
+  applicationSteps?: string[];
+
+  applicationUrl?: string;
+
+  officialWebsiteUrl?: string;
+
+  videoUrl?: string;
+
+  // ==========================================================
+
   postedBy: string;
 
   postedByName: string;
@@ -159,6 +199,26 @@ export interface UpdateCommunityUpdateInput {
   externalLink?: string;
 
   imageUrl?: string;
+
+  // ==========================================================
+  // GOVERNMENT SCHEME FIELDS
+  // ==========================================================
+
+  eligibility?: string;
+
+  benefits?: string;
+
+  requiredDocuments?: string[];
+
+  applicationSteps?: string[];
+
+  applicationUrl?: string;
+
+  officialWebsiteUrl?: string;
+
+  videoUrl?: string;
+
+  // ==========================================================
 
   status?: CommunityUpdateStatus;
 
@@ -258,6 +318,26 @@ interface CommunityUpdateDbRow {
 
   image_url: string;
 
+  // ==========================================================
+  // GOVERNMENT SCHEME FIELDS
+  // ==========================================================
+
+  eligibility: string | null;
+
+  benefits: string | null;
+
+  required_documents: unknown;
+
+  application_steps: unknown;
+
+  application_url: string | null;
+
+  official_website_url: string | null;
+
+  video_url: string | null;
+
+  // ==========================================================
+
   posted_by: string;
 
   posted_by_name: string;
@@ -292,11 +372,37 @@ const toNullableIso = (
       ? value
       : new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
     return null;
   }
 
   return date.toISOString();
+};
+
+// ============================================================
+// JSON ARRAY HELPER
+// ============================================================
+
+const toStringArray = (
+  value: unknown,
+): string[] => {
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (item): item is string =>
+          typeof item === "string",
+      )
+      .map((item) => item.trim())
+      .filter(
+        (item) => item.length > 0,
+      );
+  }
+
+  return [];
 };
 
 // ============================================================
@@ -332,11 +438,14 @@ const mapRow = (
         row.event_date,
       )?.slice(0, 10) || null,
 
-    startTime: row.start_time || "",
+    startTime:
+      row.start_time || "",
 
-    endTime: row.end_time || "",
+    endTime:
+      row.end_time || "",
 
-    venue: row.venue || "",
+    venue:
+      row.venue || "",
 
     contactNumber:
       row.contact_number || "",
@@ -346,6 +455,38 @@ const mapRow = (
 
     imageUrl:
       row.image_url || "",
+
+    // ========================================================
+    // GOVERNMENT SCHEME FIELDS
+    // ========================================================
+
+    eligibility:
+      row.eligibility || "",
+
+    benefits:
+      row.benefits || "",
+
+    requiredDocuments:
+      toStringArray(
+        row.required_documents,
+      ),
+
+    applicationSteps:
+      toStringArray(
+        row.application_steps,
+      ),
+
+    applicationUrl:
+      row.application_url || "",
+
+    officialWebsiteUrl:
+      row.official_website_url ||
+      "",
+
+    videoUrl:
+      row.video_url || "",
+
+    // ========================================================
 
     postedBy:
       row.posted_by,
@@ -357,7 +498,9 @@ const mapRow = (
       row.status,
 
     isActive:
-      Boolean(row.is_active),
+      Boolean(
+        row.is_active,
+      ),
 
     expiresAt:
       toNullableIso(
@@ -391,13 +534,25 @@ const SELECT_COLUMNS = `
   mandal,
   village,
   visibility,
-  TO_CHAR(event_date, 'YYYY-MM-DD') AS event_date,
+  TO_CHAR(
+    event_date,
+    'YYYY-MM-DD'
+  ) AS event_date,
   start_time,
   end_time,
   venue,
   contact_number,
   external_link,
   image_url,
+
+  eligibility,
+  benefits,
+  required_documents,
+  application_steps,
+  application_url,
+  official_website_url,
+  video_url,
+
   posted_by,
   posted_by_name,
   status,
@@ -416,14 +571,18 @@ export const getCommunityUpdateById =
     id: number,
     postedBy?: string,
   ): Promise<ICommunityUpdate | null> => {
-    const values: unknown[] = [id];
+    const values: unknown[] = [
+      id,
+    ];
 
     let where = `
       id = $1
     `;
 
     if (postedBy) {
-      values.push(postedBy);
+      values.push(
+        postedBy,
+      );
 
       where += `
         AND posted_by = $${values.length}
@@ -443,7 +602,8 @@ export const getCommunityUpdateById =
       );
 
     if (
-      result.rows.length === 0
+      result.rows.length ===
+      0
     ) {
       return null;
     }
@@ -473,7 +633,9 @@ export const getCommunityUpdates =
     // --------------------------------------------------------
 
     if (filters.postedBy) {
-      values.push(filters.postedBy);
+      values.push(
+        filters.postedBy,
+      );
 
       conditions.push(
         `posted_by = $${values.length}`,
@@ -485,7 +647,9 @@ export const getCommunityUpdates =
     // --------------------------------------------------------
 
     if (filters.category) {
-      values.push(filters.category);
+      values.push(
+        filters.category,
+      );
 
       conditions.push(
         `category = $${values.length}`,
@@ -497,7 +661,9 @@ export const getCommunityUpdates =
     // --------------------------------------------------------
 
     if (filters.status) {
-      values.push(filters.status);
+      values.push(
+        filters.status,
+      );
 
       conditions.push(
         `status = $${values.length}`,
@@ -509,7 +675,9 @@ export const getCommunityUpdates =
     // --------------------------------------------------------
 
     if (filters.state) {
-      values.push(filters.state);
+      values.push(
+        filters.state,
+      );
 
       conditions.push(
         `state = $${values.length}`,
@@ -517,7 +685,9 @@ export const getCommunityUpdates =
     }
 
     if (filters.district) {
-      values.push(filters.district);
+      values.push(
+        filters.district,
+      );
 
       conditions.push(
         `district = $${values.length}`,
@@ -525,7 +695,9 @@ export const getCommunityUpdates =
     }
 
     if (filters.mandal) {
-      values.push(filters.mandal);
+      values.push(
+        filters.mandal,
+      );
 
       conditions.push(
         `mandal = $${values.length}`,
@@ -533,7 +705,9 @@ export const getCommunityUpdates =
     }
 
     if (filters.village) {
-      values.push(filters.village);
+      values.push(
+        filters.village,
+      );
 
       conditions.push(
         `village = $${values.length}`,
@@ -541,7 +715,9 @@ export const getCommunityUpdates =
     }
 
     if (filters.visibility) {
-      values.push(filters.visibility);
+      values.push(
+        filters.visibility,
+      );
 
       conditions.push(
         `visibility = $${values.length}`,
@@ -582,14 +758,18 @@ export const getCommunityUpdates =
     const page =
       filters.page &&
       filters.page > 0
-        ? Math.floor(filters.page)
+        ? Math.floor(
+            filters.page,
+          )
         : 1;
 
     const limit =
       filters.limit &&
       filters.limit > 0
         ? Math.min(
-            Math.floor(filters.limit),
+            Math.floor(
+              filters.limit,
+            ),
             100,
           )
         : 20;
@@ -602,18 +782,23 @@ export const getCommunityUpdates =
     // --------------------------------------------------------
 
     const countResult =
-      await pool.query<{ count: string }>(
+      await pool.query<{
+        count: string;
+      }>(
         `
-          SELECT COUNT(*)::text AS count
+          SELECT
+            COUNT(*)::text AS count
           FROM community_updates
           ${whereClause}
         `,
         values,
       );
 
-    const total = Number(
-      countResult.rows[0]?.count || 0,
-    );
+    const total =
+      Number(
+        countResult.rows[0]?.count ||
+          0,
+      );
 
     // --------------------------------------------------------
     // DATA
@@ -643,7 +828,9 @@ export const getCommunityUpdates =
 
     return {
       updates:
-        dataResult.rows.map(mapRow),
+        dataResult.rows.map(
+          mapRow,
+        ),
 
       total,
     };
@@ -677,6 +864,15 @@ export const createCommunityUpdate =
             contact_number,
             external_link,
             image_url,
+
+            eligibility,
+            benefits,
+            required_documents,
+            application_steps,
+            application_url,
+            official_website_url,
+            video_url,
+
             posted_by,
             posted_by_name,
             status,
@@ -702,11 +898,20 @@ export const createCommunityUpdate =
             $14,
             $15,
             $16,
+
             $17,
             $18,
             $19,
             $20,
             $21,
+            $22,
+            $23,
+
+            $24,
+            $25,
+            $26,
+            $27,
+            $28,
             NOW(),
             NOW()
           )
@@ -714,6 +919,7 @@ export const createCommunityUpdate =
             ${SELECT_COLUMNS}
         `,
         [
+          // Existing fields
           input.category,
 
           input.title,
@@ -732,29 +938,66 @@ export const createCommunityUpdate =
 
           input.visibility,
 
-          input.eventDate || null,
+          input.eventDate ||
+            null,
 
-          input.startTime || "",
+          input.startTime ||
+            "",
 
-          input.endTime || "",
+          input.endTime ||
+            "",
 
-          input.venue || "",
+          input.venue ||
+            "",
 
-          input.contactNumber || "",
+          input.contactNumber ||
+            "",
 
-          input.externalLink || "",
+          input.externalLink ||
+            "",
 
-          input.imageUrl || "",
+          input.imageUrl ||
+            "",
 
+          // Government scheme fields
+          input.eligibility ||
+            "",
+
+          input.benefits ||
+            "",
+
+          JSON.stringify(
+            input.requiredDocuments ||
+              [],
+          ),
+
+          JSON.stringify(
+            input.applicationSteps ||
+              [],
+          ),
+
+          input.applicationUrl ||
+            "",
+
+          input.officialWebsiteUrl ||
+            "",
+
+          input.videoUrl ||
+            "",
+
+          // Existing ownership fields
           input.postedBy,
 
           input.postedByName,
 
-          input.status || "draft",
+          input.status ||
+            "draft",
 
-          input.isActive ?? true,
+          input.isActive ??
+            true,
 
-          input.expiresAt || null,
+          input.expiresAt ||
+            null,
         ],
       );
 
@@ -785,7 +1028,9 @@ export const updateCommunityUpdate =
       column: string,
       value: unknown,
     ) => {
-      values.push(value);
+      values.push(
+        value,
+      );
 
       fields.push(
         `${column} = $${values.length}`,
@@ -793,11 +1038,12 @@ export const updateCommunityUpdate =
     };
 
     // --------------------------------------------------------
-    // FIELDS
+    // EXISTING FIELDS
     // --------------------------------------------------------
 
     if (
-      input.category !== undefined
+      input.category !==
+      undefined
     ) {
       addField(
         "category",
@@ -806,7 +1052,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.title !== undefined
+      input.title !==
+      undefined
     ) {
       addField(
         "title",
@@ -815,7 +1062,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.summary !== undefined
+      input.summary !==
+      undefined
     ) {
       addField(
         "summary",
@@ -824,7 +1072,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.description !== undefined
+      input.description !==
+      undefined
     ) {
       addField(
         "description",
@@ -833,7 +1082,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.state !== undefined
+      input.state !==
+      undefined
     ) {
       addField(
         "state",
@@ -842,7 +1092,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.district !== undefined
+      input.district !==
+      undefined
     ) {
       addField(
         "district",
@@ -851,7 +1102,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.mandal !== undefined
+      input.mandal !==
+      undefined
     ) {
       addField(
         "mandal",
@@ -860,7 +1112,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.village !== undefined
+      input.village !==
+      undefined
     ) {
       addField(
         "village",
@@ -869,7 +1122,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.visibility !== undefined
+      input.visibility !==
+      undefined
     ) {
       addField(
         "visibility",
@@ -878,16 +1132,19 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.eventDate !== undefined
+      input.eventDate !==
+      undefined
     ) {
       addField(
         "event_date",
-        input.eventDate || null,
+        input.eventDate ||
+          null,
       );
     }
 
     if (
-      input.startTime !== undefined
+      input.startTime !==
+      undefined
     ) {
       addField(
         "start_time",
@@ -896,7 +1153,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.endTime !== undefined
+      input.endTime !==
+      undefined
     ) {
       addField(
         "end_time",
@@ -905,7 +1163,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.venue !== undefined
+      input.venue !==
+      undefined
     ) {
       addField(
         "venue",
@@ -914,7 +1173,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.contactNumber !== undefined
+      input.contactNumber !==
+      undefined
     ) {
       addField(
         "contact_number",
@@ -923,7 +1183,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.externalLink !== undefined
+      input.externalLink !==
+      undefined
     ) {
       addField(
         "external_link",
@@ -932,7 +1193,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.imageUrl !== undefined
+      input.imageUrl !==
+      undefined
     ) {
       addField(
         "image_url",
@@ -940,8 +1202,91 @@ export const updateCommunityUpdate =
       );
     }
 
+    // ========================================================
+    // GOVERNMENT SCHEME FIELDS
+    // ========================================================
+
     if (
-      input.status !== undefined
+      input.eligibility !==
+      undefined
+    ) {
+      addField(
+        "eligibility",
+        input.eligibility,
+      );
+    }
+
+    if (
+      input.benefits !==
+      undefined
+    ) {
+      addField(
+        "benefits",
+        input.benefits,
+      );
+    }
+
+    if (
+      input.requiredDocuments !==
+      undefined
+    ) {
+      addField(
+        "required_documents",
+        JSON.stringify(
+          input.requiredDocuments,
+        ),
+      );
+    }
+
+    if (
+      input.applicationSteps !==
+      undefined
+    ) {
+      addField(
+        "application_steps",
+        JSON.stringify(
+          input.applicationSteps,
+        ),
+      );
+    }
+
+    if (
+      input.applicationUrl !==
+      undefined
+    ) {
+      addField(
+        "application_url",
+        input.applicationUrl,
+      );
+    }
+
+    if (
+      input.officialWebsiteUrl !==
+      undefined
+    ) {
+      addField(
+        "official_website_url",
+        input.officialWebsiteUrl,
+      );
+    }
+
+    if (
+      input.videoUrl !==
+      undefined
+    ) {
+      addField(
+        "video_url",
+        input.videoUrl,
+      );
+    }
+
+    // ========================================================
+    // STATUS / ACTIVE / EXPIRY
+    // ========================================================
+
+    if (
+      input.status !==
+      undefined
     ) {
       addField(
         "status",
@@ -950,7 +1295,8 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.isActive !== undefined
+      input.isActive !==
+      undefined
     ) {
       addField(
         "is_active",
@@ -959,11 +1305,13 @@ export const updateCommunityUpdate =
     }
 
     if (
-      input.expiresAt !== undefined
+      input.expiresAt !==
+      undefined
     ) {
       addField(
         "expires_at",
-        input.expiresAt || null,
+        input.expiresAt ||
+          null,
       );
     }
 
@@ -993,15 +1341,23 @@ export const updateCommunityUpdate =
     );
 
     // --------------------------------------------------------
-    // OWNER
+    // ID
     // --------------------------------------------------------
 
-    values.push(id);
+    values.push(
+      id,
+    );
 
     const idPlaceholder =
       `$${values.length}`;
 
-    values.push(postedBy);
+    // --------------------------------------------------------
+    // OWNER
+    // --------------------------------------------------------
+
+    values.push(
+      postedBy,
+    );
 
     const ownerPlaceholder =
       `$${values.length}`;
@@ -1026,7 +1382,8 @@ export const updateCommunityUpdate =
       );
 
     if (
-      result.rows.length === 0
+      result.rows.length ===
+      0
     ) {
       return null;
     }
@@ -1062,7 +1419,8 @@ export const deleteCommunityUpdate =
       );
 
     if (
-      result.rows.length === 0
+      result.rows.length ===
+      0
     ) {
       return null;
     }
@@ -1102,7 +1460,8 @@ export const publishCommunityUpdate =
       );
 
     if (
-      result.rows.length === 0
+      result.rows.length ===
+      0
     ) {
       return null;
     }
@@ -1141,7 +1500,8 @@ export const unpublishCommunityUpdate =
       );
 
     if (
-      result.rows.length === 0
+      result.rows.length ===
+      0
     ) {
       return null;
     }
@@ -1227,10 +1587,6 @@ export const getPublicCommunityUpdates =
 
     // --------------------------------------------------------
     // LOCATION
-    //
-    // With no location:
-    // only "all" updates are returned.
-    //
     // --------------------------------------------------------
 
     const locationValues: string[] =
@@ -1306,7 +1662,9 @@ export const getPublicCommunityUpdates =
 
     conditions.push(`
       (
-        ${locationValues.join(" OR ")}
+        ${locationValues.join(
+          " OR ",
+        )}
       )
     `);
 
@@ -1315,25 +1673,32 @@ export const getPublicCommunityUpdates =
     // --------------------------------------------------------
 
     const whereClause =
-      `WHERE ${conditions.join(" AND ")}`;
+      `WHERE ${conditions.join(
+        " AND ",
+      )}`;
 
     // --------------------------------------------------------
     // COUNT
     // --------------------------------------------------------
 
     const countResult =
-      await pool.query<{ count: string }>(
+      await pool.query<{
+        count: string;
+      }>(
         `
-          SELECT COUNT(*)::text AS count
+          SELECT
+            COUNT(*)::text AS count
           FROM community_updates
           ${whereClause}
         `,
         values,
       );
 
-    const total = Number(
-      countResult.rows[0]?.count || 0,
-    );
+    const total =
+      Number(
+        countResult.rows[0]?.count ||
+          0,
+      );
 
     // --------------------------------------------------------
     // PAGINATION
@@ -1342,14 +1707,18 @@ export const getPublicCommunityUpdates =
     const page =
       filters.page &&
       filters.page > 0
-        ? Math.floor(filters.page)
+        ? Math.floor(
+            filters.page,
+          )
         : 1;
 
     const limit =
       filters.limit &&
       filters.limit > 0
         ? Math.min(
-            Math.floor(filters.limit),
+            Math.floor(
+              filters.limit,
+            ),
             100,
           )
         : 20;
@@ -1385,7 +1754,9 @@ export const getPublicCommunityUpdates =
 
     return {
       updates:
-        result.rows.map(mapRow),
+        result.rows.map(
+          mapRow,
+        ),
 
       total,
     };
@@ -1503,7 +1874,8 @@ export const getPublicCommunityUpdateById =
       );
 
     if (
-      result.rows.length === 0
+      result.rows.length ===
+      0
     ) {
       return null;
     }
@@ -1515,8 +1887,6 @@ export const getPublicCommunityUpdateById =
 
 // ============================================================
 // EXPORT DEFAULT
-//
-// This is a database helper object instead of a Mongoose model.
 // ============================================================
 
 const CommunityUpdate = {

@@ -104,6 +104,103 @@ const normalizeString = (
 };
 
 // ------------------------------------------------------------
+// NORMALIZE STRING ARRAY
+//
+// Accepts:
+// [
+//   "Aadhaar Card",
+//   "Income Certificate"
+// ]
+//
+// Also accepts JSON string:
+// '["Aadhaar Card","Income Certificate"]'
+//
+// Also accepts newline/comma separated text as fallback.
+// ------------------------------------------------------------
+
+const normalizeStringArray = (
+  value: unknown,
+): string[] => {
+  if (Array.isArray(value)) {
+    return value
+      .filter(
+        (item): item is string =>
+          typeof item === "string",
+      )
+      .map((item) => item.trim())
+      .filter(
+        (item) => item.length > 0,
+      );
+  }
+
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  const text = value.trim();
+
+  if (!text) {
+    return [];
+  }
+
+  // ----------------------------------------------------------
+  // Try JSON array
+  // ----------------------------------------------------------
+
+  try {
+    const parsed = JSON.parse(text);
+
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter(
+          (item): item is string =>
+            typeof item === "string",
+        )
+        .map(
+          (item) => item.trim(),
+        )
+        .filter(
+          (item) =>
+            item.length > 0,
+        );
+    }
+  } catch (_) {
+    // Continue with text fallback.
+  }
+
+  // ----------------------------------------------------------
+  // Newline-separated fallback
+  // ----------------------------------------------------------
+
+  const newlineItems =
+    text
+      .split(/\r?\n/)
+      .map(
+        (item) => item.trim(),
+      )
+      .filter(
+        (item) => item.length > 0,
+      );
+
+  if (newlineItems.length > 1) {
+    return newlineItems;
+  }
+
+  // ----------------------------------------------------------
+  // Comma-separated fallback
+  // ----------------------------------------------------------
+
+  return text
+    .split(",")
+    .map(
+      (item) => item.trim(),
+    )
+    .filter(
+      (item) => item.length > 0,
+    );
+};
+
+// ------------------------------------------------------------
 // GET VOLUNTEER ID
 // ------------------------------------------------------------
 
@@ -117,12 +214,24 @@ const getVolunteerId = (
   }
 
   return (
-    normalizeString(volunteer.id) ||
-    normalizeString(volunteer._id) ||
-    normalizeString(volunteer.userId) ||
-    normalizeString(volunteer.volunteerId) ||
-    normalizeString(volunteer.volunteer?.id) ||
-    normalizeString(volunteer.volunteer?._id)
+    normalizeString(
+      volunteer.id,
+    ) ||
+    normalizeString(
+      volunteer._id,
+    ) ||
+    normalizeString(
+      volunteer.userId,
+    ) ||
+    normalizeString(
+      volunteer.volunteerId,
+    ) ||
+    normalizeString(
+      volunteer.volunteer?.id,
+    ) ||
+    normalizeString(
+      volunteer.volunteer?._id,
+    )
   );
 };
 
@@ -133,15 +242,20 @@ const getVolunteerId = (
 const getVolunteerName = (
   req: VolunteerRequest,
 ): string => {
-  const volunteer = req.volunteer;
+  const volunteer =
+    req.volunteer;
 
   if (!volunteer) {
     return "Volunteer";
   }
 
   return (
-    normalizeString(volunteer.name) ||
-    normalizeString(volunteer.volunteer?.name) ||
+    normalizeString(
+      volunteer.name,
+    ) ||
+    normalizeString(
+      volunteer.volunteer?.name,
+    ) ||
     "Volunteer"
   );
 };
@@ -202,32 +316,42 @@ const parseEventDate = (
     return null;
   }
 
-  const text = normalizeString(value);
+  const text =
+    normalizeString(value);
 
   if (!text) {
     return null;
   }
 
   if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(text)
+    !/^\d{4}-\d{2}-\d{2}$/.test(
+      text,
+    )
   ) {
     return undefined;
   }
 
-  const date = new Date(
-    `${text}T00:00:00Z`,
-  );
+  const date =
+    new Date(
+      `${text}T00:00:00Z`,
+    );
 
   if (
-    Number.isNaN(date.getTime())
+    Number.isNaN(
+      date.getTime(),
+    )
   ) {
     return undefined;
   }
 
   const normalized =
-    date.toISOString().slice(0, 10);
+    date
+      .toISOString()
+      .slice(0, 10);
 
-  if (normalized !== text) {
+  if (
+    normalized !== text
+  ) {
     return undefined;
   }
 
@@ -251,16 +375,20 @@ const parseExpiresAt = (
     return null;
   }
 
-  const text = normalizeString(value);
+  const text =
+    normalizeString(value);
 
   if (!text) {
     return null;
   }
 
-  const date = new Date(text);
+  const date =
+    new Date(text);
 
   if (
-    Number.isNaN(date.getTime())
+    Number.isNaN(
+      date.getTime(),
+    )
   ) {
     return undefined;
   }
@@ -275,24 +403,41 @@ const parseExpiresAt = (
 const parseBoolean = (
   value: unknown,
 ): boolean | undefined => {
-  if (typeof value === "boolean") {
+  if (
+    typeof value ===
+    "boolean"
+  ) {
     return value;
   }
 
-  if (typeof value === "string") {
+  if (
+    typeof value ===
+    "string"
+  ) {
     const normalized =
-      value.trim().toLowerCase();
+      value
+        .trim()
+        .toLowerCase();
 
-    if (normalized === "true") {
+    if (
+      normalized ===
+      "true"
+    ) {
       return true;
     }
 
-    if (normalized === "false") {
+    if (
+      normalized ===
+      "false"
+    ) {
       return false;
     }
   }
 
-  if (typeof value === "number") {
+  if (
+    typeof value ===
+    "number"
+  ) {
     if (value === 1) {
       return true;
     }
@@ -314,22 +459,29 @@ const parsePositiveInteger = (
   fallback: number,
   maximum?: number,
 ): number => {
-  const numeric = Number(value);
+  const numeric =
+    Number(value);
 
   if (
-    !Number.isFinite(numeric) ||
+    !Number.isFinite(
+      numeric,
+    ) ||
     numeric <= 0
   ) {
     return fallback;
   }
 
-  let parsed = Math.floor(numeric);
+  let parsed =
+    Math.floor(numeric);
 
-  if (maximum !== undefined) {
-    parsed = Math.min(
-      parsed,
-      maximum,
-    );
+  if (
+    maximum !== undefined
+  ) {
+    parsed =
+      Math.min(
+        parsed,
+        maximum,
+      );
   }
 
   return parsed;
@@ -342,20 +494,26 @@ const parsePositiveInteger = (
 const parseUpdateId = (
   value: unknown,
 ): number | null => {
-  const text = normalizeString(value);
+  const text =
+    normalizeString(value);
 
   if (!text) {
     return null;
   }
 
-  if (!/^\d+$/.test(text)) {
+  if (
+    !/^\d+$/.test(text)
+  ) {
     return null;
   }
 
-  const id = Number(text);
+  const id =
+    Number(text);
 
   if (
-    !Number.isSafeInteger(id) ||
+    !Number.isSafeInteger(
+      id,
+    ) ||
     id <= 0
   ) {
     return null;
@@ -368,14 +526,6 @@ const parseUpdateId = (
 // VOLUNTEER - LIST
 //
 // GET /api/volunteer/community-updates
-//
-// Query:
-//
-// category
-// search
-// status
-// page
-// limit
 // ============================================================
 
 export const getVolunteerCommunityUpdates =
@@ -388,7 +538,9 @@ export const getVolunteerCommunityUpdates =
         req as VolunteerRequest;
 
       const volunteerId =
-        getVolunteerId(volunteerReq);
+        getVolunteerId(
+          volunteerReq,
+        );
 
       if (!volunteerId) {
         res.status(401).json({
@@ -421,7 +573,9 @@ export const getVolunteerCommunityUpdates =
 
       if (
         category &&
-        !isValidCategory(category)
+        !isValidCategory(
+          category,
+        )
       ) {
         res.status(400).json({
           success: false,
@@ -438,7 +592,9 @@ export const getVolunteerCommunityUpdates =
 
       if (
         status &&
-        !isValidStatus(status)
+        !isValidStatus(
+          status,
+        )
       ) {
         res.status(400).json({
           success: false,
@@ -472,16 +628,22 @@ export const getVolunteerCommunityUpdates =
 
       const result =
         await getCommunityUpdates({
-          postedBy: volunteerId,
+          postedBy:
+            volunteerId,
 
-         category:
-  category
-    ? (category as CommunityUpdateCategory)
-    : undefined,
+          category:
+            category
+              ? (
+                  category as CommunityUpdateCategory
+                )
+              : undefined,
+
           status:
-  status
-    ? (status as CommunityUpdateStatus)
-    : undefined,
+            status
+              ? (
+                  status as CommunityUpdateStatus
+                )
+              : undefined,
 
           search:
             search
@@ -495,14 +657,16 @@ export const getVolunteerCommunityUpdates =
 
       const totalPages =
         Math.ceil(
-          result.total / limit,
+          result.total /
+            limit,
         );
 
       res.json({
         success: true,
 
         count:
-          result.updates.length,
+          result.updates
+            .length,
 
         total:
           result.total,
@@ -514,7 +678,8 @@ export const getVolunteerCommunityUpdates =
         totalPages,
 
         hasNextPage:
-          page < totalPages,
+          page <
+          totalPages,
 
         hasPreviousPage:
           page > 1,
@@ -554,7 +719,9 @@ export const getVolunteerCommunityUpdateById =
         req as VolunteerRequest;
 
       const volunteerId =
-        getVolunteerId(volunteerReq);
+        getVolunteerId(
+          volunteerReq,
+        );
 
       if (!volunteerId) {
         res.status(401).json({
@@ -567,7 +734,9 @@ export const getVolunteerCommunityUpdateById =
       }
 
       const updateId =
-        parseUpdateId(req.params.id);
+        parseUpdateId(
+          req.params.id,
+        );
 
       if (updateId === null) {
         res.status(400).json({
@@ -631,10 +800,14 @@ export const createCommunityUpdate =
         req as VolunteerRequest;
 
       const volunteerId =
-        getVolunteerId(volunteerReq);
+        getVolunteerId(
+          volunteerReq,
+        );
 
       const volunteerName =
-        getVolunteerName(volunteerReq);
+        getVolunteerName(
+          volunteerReq,
+        );
 
       if (!volunteerId) {
         res.status(401).json({
@@ -741,6 +914,45 @@ export const createCommunityUpdate =
           req.body.imageUrl,
         );
 
+      // ======================================================
+      // GOVERNMENT SCHEME FIELDS
+      // ======================================================
+
+      const eligibility =
+        normalizeString(
+          req.body.eligibility,
+        );
+
+      const benefits =
+        normalizeString(
+          req.body.benefits,
+        );
+
+      const requiredDocuments =
+        normalizeStringArray(
+          req.body.requiredDocuments,
+        );
+
+      const applicationSteps =
+        normalizeStringArray(
+          req.body.applicationSteps,
+        );
+
+      const applicationUrl =
+        normalizeString(
+          req.body.applicationUrl,
+        );
+
+      const officialWebsiteUrl =
+        normalizeString(
+          req.body.officialWebsiteUrl,
+        );
+
+      const videoUrl =
+        normalizeString(
+          req.body.videoUrl,
+        );
+
       // ------------------------------------------------------
       // STATUS
       // ------------------------------------------------------
@@ -755,7 +967,9 @@ export const createCommunityUpdate =
       // ------------------------------------------------------
 
       if (
-        !isValidCategory(category)
+        !isValidCategory(
+          category,
+        )
       ) {
         res.status(400).json({
           success: false,
@@ -780,7 +994,9 @@ export const createCommunityUpdate =
         return;
       }
 
-      if (title.length > 200) {
+      if (
+        title.length > 200
+      ) {
         res.status(400).json({
           success: false,
           message:
@@ -800,7 +1016,9 @@ export const createCommunityUpdate =
         return;
       }
 
-      if (summary.length > 500) {
+      if (
+        summary.length > 500
+      ) {
         res.status(400).json({
           success: false,
           message:
@@ -820,7 +1038,10 @@ export const createCommunityUpdate =
         return;
       }
 
-      if (description.length > 5000) {
+      if (
+        description.length >
+        5000
+      ) {
         res.status(400).json({
           success: false,
           message:
@@ -957,7 +1178,7 @@ export const createCommunityUpdate =
       }
 
       // ------------------------------------------------------
-      // CREATE POSTGRES RECORD
+      // CREATE DATABASE RECORD
       // ------------------------------------------------------
 
       const update =
@@ -981,7 +1202,8 @@ export const createCommunityUpdate =
           visibility,
 
           eventDate:
-            eventDate ?? null,
+            eventDate ??
+            null,
 
           startTime,
 
@@ -994,6 +1216,26 @@ export const createCommunityUpdate =
           externalLink,
 
           imageUrl,
+
+          // ==================================================
+          // GOVERNMENT SCHEME FIELDS
+          // ==================================================
+
+          eligibility,
+
+          benefits,
+
+          requiredDocuments,
+
+          applicationSteps,
+
+          applicationUrl,
+
+          officialWebsiteUrl,
+
+          videoUrl,
+
+          // ==================================================
 
           postedBy:
             volunteerId,
@@ -1008,14 +1250,16 @@ export const createCommunityUpdate =
             true,
 
           expiresAt:
-            expiresAt ?? null,
+            expiresAt ??
+            null,
         });
 
       res.status(201).json({
         success: true,
 
         message:
-          requestedStatus === "published"
+          requestedStatus ===
+          "published"
             ? "Community update published successfully."
             : "Community update saved as draft.",
 
@@ -1053,7 +1297,9 @@ export const updateCommunityUpdate =
         req as VolunteerRequest;
 
       const volunteerId =
-        getVolunteerId(volunteerReq);
+        getVolunteerId(
+          volunteerReq,
+        );
 
       if (!volunteerId) {
         res.status(401).json({
@@ -1066,7 +1312,9 @@ export const updateCommunityUpdate =
       }
 
       const updateId =
-        parseUpdateId(req.params.id);
+        parseUpdateId(
+          req.params.id,
+        );
 
       if (updateId === null) {
         res.status(400).json({
@@ -1135,6 +1383,26 @@ export const updateCommunityUpdate =
 
         imageUrl?: string;
 
+        // ====================================================
+        // GOVERNMENT SCHEME FIELDS
+        // ====================================================
+
+        eligibility?: string;
+
+        benefits?: string;
+
+        requiredDocuments?: string[];
+
+        applicationSteps?: string[];
+
+        applicationUrl?: string;
+
+        officialWebsiteUrl?: string;
+
+        videoUrl?: string;
+
+        // ====================================================
+
         status?: CommunityUpdateStatus;
 
         isActive?: boolean;
@@ -1156,7 +1424,9 @@ export const updateCommunityUpdate =
           );
 
         if (
-          !isValidCategory(category)
+          !isValidCategory(
+            category,
+          )
         ) {
           res.status(400).json({
             success: false,
@@ -1194,7 +1464,9 @@ export const updateCommunityUpdate =
           return;
         }
 
-        if (title.length > 200) {
+        if (
+          title.length > 200
+        ) {
           res.status(400).json({
             success: false,
             message:
@@ -1231,7 +1503,9 @@ export const updateCommunityUpdate =
           return;
         }
 
-        if (summary.length > 500) {
+        if (
+          summary.length > 500
+        ) {
           res.status(400).json({
             success: false,
             message:
@@ -1538,6 +1812,108 @@ export const updateCommunityUpdate =
           );
       }
 
+      // ======================================================
+      // GOVERNMENT SCHEME FIELDS
+      // ======================================================
+
+      // ------------------------------------------------------
+      // ELIGIBILITY
+      // ------------------------------------------------------
+
+      if (
+        req.body.eligibility !==
+        undefined
+      ) {
+        updateData.eligibility =
+          normalizeString(
+            req.body.eligibility,
+          );
+      }
+
+      // ------------------------------------------------------
+      // BENEFITS
+      // ------------------------------------------------------
+
+      if (
+        req.body.benefits !==
+        undefined
+      ) {
+        updateData.benefits =
+          normalizeString(
+            req.body.benefits,
+          );
+      }
+
+      // ------------------------------------------------------
+      // REQUIRED DOCUMENTS
+      // ------------------------------------------------------
+
+      if (
+        req.body.requiredDocuments !==
+        undefined
+      ) {
+        updateData.requiredDocuments =
+          normalizeStringArray(
+            req.body.requiredDocuments,
+          );
+      }
+
+      // ------------------------------------------------------
+      // APPLICATION STEPS
+      // ------------------------------------------------------
+
+      if (
+        req.body.applicationSteps !==
+        undefined
+      ) {
+        updateData.applicationSteps =
+          normalizeStringArray(
+            req.body.applicationSteps,
+          );
+      }
+
+      // ------------------------------------------------------
+      // APPLICATION URL
+      // ------------------------------------------------------
+
+      if (
+        req.body.applicationUrl !==
+        undefined
+      ) {
+        updateData.applicationUrl =
+          normalizeString(
+            req.body.applicationUrl,
+          );
+      }
+
+      // ------------------------------------------------------
+      // OFFICIAL WEBSITE URL
+      // ------------------------------------------------------
+
+      if (
+        req.body.officialWebsiteUrl !==
+        undefined
+      ) {
+        updateData.officialWebsiteUrl =
+          normalizeString(
+            req.body.officialWebsiteUrl,
+          );
+      }
+
+      // ------------------------------------------------------
+      // VIDEO URL
+      // ------------------------------------------------------
+
+      if (
+        req.body.videoUrl !==
+        undefined
+      ) {
+        updateData.videoUrl =
+          normalizeString(
+            req.body.videoUrl,
+          );
+      }
+
       // ------------------------------------------------------
       // STATUS
       // ------------------------------------------------------
@@ -1552,7 +1928,9 @@ export const updateCommunityUpdate =
           );
 
         if (
-          !isValidStatus(status)
+          !isValidStatus(
+            status,
+          )
         ) {
           res.status(400).json({
             success: false,
@@ -1610,7 +1988,8 @@ export const updateCommunityUpdate =
           );
 
         if (
-          expiresAt === undefined
+          expiresAt ===
+          undefined
         ) {
           res.status(400).json({
             success: false,
@@ -1652,7 +2031,8 @@ export const updateCommunityUpdate =
         message:
           "Community update updated successfully.",
 
-        update: updated,
+        update:
+          updated,
       });
     } catch (error) {
       console.error(
@@ -1686,7 +2066,9 @@ export const deleteCommunityUpdate =
         req as VolunteerRequest;
 
       const volunteerId =
-        getVolunteerId(volunteerReq);
+        getVolunteerId(
+          volunteerReq,
+        );
 
       if (!volunteerId) {
         res.status(401).json({
@@ -1699,7 +2081,9 @@ export const deleteCommunityUpdate =
       }
 
       const updateId =
-        parseUpdateId(req.params.id);
+        parseUpdateId(
+          req.params.id,
+        );
 
       if (updateId === null) {
         res.status(400).json({
@@ -1733,7 +2117,8 @@ export const deleteCommunityUpdate =
         message:
           "Community update deleted successfully.",
 
-        update: deleted,
+        update:
+          deleted,
       });
     } catch (error) {
       console.error(
@@ -1767,7 +2152,9 @@ export const publishCommunityUpdate =
         req as VolunteerRequest;
 
       const volunteerId =
-        getVolunteerId(volunteerReq);
+        getVolunteerId(
+          volunteerReq,
+        );
 
       if (!volunteerId) {
         res.status(401).json({
@@ -1780,7 +2167,9 @@ export const publishCommunityUpdate =
       }
 
       const updateId =
-        parseUpdateId(req.params.id);
+        parseUpdateId(
+          req.params.id,
+        );
 
       if (updateId === null) {
         res.status(400).json({
@@ -1814,7 +2203,8 @@ export const publishCommunityUpdate =
         message:
           "Community update published successfully.",
 
-        update,
+        update:
+          update,
       });
     } catch (error) {
       console.error(
@@ -1848,7 +2238,9 @@ export const unpublishCommunityUpdate =
         req as VolunteerRequest;
 
       const volunteerId =
-        getVolunteerId(volunteerReq);
+        getVolunteerId(
+          volunteerReq,
+        );
 
       if (!volunteerId) {
         res.status(401).json({
@@ -1861,7 +2253,9 @@ export const unpublishCommunityUpdate =
       }
 
       const updateId =
-        parseUpdateId(req.params.id);
+        parseUpdateId(
+          req.params.id,
+        );
 
       if (updateId === null) {
         res.status(400).json({
@@ -1895,7 +2289,8 @@ export const unpublishCommunityUpdate =
         message:
           "Community update unpublished successfully.",
 
-        update,
+        update:
+          update,
       });
     } catch (error) {
       console.error(
@@ -1917,17 +2312,6 @@ export const unpublishCommunityUpdate =
 // PUBLIC - LIST
 //
 // GET /api/community-updates
-//
-// Query:
-//
-// category
-// search
-// state
-// district
-// mandal
-// village
-// page
-// limit
 // ============================================================
 
 export const getPublicCommunityUpdates =
@@ -1972,7 +2356,9 @@ export const getPublicCommunityUpdates =
 
       if (
         category &&
-        !isValidCategory(category)
+        !isValidCategory(
+          category,
+        )
       ) {
         res.status(400).json({
           success: false,
@@ -2008,9 +2394,11 @@ export const getPublicCommunityUpdates =
         await getPublicCommunityUpdatesRecord(
           {
             category:
-  category
-    ? (category as CommunityUpdateCategory)
-    : undefined,
+              category
+                ? (
+                    category as CommunityUpdateCategory
+                  )
+                : undefined,
 
             search:
               search
@@ -2045,14 +2433,16 @@ export const getPublicCommunityUpdates =
 
       const totalPages =
         Math.ceil(
-          result.total / limit,
+          result.total /
+            limit,
         );
 
       res.json({
         success: true,
 
         count:
-          result.updates.length,
+          result.updates
+            .length,
 
         total:
           result.total,
@@ -2064,7 +2454,8 @@ export const getPublicCommunityUpdates =
         totalPages,
 
         hasNextPage:
-          page < totalPages,
+          page <
+          totalPages,
 
         hasPreviousPage:
           page > 1,
@@ -2115,7 +2506,9 @@ export const getPublicCommunityUpdateById =
   ): Promise<void> => {
     try {
       const updateId =
-        parseUpdateId(req.params.id);
+        parseUpdateId(
+          req.params.id,
+        );
 
       if (updateId === null) {
         res.status(400).json({

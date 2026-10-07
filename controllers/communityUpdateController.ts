@@ -105,17 +105,6 @@ const normalizeString = (
 
 // ------------------------------------------------------------
 // NORMALIZE STRING ARRAY
-//
-// Accepts:
-// [
-//   "Aadhaar Card",
-//   "Income Certificate"
-// ]
-//
-// Also accepts JSON string:
-// '["Aadhaar Card","Income Certificate"]'
-//
-// Also accepts newline/comma separated text as fallback.
 // ------------------------------------------------------------
 
 const normalizeStringArray = (
@@ -144,7 +133,7 @@ const normalizeStringArray = (
   }
 
   // ----------------------------------------------------------
-  // Try JSON array
+  // TRY JSON ARRAY
   // ----------------------------------------------------------
 
   try {
@@ -169,7 +158,7 @@ const normalizeStringArray = (
   }
 
   // ----------------------------------------------------------
-  // Newline-separated fallback
+  // NEWLINE FALLBACK
   // ----------------------------------------------------------
 
   const newlineItems =
@@ -187,7 +176,7 @@ const normalizeStringArray = (
   }
 
   // ----------------------------------------------------------
-  // Comma-separated fallback
+  // COMMA FALLBACK
   // ----------------------------------------------------------
 
   return text
@@ -297,7 +286,7 @@ const isValidStatus = (
 };
 
 // ------------------------------------------------------------
-// EVENT DATE
+// EVENT / JOB DEADLINE DATE
 //
 // PostgreSQL: DATE
 //
@@ -953,6 +942,64 @@ export const createCommunityUpdate =
           req.body.videoUrl,
         );
 
+      // ======================================================
+      // JOB & OPPORTUNITY FIELDS
+      // ======================================================
+
+      const companyName =
+        normalizeString(
+          req.body.companyName,
+        );
+
+      const jobType =
+        normalizeString(
+          req.body.jobType,
+        );
+
+      const salary =
+        normalizeString(
+          req.body.salary,
+        );
+
+      const qualification =
+        normalizeString(
+          req.body.qualification,
+        );
+
+      const experience =
+        normalizeString(
+          req.body.experience,
+        );
+
+      const applicationDeadline =
+        parseEventDate(
+          req.body.applicationDeadline,
+        );
+
+      const requirements =
+        normalizeStringArray(
+          req.body.requirements,
+        );
+
+      const responsibilities =
+        normalizeStringArray(
+          req.body.responsibilities,
+        );
+
+      const applyUrl =
+        normalizeString(
+          req.body.applyUrl,
+        );
+
+      const parsedIsFeatured =
+        parseBoolean(
+          req.body.isFeatured,
+        );
+
+      const isFeatured =
+        parsedIsFeatured ??
+        false;
+
       // ------------------------------------------------------
       // STATUS
       // ------------------------------------------------------
@@ -1132,7 +1179,7 @@ export const createCommunityUpdate =
       }
 
       // ------------------------------------------------------
-      // DATE
+      // EVENT DATE
       // ------------------------------------------------------
 
       const eventDate =
@@ -1143,7 +1190,8 @@ export const createCommunityUpdate =
       if (
         req.body.eventDate !==
           undefined &&
-        eventDate === undefined
+        eventDate ===
+          undefined
       ) {
         res.status(400).json({
           success: false,
@@ -1152,6 +1200,73 @@ export const createCommunityUpdate =
         });
 
         return;
+      }
+
+      // ------------------------------------------------------
+      // JOB DEADLINE VALIDATION
+      // ------------------------------------------------------
+
+      if (
+        req.body.applicationDeadline !==
+          undefined &&
+        applicationDeadline ===
+          undefined
+      ) {
+        res.status(400).json({
+          success: false,
+          message:
+            "Invalid application deadline. Use YYYY-MM-DD.",
+        });
+
+        return;
+      }
+
+      // ------------------------------------------------------
+      // JOB-SPECIFIC VALIDATION
+      // ------------------------------------------------------
+
+      if (
+        category === "jobs"
+      ) {
+        if (!companyName) {
+          res.status(400).json({
+            success: false,
+            message:
+              "Company name is required for job posts.",
+          });
+
+          return;
+        }
+
+        if (!jobType) {
+          res.status(400).json({
+            success: false,
+            message:
+              "Job type is required for job posts.",
+          });
+
+          return;
+        }
+
+        if (!qualification) {
+          res.status(400).json({
+            success: false,
+            message:
+              "Qualification is required for job posts.",
+          });
+
+          return;
+        }
+
+        if (!applyUrl) {
+          res.status(400).json({
+            success: false,
+            message:
+              "Apply URL is required for job posts.",
+          });
+
+          return;
+        }
       }
 
       // ------------------------------------------------------
@@ -1166,7 +1281,8 @@ export const createCommunityUpdate =
       if (
         req.body.expiresAt !==
           undefined &&
-        expiresAt === undefined
+        expiresAt ===
+          undefined
       ) {
         res.status(400).json({
           success: false,
@@ -1183,6 +1299,10 @@ export const createCommunityUpdate =
 
       const update =
         await createCommunityUpdateRecord({
+          // ==================================================
+          // EXISTING FIELDS
+          // ==================================================
+
           category,
 
           title,
@@ -1235,6 +1355,34 @@ export const createCommunityUpdate =
 
           videoUrl,
 
+          // ==================================================
+          // JOB & OPPORTUNITY FIELDS
+          // ==================================================
+
+          companyName,
+
+          jobType,
+
+          salary,
+
+          qualification,
+
+          experience,
+
+          applicationDeadline:
+            applicationDeadline ??
+            null,
+
+          requirements,
+
+          responsibilities,
+
+          applyUrl,
+
+          isFeatured,
+
+          // ==================================================
+          // OWNERSHIP / STATUS
           // ==================================================
 
           postedBy:
@@ -1400,6 +1548,30 @@ export const updateCommunityUpdate =
         officialWebsiteUrl?: string;
 
         videoUrl?: string;
+
+        // ====================================================
+        // JOB & OPPORTUNITY FIELDS
+        // ====================================================
+
+        companyName?: string;
+
+        jobType?: string;
+
+        salary?: string;
+
+        qualification?: string;
+
+        experience?: string;
+
+        applicationDeadline?: string | null;
+
+        requirements?: string[];
+
+        responsibilities?: string[];
+
+        applyUrl?: string;
+
+        isFeatured?: boolean;
 
         // ====================================================
 
@@ -1914,6 +2086,255 @@ export const updateCommunityUpdate =
           );
       }
 
+      // ======================================================
+      // JOB & OPPORTUNITY FIELDS
+      // ======================================================
+
+      // ------------------------------------------------------
+      // COMPANY NAME
+      // ------------------------------------------------------
+
+      if (
+        req.body.companyName !==
+        undefined
+      ) {
+        updateData.companyName =
+          normalizeString(
+            req.body.companyName,
+          );
+      }
+
+      // ------------------------------------------------------
+      // JOB TYPE
+      // ------------------------------------------------------
+
+      if (
+        req.body.jobType !==
+        undefined
+      ) {
+        updateData.jobType =
+          normalizeString(
+            req.body.jobType,
+          );
+      }
+
+      // ------------------------------------------------------
+      // SALARY
+      // ------------------------------------------------------
+
+      if (
+        req.body.salary !==
+        undefined
+      ) {
+        updateData.salary =
+          normalizeString(
+            req.body.salary,
+          );
+      }
+
+      // ------------------------------------------------------
+      // QUALIFICATION
+      // ------------------------------------------------------
+
+      if (
+        req.body.qualification !==
+        undefined
+      ) {
+        updateData.qualification =
+          normalizeString(
+            req.body.qualification,
+          );
+      }
+
+      // ------------------------------------------------------
+      // EXPERIENCE
+      // ------------------------------------------------------
+
+      if (
+        req.body.experience !==
+        undefined
+      ) {
+        updateData.experience =
+          normalizeString(
+            req.body.experience,
+          );
+      }
+
+      // ------------------------------------------------------
+      // APPLICATION DEADLINE
+      // ------------------------------------------------------
+
+      if (
+        req.body.applicationDeadline !==
+        undefined
+      ) {
+        const applicationDeadline =
+          parseEventDate(
+            req.body.applicationDeadline,
+          );
+
+        if (
+          applicationDeadline ===
+          undefined
+        ) {
+          res.status(400).json({
+            success: false,
+            message:
+              "Invalid application deadline. Use YYYY-MM-DD.",
+          });
+
+          return;
+        }
+
+        updateData.applicationDeadline =
+          applicationDeadline;
+      }
+
+      // ------------------------------------------------------
+      // REQUIREMENTS
+      // ------------------------------------------------------
+
+      if (
+        req.body.requirements !==
+        undefined
+      ) {
+        updateData.requirements =
+          normalizeStringArray(
+            req.body.requirements,
+          );
+      }
+
+      // ------------------------------------------------------
+      // RESPONSIBILITIES
+      // ------------------------------------------------------
+
+      if (
+        req.body.responsibilities !==
+        undefined
+      ) {
+        updateData.responsibilities =
+          normalizeStringArray(
+            req.body.responsibilities,
+          );
+      }
+
+      // ------------------------------------------------------
+      // APPLY URL
+      // ------------------------------------------------------
+
+      if (
+        req.body.applyUrl !==
+        undefined
+      ) {
+        updateData.applyUrl =
+          normalizeString(
+            req.body.applyUrl,
+          );
+      }
+
+      // ------------------------------------------------------
+      // FEATURED
+      // ------------------------------------------------------
+
+      if (
+        req.body.isFeatured !==
+        undefined
+      ) {
+        const isFeatured =
+          parseBoolean(
+            req.body.isFeatured,
+          );
+
+        if (
+          isFeatured ===
+          undefined
+        ) {
+          res.status(400).json({
+            success: false,
+            message:
+              "isFeatured must be true or false.",
+          });
+
+          return;
+        }
+
+        updateData.isFeatured =
+          isFeatured;
+      }
+
+      // ------------------------------------------------------
+      // JOB VALIDATION DURING UPDATE
+      // ------------------------------------------------------
+
+      const finalCategory =
+        updateData.category ??
+        existing.category;
+
+      if (
+        finalCategory ===
+        "jobs"
+      ) {
+        const finalCompanyName =
+          updateData.companyName ??
+          existing.companyName;
+
+        const finalJobType =
+          updateData.jobType ??
+          existing.jobType;
+
+        const finalQualification =
+          updateData.qualification ??
+          existing.qualification;
+
+        const finalApplyUrl =
+          updateData.applyUrl ??
+          existing.applyUrl;
+
+        if (!finalCompanyName) {
+          res.status(400).json({
+            success: false,
+            message:
+              "Company name is required for job posts.",
+          });
+
+          return;
+        }
+
+        if (!finalJobType) {
+          res.status(400).json({
+            success: false,
+            message:
+              "Job type is required for job posts.",
+          });
+
+          return;
+        }
+
+        if (!finalQualification) {
+          res.status(400).json({
+            success: false,
+            message:
+              "Qualification is required for job posts.",
+          });
+
+          return;
+        }
+
+        if (!finalApplyUrl) {
+          res.status(400).json({
+            success: false,
+            message:
+              "Apply URL is required for job posts.",
+          });
+
+          return;
+        }
+      }
+
+      // ======================================================
+      // STATUS / ACTIVE / EXPIRY
+      // ======================================================
+
       // ------------------------------------------------------
       // STATUS
       // ------------------------------------------------------
@@ -1959,7 +2380,8 @@ export const updateCommunityUpdate =
           );
 
         if (
-          isActive === undefined
+          isActive ===
+          undefined
         ) {
           res.status(400).json({
             success: false,

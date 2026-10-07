@@ -184,6 +184,47 @@ const ensureCommunityUpdatesTable =
       `);
 
       // ========================================================
+      // JOB & OPPORTUNITY EXTRA FIELDS
+      //
+      // Existing records are safe because all fields
+      // have default values.
+      // ========================================================
+
+      await pool.query(`
+        ALTER TABLE community_updates
+
+        ADD COLUMN IF NOT EXISTS company_name
+          TEXT DEFAULT '',
+
+        ADD COLUMN IF NOT EXISTS job_type
+          TEXT DEFAULT '',
+
+        ADD COLUMN IF NOT EXISTS salary
+          TEXT DEFAULT '',
+
+        ADD COLUMN IF NOT EXISTS qualification
+          TEXT DEFAULT '',
+
+        ADD COLUMN IF NOT EXISTS experience
+          TEXT DEFAULT '',
+
+        ADD COLUMN IF NOT EXISTS application_deadline
+          DATE,
+
+        ADD COLUMN IF NOT EXISTS requirements
+          JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+        ADD COLUMN IF NOT EXISTS responsibilities
+          JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+        ADD COLUMN IF NOT EXISTS apply_url
+          TEXT DEFAULT '',
+
+        ADD COLUMN IF NOT EXISTS is_featured
+          BOOLEAN NOT NULL DEFAULT FALSE
+      `);
+
+      // ========================================================
       // INDEXES
       // ========================================================
 
@@ -236,12 +277,36 @@ const ensureCommunityUpdatesTable =
         );
       `);
 
+      // ========================================================
+      // JOB-SPECIFIC INDEXES
+      // ========================================================
+
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_community_updates_job_deadline
+        ON community_updates(application_deadline);
+      `);
+
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_community_updates_job_featured
+        ON community_updates(
+          is_featured
+        );
+      `);
+
+      // ========================================================
+      // READY LOGS
+      // ========================================================
+
       console.log(
         "✅ COMMUNITY UPDATES TABLE READY",
       );
 
       console.log(
         "✅ GOVERNMENT SCHEME FIELDS READY",
+      );
+
+      console.log(
+        "✅ JOB FIELDS READY",
       );
     } catch (error) {
       console.error(
@@ -280,6 +345,7 @@ const startServer = async () => {
     // ========================================================
     // CREATE COMMUNITY UPDATES TABLE
     // + GOVERNMENT SCHEME FIELDS
+    // + JOB FIELDS
     // ========================================================
 
     await ensureCommunityUpdatesTable();
@@ -318,6 +384,10 @@ const startServer = async () => {
 
       console.log(
         "🏛️ Government Scheme fields initialized",
+      );
+
+      console.log(
+        "💼 Jobs & Opportunities fields initialized",
       );
     });
   } catch (error) {

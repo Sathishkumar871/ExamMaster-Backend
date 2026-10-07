@@ -79,6 +79,30 @@ export interface ICommunityUpdate {
   videoUrl: string;
 
   // ==========================================================
+  // JOB & OPPORTUNITY FIELDS
+  // ==========================================================
+
+  companyName: string;
+
+  jobType: string;
+
+  salary: string;
+
+  qualification: string;
+
+  experience: string;
+
+  applicationDeadline: string | null;
+
+  requirements: string[];
+
+  responsibilities: string[];
+
+  applyUrl: string;
+
+  isFeatured: boolean;
+
+  // ==========================================================
 
   postedBy: string;
 
@@ -151,6 +175,30 @@ export interface CreateCommunityUpdateInput {
   videoUrl?: string;
 
   // ==========================================================
+  // JOB & OPPORTUNITY FIELDS
+  // ==========================================================
+
+  companyName?: string;
+
+  jobType?: string;
+
+  salary?: string;
+
+  qualification?: string;
+
+  experience?: string;
+
+  applicationDeadline?: string | null;
+
+  requirements?: string[];
+
+  responsibilities?: string[];
+
+  applyUrl?: string;
+
+  isFeatured?: boolean;
+
+  // ==========================================================
 
   postedBy: string;
 
@@ -217,6 +265,30 @@ export interface UpdateCommunityUpdateInput {
   officialWebsiteUrl?: string;
 
   videoUrl?: string;
+
+  // ==========================================================
+  // JOB & OPPORTUNITY FIELDS
+  // ==========================================================
+
+  companyName?: string;
+
+  jobType?: string;
+
+  salary?: string;
+
+  qualification?: string;
+
+  experience?: string;
+
+  applicationDeadline?: string | null;
+
+  requirements?: string[];
+
+  responsibilities?: string[];
+
+  applyUrl?: string;
+
+  isFeatured?: boolean;
 
   // ==========================================================
 
@@ -337,6 +409,30 @@ interface CommunityUpdateDbRow {
   video_url: string | null;
 
   // ==========================================================
+  // JOB & OPPORTUNITY FIELDS
+  // ==========================================================
+
+  company_name: string | null;
+
+  job_type: string | null;
+
+  salary: string | null;
+
+  qualification: string | null;
+
+  experience: string | null;
+
+  application_deadline: string | Date | null;
+
+  requirements: unknown;
+
+  responsibilities: unknown;
+
+  apply_url: string | null;
+
+  is_featured: boolean | null;
+
+  // ==========================================================
 
   posted_by: string;
 
@@ -396,9 +492,12 @@ const toStringArray = (
         (item): item is string =>
           typeof item === "string",
       )
-      .map((item) => item.trim())
+      .map((item) =>
+        item.trim(),
+      )
       .filter(
-        (item) => item.length > 0,
+        (item) =>
+          item.length > 0,
       );
   }
 
@@ -487,6 +586,48 @@ const mapRow = (
       row.video_url || "",
 
     // ========================================================
+    // JOB & OPPORTUNITY FIELDS
+    // ========================================================
+
+    companyName:
+      row.company_name || "",
+
+    jobType:
+      row.job_type || "",
+
+    salary:
+      row.salary || "",
+
+    qualification:
+      row.qualification || "",
+
+    experience:
+      row.experience || "",
+
+    applicationDeadline:
+      toNullableIso(
+        row.application_deadline,
+      )?.slice(0, 10) || null,
+
+    requirements:
+      toStringArray(
+        row.requirements,
+      ),
+
+    responsibilities:
+      toStringArray(
+        row.responsibilities,
+      ),
+
+    applyUrl:
+      row.apply_url || "",
+
+    isFeatured:
+      Boolean(
+        row.is_featured,
+      ),
+
+    // ========================================================
 
     postedBy:
       row.posted_by,
@@ -534,10 +675,12 @@ const SELECT_COLUMNS = `
   mandal,
   village,
   visibility,
+
   TO_CHAR(
     event_date,
     'YYYY-MM-DD'
   ) AS event_date,
+
   start_time,
   end_time,
   venue,
@@ -552,6 +695,22 @@ const SELECT_COLUMNS = `
   application_url,
   official_website_url,
   video_url,
+
+  company_name,
+  job_type,
+  salary,
+  qualification,
+  experience,
+
+  TO_CHAR(
+    application_deadline,
+    'YYYY-MM-DD'
+  ) AS application_deadline,
+
+  requirements,
+  responsibilities,
+  apply_url,
+  is_featured,
 
   posted_by,
   posted_by_name,
@@ -742,6 +901,9 @@ export const getCommunityUpdates =
           OR summary ILIKE ${placeholder}
           OR description ILIKE ${placeholder}
           OR venue ILIKE ${placeholder}
+          OR company_name ILIKE ${placeholder}
+          OR qualification ILIKE ${placeholder}
+          OR job_type ILIKE ${placeholder}
         )
       `);
     }
@@ -819,6 +981,7 @@ export const getCommunityUpdates =
           ${whereClause}
           ORDER BY
             event_date ASC NULLS LAST,
+            application_deadline ASC NULLS LAST,
             created_at DESC
           LIMIT $${dataValues.length - 1}
           OFFSET $${dataValues.length}
@@ -873,6 +1036,17 @@ export const createCommunityUpdate =
             official_website_url,
             video_url,
 
+            company_name,
+            job_type,
+            salary,
+            qualification,
+            experience,
+            application_deadline,
+            requirements,
+            responsibilities,
+            apply_url,
+            is_featured,
+
             posted_by,
             posted_by_name,
             status,
@@ -912,6 +1086,17 @@ export const createCommunityUpdate =
             $26,
             $27,
             $28,
+            $29,
+            $30,
+            $31,
+            $32,
+            $33,
+
+            $34,
+            $35,
+            $36,
+            $37,
+            $38,
             NOW(),
             NOW()
           )
@@ -919,7 +1104,10 @@ export const createCommunityUpdate =
             ${SELECT_COLUMNS}
         `,
         [
-          // Existing fields
+          // ====================================================
+          // EXISTING FIELDS
+          // ====================================================
+
           input.category,
 
           input.title,
@@ -959,7 +1147,10 @@ export const createCommunityUpdate =
           input.imageUrl ||
             "",
 
-          // Government scheme fields
+          // ====================================================
+          // GOVERNMENT SCHEME FIELDS
+          // ====================================================
+
           input.eligibility ||
             "",
 
@@ -985,7 +1176,48 @@ export const createCommunityUpdate =
           input.videoUrl ||
             "",
 
-          // Existing ownership fields
+          // ====================================================
+          // JOB & OPPORTUNITY FIELDS
+          // ====================================================
+
+          input.companyName ||
+            "",
+
+          input.jobType ||
+            "",
+
+          input.salary ||
+            "",
+
+          input.qualification ||
+            "",
+
+          input.experience ||
+            "",
+
+          input.applicationDeadline ||
+            null,
+
+          JSON.stringify(
+            input.requirements ||
+              [],
+          ),
+
+          JSON.stringify(
+            input.responsibilities ||
+              [],
+          ),
+
+          input.applyUrl ||
+            "",
+
+          input.isFeatured ??
+            false,
+
+          // ====================================================
+          // OWNERSHIP / STATUS
+          // ====================================================
+
           input.postedBy,
 
           input.postedByName,
@@ -1277,6 +1509,115 @@ export const updateCommunityUpdate =
       addField(
         "video_url",
         input.videoUrl,
+      );
+    }
+
+    // ========================================================
+    // JOB & OPPORTUNITY FIELDS
+    // ========================================================
+
+    if (
+      input.companyName !==
+      undefined
+    ) {
+      addField(
+        "company_name",
+        input.companyName,
+      );
+    }
+
+    if (
+      input.jobType !==
+      undefined
+    ) {
+      addField(
+        "job_type",
+        input.jobType,
+      );
+    }
+
+    if (
+      input.salary !==
+      undefined
+    ) {
+      addField(
+        "salary",
+        input.salary,
+      );
+    }
+
+    if (
+      input.qualification !==
+      undefined
+    ) {
+      addField(
+        "qualification",
+        input.qualification,
+      );
+    }
+
+    if (
+      input.experience !==
+      undefined
+    ) {
+      addField(
+        "experience",
+        input.experience,
+      );
+    }
+
+    if (
+      input.applicationDeadline !==
+      undefined
+    ) {
+      addField(
+        "application_deadline",
+        input.applicationDeadline ||
+          null,
+      );
+    }
+
+    if (
+      input.requirements !==
+      undefined
+    ) {
+      addField(
+        "requirements",
+        JSON.stringify(
+          input.requirements,
+        ),
+      );
+    }
+
+    if (
+      input.responsibilities !==
+      undefined
+    ) {
+      addField(
+        "responsibilities",
+        JSON.stringify(
+          input.responsibilities,
+        ),
+      );
+    }
+
+    if (
+      input.applyUrl !==
+      undefined
+    ) {
+      addField(
+        "apply_url",
+        input.applyUrl,
+      );
+    }
+
+    if (
+      input.isFeatured !==
+      undefined
+    ) {
+      addField(
+        "is_featured",
+        input.isFeatured,
       );
     }
 
@@ -1581,6 +1922,9 @@ export const getPublicCommunityUpdates =
           OR summary ILIKE ${placeholder}
           OR description ILIKE ${placeholder}
           OR venue ILIKE ${placeholder}
+          OR company_name ILIKE ${placeholder}
+          OR qualification ILIKE ${placeholder}
+          OR job_type ILIKE ${placeholder}
         )
       `);
     }
@@ -1745,6 +2089,7 @@ export const getPublicCommunityUpdates =
           ${whereClause}
           ORDER BY
             event_date ASC NULLS LAST,
+            application_deadline ASC NULLS LAST,
             created_at DESC
           LIMIT $${dataValues.length - 1}
           OFFSET $${dataValues.length}

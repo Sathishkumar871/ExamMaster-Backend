@@ -61,6 +61,13 @@ import communityUpdateRoutes from "./routes/communityUpdateRoutes";
 import publicCommunityUpdateRoutes from "./routes/publicCommunityUpdateRoutes";
 
 // ============================================================
+// JANASEVA HEALTH ROUTES
+// ============================================================
+
+import janasevaHealthRouter from "./routes/janasevaHealth";
+import janasevaHealthImageRouter from "./routes/janasevaHealthImage";
+
+// ============================================================
 // SERVICES
 // ============================================================
 
@@ -202,7 +209,6 @@ app.use(
 );
 
 // ============================================================
-// ============================================================
 // STAFF AUTH
 //
 // IMPORTANT:
@@ -214,7 +220,6 @@ app.use(
 // Otherwise the broad staff router may capture:
 //
 // /api/staff/auth/...
-// ============================================================
 // ============================================================
 
 app.use(
@@ -485,6 +490,32 @@ app.use(
 );
 
 // ============================================================
+// JANASEVA HEALTH ASSISTANT
+//
+// Full endpoint:
+//
+// POST /api/janaseva/health-assistant
+// ============================================================
+
+app.use(
+  "/api",
+  janasevaHealthRouter,
+);
+
+// ============================================================
+// JANASEVA HEALTH IMAGE ASSISTANT
+//
+// Full endpoint:
+//
+// POST /api/janaseva/health-image
+// ============================================================
+
+app.use(
+  "/api",
+  janasevaHealthImageRouter,
+);
+
+// ============================================================
 // HEALTH CHECK
 // ============================================================
 
@@ -493,7 +524,8 @@ app.get(
   (_req, res) => {
     return res.status(200).json({
       success: true,
-      message: "ExamMaster API Running 🚀",
+      message:
+        "ExamMaster API Running 🚀",
       timestamp:
         new Date().toISOString(),
     });
@@ -571,7 +603,8 @@ app.use(
       message:
         err?.message ||
         "Internal Server Error",
-      path: req?.originalUrl,
+      path:
+        req?.originalUrl,
     });
   },
 );

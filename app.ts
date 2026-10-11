@@ -68,12 +68,23 @@ import janasevaHealthRouter from "./routes/janasevaHealth";
 import janasevaHealthImageRouter from "./routes/janasevaHealthImage";
 
 // ============================================================
+// SEPARATE ACTIVITIES MODULE
+// ============================================================
+
+import activityRoutes from "./routes/activityRoutes";
+
+// ============================================================
+// STAFF MEDIA ROUTES
+// ============================================================
+
+import staffMediaRoutes from "./routes/staffMediaRoutes";
+import publicMediaRoutes from "./routes/publicMediaRoutes";
+
+// ============================================================
 // SERVICES
 // ============================================================
 
-import {
-  publishScheduledMockTests,
-} from "./services/mockTestPublisher";
+import { publishScheduledMockTests } from "./services/mockTestPublisher";
 
 // ============================================================
 // APP
@@ -93,22 +104,11 @@ app.set("trust proxy", 1);
 
 app.use(
   cors({
-    // Reflect request origin.
-    // This works for browser/frontend requests
+    // Reflect request origin. This works for browser/frontend requests
     // while still allowing credentials.
     origin: true,
-
     credentials: true,
-
-    methods: [
-      "GET",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "OPTIONS",
-    ],
-
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",
       "Authorization",
@@ -135,12 +135,7 @@ app.options(
 // BODY PARSERS
 // ============================================================
 
-app.use(
-  express.json({
-    limit: "10mb",
-  }),
-);
-
+app.use(express.json({ limit: "10mb" }));
 app.use(
   express.urlencoded({
     extended: true,
@@ -152,401 +147,225 @@ app.use(
 // REQUEST LOGGER
 // ============================================================
 
-app.use(
-  (req, _res, next) => {
-    console.log(
-      `[REQUEST] ${req.method} ${req.originalUrl}`,
-    );
+app.use((req, _res, next) => {
+  console.log(`[REQUEST] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
-    next();
-  },
-);
+// ============================================================
+// ACTIVITIES API
+// Register before broad /api routers and before the 404 handler.
+// Full path: /api/activities/...
+// ============================================================
+
+app.use("/api/activities", activityRoutes);
+
+// ============================================================
+// PUBLIC STAFF MEDIA API
+// Full path: /api/media/public
+// Must be registered before any broad /api router and before 404.
+// ============================================================
+
+app.use("/api/media", publicMediaRoutes);
 
 // ============================================================
 // STUDENT API
 // ============================================================
 
-app.use(
-  "/api/student",
-  studentRoutes,
-);
-
-app.use(
-  "/api/otp",
-  otpRoutes,
-);
+app.use("/api/student", studentRoutes);
+app.use("/api/otp", otpRoutes);
 
 // ============================================================
 // RESULT API
 // ============================================================
 
-app.use(
-  "/api/results",
-  resultRoutes,
-);
-
-app.use(
-  "/api/result",
-  resultRoutes,
-);
+app.use("/api/results", resultRoutes);
+app.use("/api/result", resultRoutes);
 
 // ============================================================
 // TEACHER API
 // ============================================================
 
-app.use(
-  "/api/teacher",
-  teacherRoutes,
-);
+app.use("/api/teacher", teacherRoutes);
 
 // ============================================================
 // FACULTY API
 // ============================================================
 
-app.use(
-  "/api/faculty",
-  facultyRoutes,
-);
+app.use("/api/faculty", facultyRoutes);
 
 // ============================================================
 // STAFF AUTH
-//
-// IMPORTANT:
-//
-// This must come BEFORE:
-//
-// /api/staff
-//
-// Otherwise the broad staff router may capture:
-//
-// /api/staff/auth/...
+// IMPORTANT: Must come before the broader /api/staff route.
 // ============================================================
 
-app.use(
-  "/api/staff/auth",
-  staffAuthRouter,
-);
+app.use("/api/staff/auth", staffAuthRouter);
+
+// ============================================================
+// STAFF MEDIA
+// IMPORTANT: Register before broader /api/staff routers.
+// Full paths include /api/staff/media/upload and /api/staff/media/:id.
+// ============================================================
+
+app.use("/api/staff/media", staffMediaRoutes);
 
 // ============================================================
 // STAFF AVAILABILITY / SLOTS
-//
-// IMPORTANT:
-//
-// This MUST come BEFORE:
-//
-// /api/staff
-//
-// Otherwise:
-//
-// /api/staff/availability/public/:date
-//
-// can be captured by staffRoutes and return
-// "Staff login required".
+// IMPORTANT: Must come before the broader /api/staff route.
 // ============================================================
 
-app.use(
-  "/api/staff/availability",
-  staffavailabilityRoutes,
-);
+app.use("/api/staff/availability", staffavailabilityRoutes);
 
 // ============================================================
 // STAFF VOLUNTEER MANAGEMENT
-//
-// Keep before broad /api/staff route.
+// Keep before the broader /api/staff route.
 // ============================================================
 
-app.use(
-  "/api/staff",
-  staffVolunteerRoutes,
-);
+app.use("/api/staff", staffVolunteerRoutes);
 
 // ============================================================
 // STAFF API
-//
-// BROAD /api/staff ROUTE
-//
-// Must come AFTER:
-// 1. /api/staff/auth
-// 2. /api/staff/availability
-// 3. other specific /api/staff routes
 // ============================================================
 
-app.use(
-  "/api/staff",
-  staffRoutes,
-);
+app.use("/api/staff", staffRoutes);
 
 // ============================================================
-// MENTOR API
+// MENTOR / MANAGER / HEAD APIs
 // ============================================================
 
-app.use(
-  "/api/mentor",
-  mentorRoutes,
-);
-
-// ============================================================
-// MANAGER API
-// ============================================================
-
-app.use(
-  "/api/manager",
-  managerRoutes,
-);
-
-// ============================================================
-// HEAD API
-// ============================================================
-
-app.use(
-  "/api/head",
-  headRoutes,
-);
+app.use("/api/mentor", mentorRoutes);
+app.use("/api/manager", managerRoutes);
+app.use("/api/head", headRoutes);
 
 // ============================================================
 // DAILY TEST API
 // ============================================================
 
-app.use(
-  "/api/daily-tests",
-  dailyTestRoutes,
-);
+app.use("/api/daily-tests", dailyTestRoutes);
 
 // ============================================================
 // QUESTIONS API
 // ============================================================
 
-app.use(
-  "/api/questions",
-  questionRoutes,
-);
-
-// ============================================================
-// SUBJECT API
-// ============================================================
-
-app.use(
-  "/api/subjects",
-  subjectRoutes,
-);
+app.use("/api/questions", questionRoutes);
+app.use("/api/subjects", subjectRoutes);
 
 // ============================================================
 // QUESTION BANK / AI STRATEGY
 // ============================================================
 
-app.use(
-  "/api/ai-strategy",
-  aiStrategyRoutes,
-);
-
-app.use(
-  "/api/academic",
-  academicRoutes,
-);
+app.use("/api/ai-strategy", aiStrategyRoutes);
+app.use("/api/academic", academicRoutes);
 
 // ============================================================
 // TESTS / PUBLISH API
 // ============================================================
 
-app.use(
-  "/api/tests",
-  testRoutes,
-);
-
-app.use(
-  "/api/mock-test",
-  mockTestRoutes,
-);
+app.use("/api/tests", testRoutes);
+app.use("/api/mock-test", mockTestRoutes);
 
 // ============================================================
 // STUDENT PROGRESS
 // ============================================================
 
-app.use(
-  "/api/student-progress",
-  studentProgressRoutes,
-);
+app.use("/api/student-progress", studentProgressRoutes);
 
 // ============================================================
 // COMPLAINT / LEADERBOARD API
 // ============================================================
 
-app.use(
-  "/api",
-  leaderboardRoutes,
-);
-
-app.use(
-  "/api/complaints",
-  complaintRoutes,
-);
-
-app.use(
-  "/api/department-feedback",
-  departmentFeedbackRoutes,
-);
+app.use("/api", leaderboardRoutes);
+app.use("/api/complaints", complaintRoutes);
+app.use("/api/department-feedback", departmentFeedbackRoutes);
 
 // ============================================================
 // LOCATION API
 // ============================================================
 
-app.use(
-  "/api/locations",
-  locationsRouter,
-);
+app.use("/api/locations", locationsRouter);
 
 // ============================================================
-// JANASEVA REGISTER
+// JANASEVA REGISTER / AUTH / PROFILE
 // ============================================================
 
-app.use(
-  "/api/janaseva",
-  janasevaRegisterRouter,
-);
-
-// ============================================================
-// JANASEVA AUTH
-// ============================================================
-
-app.use(
-  "/api/janaseva",
-  janasevaAuthRouter,
-);
-
-// ============================================================
-// JANASEVA PROFILE
-// ============================================================
-
-app.use(
-  "/api/janaseva",
-  janasevaProfileRouter,
-);
+app.use("/api/janaseva", janasevaRegisterRouter);
+app.use("/api/janaseva", janasevaAuthRouter);
+app.use("/api/janaseva", janasevaProfileRouter);
 
 // ============================================================
 // ADMIN AUTH
 // ============================================================
 
-app.use(
-  "/api/admin/auth",
-  adminAuthRouter,
-);
+app.use("/api/admin/auth", adminAuthRouter);
 
 // ============================================================
-// VOLUNTEER REGISTRATION
+// VOLUNTEER REGISTRATION / API
 // ============================================================
 
-app.use(
-  "/api/volunteers",
-  volunteerRegistrationRouter,
-);
-
-// ============================================================
-// VOLUNTEER API
-// ============================================================
-
-app.use(
-  "/api/volunteers",
-  volunteerRoutes,
-);
+app.use("/api/volunteers", volunteerRegistrationRouter);
+app.use("/api/volunteers", volunteerRoutes);
 
 // ============================================================
 // HOME HERO
 // ============================================================
 
-app.use(
-  "/api/home/hero",
-  homeHeroRouter,
-);
+app.use("/api/home/hero", homeHeroRouter);
 
 // ============================================================
 // APPOINTMENTS
 // ============================================================
 
-app.use(
-  "/api/appointments",
-  appointmentRoutes,
-);
+app.use("/api/appointments", appointmentRoutes);
 
 // ============================================================
-// COMMUNITY UPDATES
-//
-// VOLUNTEER SIDE
+// COMMUNITY UPDATES - VOLUNTEER SIDE
 // ============================================================
 
-app.use(
-  "/api/volunteer/community-updates",
-  communityUpdateRoutes,
-);
+app.use("/api/volunteer/community-updates", communityUpdateRoutes);
 
 // ============================================================
-// COMMUNITY UPDATES
-//
-// PUBLIC USER SIDE
+// COMMUNITY UPDATES - PUBLIC USER SIDE
 // ============================================================
 
-app.use(
-  "/api/community-updates",
-  publicCommunityUpdateRoutes,
-);
+app.use("/api/community-updates", publicCommunityUpdateRoutes);
 
 // ============================================================
 // JANASEVA HEALTH ASSISTANT
-//
-// Full endpoint:
-//
-// POST /api/janaseva/health-assistant
+// Full endpoint: POST /api/janaseva/health-assistant
 // ============================================================
 
-app.use(
-  "/api",
-  janasevaHealthRouter,
-);
+app.use("/api", janasevaHealthRouter);
 
 // ============================================================
 // JANASEVA HEALTH IMAGE ASSISTANT
-//
-// Full endpoint:
-//
-// POST /api/janaseva/health-image
+// Full endpoint: POST /api/janaseva/health-image
 // ============================================================
 
-app.use(
-  "/api",
-  janasevaHealthImageRouter,
-);
+app.use("/api", janasevaHealthImageRouter);
 
 // ============================================================
 // HEALTH CHECK
 // ============================================================
 
-app.get(
-  "/",
-  (_req, res) => {
-    return res.status(200).json({
-      success: true,
-      message:
-        "ExamMaster API Running 🚀",
-      timestamp:
-        new Date().toISOString(),
-    });
-  },
-);
+app.get("/", (_req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: "ExamMaster API Running 🚀",
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // ============================================================
 // API HEALTH
 // ============================================================
 
-app.get(
-  "/api/health",
-  (_req, res) => {
-    return res.status(200).json({
-      success: true,
-      message: "API is healthy",
-      timestamp:
-        new Date().toISOString(),
-    });
-  },
-);
+app.get("/api/health", (_req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: "API is healthy",
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // ============================================================
 // MOCK TEST AUTO PUBLISHER
@@ -554,29 +373,22 @@ app.get(
 
 publishScheduledMockTests();
 
-setInterval(
-  publishScheduledMockTests,
-  30 * 1000,
-);
+setInterval(publishScheduledMockTests, 30 * 1000);
 
 // ============================================================
 // 404 API HANDLER
+// Keep last, after all route registrations.
 // ============================================================
 
-app.use(
-  (req, res) => {
-    console.warn(
-      `[404] ${req.method} ${req.originalUrl}`,
-    );
+app.use((req, res) => {
+  console.warn(`[404] ${req.method} ${req.originalUrl}`);
 
-    return res.status(404).json({
-      success: false,
-      message:
-        "API route not found",
-      path: req.originalUrl,
-    });
-  },
-);
+  return res.status(404).json({
+    success: false,
+    message: "API route not found",
+    path: req.originalUrl,
+  });
+});
 
 // ============================================================
 // ERROR HANDLER
@@ -589,22 +401,14 @@ app.use(
     res: any,
     _next: any,
   ) => {
-    console.error(
-      "SERVER ERROR:",
-      err,
-    );
+    console.error("SERVER ERROR:", err);
 
     return res.status(
-      err?.statusCode ||
-        err?.status ||
-        500,
+      err?.statusCode || err?.status || 500,
     ).json({
       success: false,
-      message:
-        err?.message ||
-        "Internal Server Error",
-      path:
-        req?.originalUrl,
+      message: err?.message || "Internal Server Error",
+      path: req?.originalUrl,
     });
   },
 );

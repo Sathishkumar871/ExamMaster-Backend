@@ -15,50 +15,34 @@ const MAX_STAFF_DEVICES = 2;
    HELPERS
 ========================================================= */
 
-function normalizeMobile(
-  value: unknown,
-): string {
+function normalizeMobile(value: unknown): string {
   let mobile = String(value ?? "")
     .trim()
     .replace(/\D/g, "");
 
-  if (
-    mobile.length === 12 &&
-    mobile.startsWith("91")
-  ) {
+  if (mobile.length === 12 && mobile.startsWith("91")) {
     mobile = mobile.substring(2);
   }
 
   return mobile;
 }
 
-function normalizeDeviceId(
-  value: unknown,
-): string {
-  return typeof value === "string"
-    ? value.trim()
-    : "";
+function normalizeDeviceId(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
 }
 
-function isValidIndianMobile(
-  mobile: string,
-): boolean {
-  return /^[6-9][0-9]{9}$/.test(
-    mobile,
-  );
+function isValidIndianMobile(mobile: string): boolean {
+  return /^[6-9][0-9]{9}$/.test(mobile);
 }
 
 function createStaffToken(
   userId: string,
   sessionId: string,
-) {
-  const secret =
-    process.env.JWT_SECRET;
+): string {
+  const secret = process.env.JWT_SECRET;
 
   if (!secret) {
-    throw new Error(
-      "JWT_SECRET is not configured",
-    );
+    throw new Error("JWT_SECRET is not configured");
   }
 
   return jwt.sign(
@@ -75,55 +59,73 @@ function createStaffToken(
   );
 }
 
+function sendLoginSuccess(
+  res: Response,
+  staff: any,
+  sessionId: string,
+) {
+  const token = createStaffToken(
+    String(staff._id),
+    sessionId,
+  );
+
+  return res.status(200).json({
+    success: true,
+    message: "Staff login successful.",
+    token,
+    user: {
+      id: String(staff._id),
+      name: staff.name,
+      mobile: staff.mobile,
+      designation: staff.designation,
+      role: staff.role,
+      isActive: staff.isActive,
+      activeDevices: staff.sessions?.length ?? 0,
+      maxDevices: MAX_STAFF_DEVICES,
+    },
+  });
+}
+
 /* =========================================================
    STAFF LOGIN
    POST /api/staff/auth/login
+
+   Policy:
+   - Maximum two active device sessions.
+   - Logging in on a third device removes the oldest session.
+   - The newest two sessions remain registered.
 ========================================================= */
 
 export async function staffLogin(
   req: Request,
   res: Response,
-) {
+): Promise<any> {
   try {
-    const {
-      mobile,
-      password,
-      deviceId,
-    } = req.body;
+    const normalizedMobile = normalizeMobile(
+      req.body?.mobile,
+    );
 
-    const normalizedMobile =
-      normalizeMobile(mobile);
+    const password = req.body?.password;
 
-    const normalizedDeviceId =
-      normalizeDeviceId(deviceId);
+    const normalizedDeviceId = normalizeDeviceId(
+      req.body?.deviceId,
+    );
 
-    /* =====================================================
-       VALIDATION
-    ===================================================== */
+    /* VALIDATION */
 
-    if (
-      !isValidIndianMobile(
-        normalizedMobile,
-      )
-    ) {
+    if (!isValidIndianMobile(normalizedMobile)) {
       return res.status(400).json({
         success: false,
         field: "mobile",
-        message:
-          "Enter a valid 10-digit Indian mobile number.",
+        message: "Enter a valid 10-digit Indian mobile number.",
       });
     }
 
-    if (
-      typeof password !==
-        "string" ||
-      !password.trim()
-    ) {
+    if (typeof password !== "string" || !password.trim()) {
       return res.status(400).json({
         success: false,
         field: "password",
-        message:
-          "Password is required.",
+        message: "Password is required.",
       });
     }
 
@@ -131,285 +133,161 @@ export async function staffLogin(
       return res.status(400).json({
         success: false,
         field: "deviceId",
-        message:
-          "Device ID is required.",
+        message: "Device ID is required.",
       });
     }
 
-    /* =====================================================
-       FIND STAFF
-    ===================================================== */
+    /* FIND STAFF */
 
-    const staff =
-      await JanasevaStaff.findOne({
-        mobile:
-          normalizedMobile,
-        role: "staff",
-        isActive: true,
-      }).select("+password");
+    const staff = await JanasevaStaff.findOne({
+      mobile: normalizedMobile,
+      role: "staff",
+      isActive: true,
+    }).select("+password");
 
     if (!staff) {
       return res.status(401).json({
         success: false,
-        message:
-          "Invalid mobile number or password.",
+        message: "Invalid mobile number or password.",
       });
     }
 
-    /* =====================================================
-       PASSWORD CHECK
-    ===================================================== */
+    /* CHECK PASSWORD */
 
-    const passwordMatches =
-      await bcrypt.compare(
-        password,
-        staff.password,
-      );
+    const passwordMatches = await bcrypt.compare(
+      password,
+      staff.password,
+    );
 
     if (!passwordMatches) {
       return res.status(401).json({
         success: false,
-        message:
-          "Invalid mobile number or password.",
+        message: "Invalid mobile number or password.",
       });
     }
 
-    /* =====================================================
-       SAME DEVICE LOGIN
-    ===================================================== */
+    const currentSessions = staff.sessions ?? [];
 
-    const existingSession =
-      staff.sessions.find(
-        (session) =>
-          session.deviceId ===
-          normalizedDeviceId,
-      );
+    /* SAME DEVICE LOGIN */
+
+    const existingSession = currentSessions.find(
+      (session) =>
+        session.deviceId === normalizedDeviceId,
+    );
 
     if (existingSession) {
-      existingSession.lastActiveAt =
-        new Date();
-
-      staff.lastLoginAt =
-        new Date();
+      existingSession.lastActiveAt = new Date();
+      staff.lastLoginAt = new Date();
 
       await staff.save();
 
-      const token =
-        createStaffToken(
-          staff._id.toString(),
-          existingSession.sessionId,
-        );
-
-      return res.status(200).json({
-        success: true,
-        message:
-          "Staff login successful.",
-
-        token,
-
-        user: {
-          id: staff._id.toString(),
-          name: staff.name,
-          mobile: staff.mobile,
-          designation:
-            staff.designation,
-          role: staff.role,
-          isActive:
-            staff.isActive,
-
-          activeDevices:
-            staff.sessions.length,
-
-          maxDevices:
-            MAX_STAFF_DEVICES,
-        },
-      });
+      return sendLoginSuccess(
+        res,
+        staff,
+        existingSession.sessionId,
+      );
     }
 
-    /* =====================================================
-       NEW DEVICE LIMIT
-    ===================================================== */
+    /* CREATE A NEW DEVICE SESSION */
 
-    if (
-      staff.sessions.length >=
-      MAX_STAFF_DEVICES
-    ) {
-      return res.status(403).json({
-        success: false,
-        code:
-          "STAFF_DEVICE_LIMIT_REACHED",
-
-        message:
-          "This Staff account is already active on 2 devices. Logout from one device before using another device.",
-
-        activeDevices:
-          staff.sessions.length,
-
-        maxDevices:
-          MAX_STAFF_DEVICES,
-      });
-    }
-
-    /* =====================================================
-       CREATE NEW SESSION
-    ===================================================== */
-
-    const sessionId =
-      randomUUID();
-
-    const now =
-      new Date();
+    const sessionId = randomUUID();
+    const now = new Date();
 
     /*
-     * Atomic update prevents a third session
-     * when two login requests happen together.
+     * Atomic update:
+     * Add the new session to the end of the array.
+     * Keep only the newest MAX_STAFF_DEVICES entries.
+     * Older entries are removed from the database.
+     *
+     * This also avoids the previous hard block when
+     * the account already has two device sessions.
      */
-    const updatedStaff =
-      await JanasevaStaff.findOneAndUpdate(
-        {
-          _id: staff._id,
-          role: "staff",
-          isActive: true,
 
-          "sessions.deviceId": {
-            $ne:
-              normalizedDeviceId,
-          },
+    const updatedStaff = await JanasevaStaff.findOneAndUpdate(
+      {
+        _id: staff._id,
+        role: "staff",
+        isActive: true,
 
-          $expr: {
-            $lt: [
+        // Avoid creating a duplicate session for the same device.
+        "sessions.deviceId": {
+          $ne: normalizedDeviceId,
+        },
+      },
+      {
+        $push: {
+          sessions: {
+            $each: [
               {
-                $size: {
-                  $ifNull: [
-                    "$sessions",
-                    [],
-                  ],
-                },
+                sessionId,
+                deviceId: normalizedDeviceId,
+                createdAt: now,
+                lastActiveAt: now,
               },
-              MAX_STAFF_DEVICES,
             ],
+            $slice: -MAX_STAFF_DEVICES,
           },
         },
-
-        {
-          $push: {
-            sessions: {
-              sessionId,
-              deviceId:
-                normalizedDeviceId,
-              createdAt: now,
-              lastActiveAt: now,
-            },
-          },
-
-          $set: {
-            lastLoginAt: now,
-          },
+        $set: {
+          lastLoginAt: now,
         },
+      },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
 
-        {
-          new: true,
-        },
-      );
-
-    /* =====================================================
-       LIMIT REACHED DURING REQUEST
-    ===================================================== */
+    /* HANDLE A CONCURRENT LOGIN FROM THE SAME DEVICE */
 
     if (!updatedStaff) {
-      const latestStaff =
-        await JanasevaStaff.findById(
-          staff._id,
-        );
+      const latestStaff = await JanasevaStaff.findById(
+        staff._id,
+      );
 
       if (
         latestStaff &&
-        latestStaff.sessions
-          .length >=
-          MAX_STAFF_DEVICES
+        latestStaff.isActive === true &&
+        latestStaff.role === "staff"
       ) {
-        return res.status(403).json({
-          success: false,
-          code:
-            "STAFF_DEVICE_LIMIT_REACHED",
+        const sameDeviceSession =
+          latestStaff.sessions?.find(
+            (session) =>
+              session.deviceId === normalizedDeviceId,
+          );
 
-          message:
-            "This Staff account is already active on 2 devices. Logout from one device before using another device.",
+        if (sameDeviceSession) {
+          sameDeviceSession.lastActiveAt = new Date();
 
-          activeDevices:
-            latestStaff.sessions
-              .length,
+          await latestStaff.save();
 
-          maxDevices:
-            MAX_STAFF_DEVICES,
-        });
+          return sendLoginSuccess(
+            res,
+            latestStaff,
+            sameDeviceSession.sessionId,
+          );
+        }
       }
 
       return res.status(409).json({
         success: false,
-        message:
-          "Unable to create Staff session. Please try again.",
+        message: "Unable to create Staff session. Please try again.",
       });
     }
 
-    /* =====================================================
-       CREATE JWT
-    ===================================================== */
+    /* RETURN THE NEW DEVICE SESSION */
 
-    const token =
-      createStaffToken(
-        updatedStaff._id.toString(),
-        sessionId,
-      );
-
-    /* =====================================================
-       SUCCESS
-    ===================================================== */
-
-    return res.status(200).json({
-      success: true,
-
-      message:
-        "Staff login successful.",
-
-      token,
-
-      user: {
-        id:
-          updatedStaff._id.toString(),
-
-        name:
-          updatedStaff.name,
-
-        mobile:
-          updatedStaff.mobile,
-
-        designation:
-          updatedStaff.designation,
-
-        role:
-          updatedStaff.role,
-
-        isActive:
-          updatedStaff.isActive,
-
-        activeDevices:
-          updatedStaff.sessions.length,
-
-        maxDevices:
-          MAX_STAFF_DEVICES,
-      },
-    });
-  } catch (error) {
-    console.error(
-      "❌ STAFF LOGIN ERROR:",
-      error,
+    return sendLoginSuccess(
+      res,
+      updatedStaff,
+      sessionId,
     );
+  } catch (error) {
+    console.error("STAFF LOGIN ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Staff login failed.",
+      message: "Staff login failed.",
     });
   }
 }
@@ -418,81 +296,61 @@ export async function staffLogin(
    STAFF LOGOUT
    POST /api/staff/auth/logout
 
-   Removes ONLY current device session.
+   Removes only the current session.
 ========================================================= */
 
 export async function staffLogout(
   req: PortalAuthenticatedRequest,
   res: Response,
-) {
+): Promise<any> {
   try {
-    const portalUser =
-      req.portalUser;
+    const portalUser = req.portalUser;
 
     if (!portalUser) {
       return res.status(401).json({
         success: false,
-        message:
-          "Unauthorized.",
+        message: "Unauthorized.",
       });
     }
 
-    if (
-      portalUser.role !==
-      "staff"
-    ) {
+    if (portalUser.role !== "staff") {
       return res.status(403).json({
         success: false,
-        message:
-          "Staff access required.",
+        message: "Staff access required.",
       });
     }
 
-    const result =
-      await JanasevaStaff.updateOne(
-        {
-          _id:
-            portalUser.userId,
-
-          role: "staff",
-        },
-
-        {
-          $pull: {
-            sessions: {
-              sessionId:
-                portalUser.sessionId,
-            },
+    const result = await JanasevaStaff.updateOne(
+      {
+        _id: portalUser.userId,
+        role: "staff",
+      },
+      {
+        $pull: {
+          sessions: {
+            sessionId: portalUser.sessionId,
           },
         },
-      );
+      },
+    );
 
-    if (
-      result.matchedCount === 0
-    ) {
+    if (result.matchedCount === 0) {
       return res.status(404).json({
         success: false,
-        message:
-          "Staff account not found.",
+        message: "Staff account not found.",
       });
     }
 
     return res.status(200).json({
       success: true,
-      message:
-        "Logged out from this device.",
+      message: "Logged out from this device.",
     });
   } catch (error) {
-    console.error(
-      "❌ STAFF LOGOUT ERROR:",
-      error,
-    );
+    console.error("STAFF LOGOUT ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Staff logout failed.",
+      message: "Staff logout failed.",
     });
   }
 }
-

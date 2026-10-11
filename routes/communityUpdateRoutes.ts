@@ -1,11 +1,13 @@
-import {
+import { Router } from "express";
+import type {
   NextFunction,
   Request,
+  RequestHandler,
   Response,
-  Router,
 } from "express";
 
 import jwt from "jsonwebtoken";
+import multer from "multer";
 
 import {
   createCommunityUpdate,
@@ -17,11 +19,66 @@ import {
   updateCommunityUpdate,
 } from "../controllers/communityUpdateController";
 
+import {
+  uploadCommunityUpdateImage,
+} from "../controllers/communityUpdateImageController";
+
 // ============================================================
 // ROUTER
 // ============================================================
 
 const router = Router();
+
+// ============================================================
+// IMAGE UPLOAD CONFIGURATION
+// ============================================================
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_IMAGE_SIZE,
+    files: 1,
+  },
+  fileFilter: (_req, file, callback) => {
+    if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+      callback(new Error("Only JPG, PNG, and WebP images are allowed."));
+      return;
+    }
+    callback(null, true);
+  },
+});
+
+// Convert Multer errors into a predictable JSON response.
+const parseCommunityImage: RequestHandler = (req, res, next) => {
+  imageUpload.single("image")(req, res, (error: unknown) => {
+    if (!error) {
+      next();
+      return;
+    }
+
+    const isTooLarge =
+      error instanceof multer.MulterError &&
+      error.code === "LIMIT_FILE_SIZE";
+
+    const message = isTooLarge
+      ? "Image must be 5 MB or smaller."
+      : error instanceof Error
+        ? error.message
+        : "Unable to process image upload.";
+
+    res.status(isTooLarge ? 413 : 400).json({
+      success: false,
+      message,
+    });
+  });
+};
 
 // ============================================================
 // TYPES
@@ -32,28 +89,21 @@ interface VolunteerToken {
   _id?: string;
   userId?: string;
   volunteerId?: string;
-
   name?: string;
-
   role?: string;
   status?: string;
-
   state?: string;
   district?: string;
   mandal?: string;
   village?: string;
-
   volunteer?: {
     id?: string;
     _id?: string;
-
     name?: string;
-
     state?: string;
     district?: string;
     mandal?: string;
     village?: string;
-
     role?: string;
     status?: string;
   };
@@ -65,8 +115,6 @@ type VolunteerRequest = Request & {
 
 // ============================================================
 // AUTH MIDDLEWARE
-//
-// All volunteer community-update routes use this middleware.
 // ============================================================
 
 const requireVolunteer = (
@@ -75,32 +123,16 @@ const requireVolunteer = (
   next: NextFunction,
 ): void => {
   try {
-    // --------------------------------------------------------
-    // AUTHORIZATION HEADER
-    // --------------------------------------------------------
+    const authorization = req.headers.authorization || "";
+    const [scheme, token] = authorization.split(" ");
 
-    const authorization =
-      req.headers.authorization || "";
-
-    const [scheme, token] =
-      authorization.split(" ");
-
-    if (
-      scheme !== "Bearer" ||
-      !token
-    ) {
+    if (scheme !== "Bearer" || !token) {
       res.status(401).json({
         success: false,
-        message:
-          "Volunteer authentication required.",
+        message: "Volunteer authentication required.",
       });
-
       return;
     }
-
-    // --------------------------------------------------------
-    // JWT SECRET
-    // --------------------------------------------------------
 
     const secret =
       process.env.JWT_SECRET ||
@@ -110,125 +142,60 @@ const requireVolunteer = (
     if (!secret) {
       res.status(500).json({
         success: false,
-        message:
-          "JWT secret is not configured.",
+        message: "JWT secret is not configured.",
       });
-
       return;
     }
 
-    // --------------------------------------------------------
-    // VERIFY TOKEN
-    // --------------------------------------------------------
-
-    const decoded =
-      jwt.verify(
-        token,
-        secret,
-      ) as VolunteerToken;
-
-    // --------------------------------------------------------
-    // ROLE
-    // --------------------------------------------------------
+    const decoded = jwt.verify(token, secret) as VolunteerToken;
 
     const role = String(
-      decoded.role ||
-        decoded.volunteer?.role ||
-        "",
-    )
-      .trim()
-      .toLowerCase();
+      decoded.role || decoded.volunteer?.role || "",
+    ).trim().toLowerCase();
 
-    if (
-      role &&
-      role !== "volunteer"
-    ) {
+    if (role && role !== "volunteer") {
       res.status(403).json({
         success: false,
-        message:
-          "Only approved volunteers can manage community updates.",
+        message: "Only approved volunteers can manage community updates.",
       });
-
       return;
     }
-
-    // --------------------------------------------------------
-    // STATUS
-    // --------------------------------------------------------
-    //
-    // Existing volunteer authentication may not always put
-    // status in the token. Therefore:
-    //
-    // status missing -> allow token through
-    // status pending/rejected -> block
-    // status approved -> allow
-    //
-    // --------------------------------------------------------
 
     const status = String(
-      decoded.status ||
-        decoded.volunteer?.status ||
-        "",
-    )
-      .trim()
-      .toLowerCase();
+      decoded.status || decoded.volunteer?.status || "",
+    ).trim().toLowerCase();
 
-    if (
-      status &&
-      status !== "approved"
-    ) {
-      if (
-        status === "pending"
-      ) {
+    if (status && status !== "approved") {
+      if (status === "pending") {
         res.status(403).json({
           success: false,
-          message:
-            "Your volunteer account is still under review.",
+          message: "Your volunteer account is still under review.",
         });
-
         return;
       }
 
-      if (
-        status === "rejected"
-      ) {
+      if (status === "rejected") {
         res.status(403).json({
           success: false,
-          message:
-            "Your volunteer account has been rejected.",
+          message: "Your volunteer account has been rejected.",
         });
-
         return;
       }
 
       res.status(403).json({
         success: false,
-        message:
-          "Your volunteer account is not approved.",
+        message: "Your volunteer account is not approved.",
       });
-
       return;
     }
 
-    // --------------------------------------------------------
-    // SAVE VERIFIED TOKEN
-    // --------------------------------------------------------
-
-    (
-      req as VolunteerRequest
-    ).volunteer = decoded;
-
+    (req as VolunteerRequest).volunteer = decoded;
     next();
   } catch (error) {
-    console.error(
-      "[COMMUNITY UPDATE AUTH ERROR]",
-      error,
-    );
-
+    console.error("[COMMUNITY UPDATE AUTH ERROR]", error);
     res.status(401).json({
       success: false,
-      message:
-        "Invalid or expired volunteer token.",
+      message: "Invalid or expired volunteer token.",
     });
   }
 };
@@ -237,112 +204,63 @@ const requireVolunteer = (
 // VOLUNTEER COMMUNITY UPDATE ROUTES
 // ============================================================
 
-// ------------------------------------------------------------
-// GET ALL OWN UPDATES
-//
-// GET
-// /api/volunteer/community-updates
-//
-// Query examples:
-//
-// ?category=medical
-// ?category=education
-// ?category=government_scheme
-// ?category=jobs
-// ?category=youth_meeting
-//
-// ?status=draft
-// ?status=published
-//
-// ?search=camp
-// ------------------------------------------------------------
+// Upload image to Cloudinary using backend credentials.
+// Multipart field name must be `image`.
+// POST /api/volunteer/community-updates/upload-image
+router.post(
+  "/upload-image",
+  requireVolunteer,
+  parseCommunityImage,
+  uploadCommunityUpdateImage,
+);
 
+// GET all of the signed-in volunteer's updates.
 router.get(
   "/",
   requireVolunteer,
   getVolunteerCommunityUpdates,
 );
 
-// ------------------------------------------------------------
-// GET SINGLE OWN UPDATE
-//
-// GET
-// /api/volunteer/community-updates/:id
-// ------------------------------------------------------------
-
+// GET one update owned by the signed-in volunteer.
 router.get(
   "/:id",
   requireVolunteer,
   getVolunteerCommunityUpdateById,
 );
 
-// ------------------------------------------------------------
-// CREATE
-//
-// POST
-// /api/volunteer/community-updates
-// ------------------------------------------------------------
-
+// Create an update.
 router.post(
   "/",
   requireVolunteer,
   createCommunityUpdate,
 );
 
-// ------------------------------------------------------------
-// UPDATE
-//
-// PUT
-// /api/volunteer/community-updates/:id
-// ------------------------------------------------------------
-
+// Update an existing update.
 router.put(
   "/:id",
   requireVolunteer,
   updateCommunityUpdate,
 );
 
-// ------------------------------------------------------------
-// DELETE
-//
-// DELETE
-// /api/volunteer/community-updates/:id
-// ------------------------------------------------------------
-
+// Delete an update.
 router.delete(
   "/:id",
   requireVolunteer,
   deleteCommunityUpdate,
 );
 
-// ------------------------------------------------------------
-// PUBLISH
-//
-// PATCH
-// /api/volunteer/community-updates/:id/publish
-// ------------------------------------------------------------
-
+// Publish an update.
 router.patch(
   "/:id/publish",
   requireVolunteer,
   publishCommunityUpdate,
 );
 
-// ------------------------------------------------------------
-// UNPUBLISH
-//
-// PATCH
-// /api/volunteer/community-updates/:id/unpublish
-// ------------------------------------------------------------
-
+// Unpublish an update.
 router.patch(
   "/:id/unpublish",
   requireVolunteer,
   unpublishCommunityUpdate,
 );
-
-// ============================================================
-// EXPORT
-// ============================================================
 
 export default router;

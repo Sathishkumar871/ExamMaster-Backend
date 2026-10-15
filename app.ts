@@ -1,3 +1,4 @@
+
 import express from "express";
 import cors from "cors";
 
@@ -61,6 +62,12 @@ import communityUpdateRoutes from "./routes/communityUpdateRoutes";
 import publicCommunityUpdateRoutes from "./routes/publicCommunityUpdateRoutes";
 
 // ============================================================
+// KAMBALA SEVA UPDATES ROUTES
+// ============================================================
+
+import updatesRouter from "./routes/updatesRoutes";
+
+// ============================================================
 // JANASEVA HEALTH ROUTES
 // ============================================================
 
@@ -68,12 +75,10 @@ import janasevaHealthRouter from "./routes/janasevaHealth";
 import janasevaHealthImageRouter from "./routes/janasevaHealthImage";
 
 // ============================================================
-// SEPARATE ACTIVITIES MODULE
+// ACTIVITIES MODULE
 // ============================================================
 
 import activityRoutes from "./routes/activityRoutes";
-import updatesRouter from './routes/updatesRoutes';
-
 
 // ============================================================
 // STAFF MEDIA ROUTES
@@ -106,8 +111,6 @@ app.set("trust proxy", 1);
 
 app.use(
   cors({
-    // Reflect request origin. This works for browser/frontend requests
-    // while still allowing credentials.
     origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -138,6 +141,7 @@ app.options(
 // ============================================================
 
 app.use(express.json({ limit: "10mb" }));
+
 app.use(
   express.urlencoded({
     extended: true,
@@ -156,7 +160,6 @@ app.use((req, _res, next) => {
 
 // ============================================================
 // ACTIVITIES API
-// Register before broad /api routers and before the 404 handler.
 // Full path: /api/activities/...
 // ============================================================
 
@@ -165,7 +168,6 @@ app.use("/api/activities", activityRoutes);
 // ============================================================
 // PUBLIC STAFF MEDIA API
 // Full path: /api/media/public
-// Must be registered before any broad /api router and before 404.
 // ============================================================
 
 app.use("/api/media", publicMediaRoutes);
@@ -198,29 +200,25 @@ app.use("/api/faculty", facultyRoutes);
 
 // ============================================================
 // STAFF AUTH
-// IMPORTANT: Must come before the broader /api/staff route.
+// Register before broader /api/staff routes.
 // ============================================================
 
 app.use("/api/staff/auth", staffAuthRouter);
 
 // ============================================================
 // STAFF MEDIA
-// IMPORTANT: Register before broader /api/staff routers.
-// Full paths include /api/staff/media/upload and /api/staff/media/:id.
 // ============================================================
 
 app.use("/api/staff/media", staffMediaRoutes);
 
 // ============================================================
-// STAFF AVAILABILITY / SLOTS
-// IMPORTANT: Must come before the broader /api/staff route.
+// STAFF AVAILABILITY
 // ============================================================
 
 app.use("/api/staff/availability", staffavailabilityRoutes);
 
 // ============================================================
 // STAFF VOLUNTEER MANAGEMENT
-// Keep before the broader /api/staff route.
 // ============================================================
 
 app.use("/api/staff", staffVolunteerRoutes);
@@ -330,7 +328,27 @@ app.use("/api/volunteer/community-updates", communityUpdateRoutes);
 // ============================================================
 
 app.use("/api/community-updates", publicCommunityUpdateRoutes);
-app.use('/api/volunteer/portal-updates', updatesRouter);
+
+// ============================================================
+// KAMBALA SEVA UPDATES
+//
+// Public updates:
+// GET    /api/updates/public
+//
+// Admin management:
+// GET    /api/updates
+// GET    /api/updates/:id
+// POST   /api/updates
+// PUT    /api/updates/:id
+// PATCH  /api/updates/:id/publish
+// DELETE /api/updates/:id
+//
+// Volunteer portal:
+// /api/volunteer/portal-updates/...
+// ============================================================
+
+app.use("/api/updates", updatesRouter);
+app.use("/api/volunteer/portal-updates", updatesRouter);
 
 // ============================================================
 // JANASEVA HEALTH ASSISTANT

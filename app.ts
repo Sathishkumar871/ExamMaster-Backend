@@ -72,6 +72,8 @@ import janasevaHealthImageRouter from "./routes/janasevaHealthImage";
 // ============================================================
 
 import activityRoutes from "./routes/activityRoutes";
+import updatesRouter from './routes/updatesRoutes';
+
 
 // ============================================================
 // STAFF MEDIA ROUTES
@@ -328,6 +330,7 @@ app.use("/api/volunteer/community-updates", communityUpdateRoutes);
 // ============================================================
 
 app.use("/api/community-updates", publicCommunityUpdateRoutes);
+app.use('/api/volunteer/portal-updates', updatesRouter);
 
 // ============================================================
 // JANASEVA HEALTH ASSISTANT
